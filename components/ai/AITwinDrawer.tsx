@@ -1,21 +1,18 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { useAppStore, ChatMessage } from '@/lib/store';
 import { useAITwin } from '@/hooks/useAITwin';
 import {
   X,
   Send,
   Sparkles,
-  Bot,
   User,
   Trash2,
   Cpu,
   FileText,
-  Radio,
-  CheckCircle2,
-  HelpCircle,
-  ExternalLink
+  Radio
 } from 'lucide-react';
 
 const SUGGESTED_PROMPTS = [
@@ -76,12 +73,17 @@ export function AITwinDrawer() {
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-cyan-950 border border-cyan-800 text-cyan-400">
-              <Bot className="w-5 h-5" />
+            <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-cyan-400 shadow-[0_0_15px_rgba(56,189,248,0.4)] shrink-0">
+              <Image
+                src="/avatar.jpg"
+                alt="Sathyanantham V"
+                fill
+                className="object-cover"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-white tracking-tight">AI Digital Twin</h3>
+                <h3 className="text-sm font-bold text-white tracking-tight">Sathyanantham AI Twin</h3>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
                   RAG Active
                 </span>
@@ -142,7 +144,7 @@ export function AITwinDrawer() {
               key={msg.id}
               className={`flex flex-col gap-1.5 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
-              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+              <div className="flex items-center gap-2 text-[10px] text-slate-400">
                 {msg.role === 'user' ? (
                   <>
                     <span>Visitor</span>
@@ -150,7 +152,9 @@ export function AITwinDrawer() {
                   </>
                 ) : (
                   <>
-                    <Bot className="w-3 h-3 text-cyan-400" />
+                    <div className="relative w-4 h-4 rounded-full overflow-hidden border border-cyan-400 shrink-0">
+                      <Image src="/avatar.jpg" alt="Sathyanantham" fill className="object-cover" />
+                    </div>
                     <span>{msg.senderName || 'Sathyanantham AI Twin'}</span>
                     <span className="text-slate-500 font-mono">{msg.timestamp}</span>
                   </>
@@ -164,12 +168,12 @@ export function AITwinDrawer() {
                     : 'bg-slate-800/90 border border-slate-700/60 rounded-tl-none font-normal'
                 }`}
               >
-                {/* Render markdown/text lines */}
+                {/* Render text lines */}
                 <div className="whitespace-pre-wrap">{msg.content}</div>
 
                 {/* Sources & Citations */}
                 {msg.sources && msg.sources.length > 0 && (
-                  <div className="mt-3 pt-2 border-t border-slate-700/60 flex items-center gap-1.5 text-[10px] text-cyan-400">
+                  <div className="mt-3 pt-2 border-t border-slate-700/60 flex items-center gap-1.5 text-[10px] text-cyan-400 font-mono">
                     <FileText className="w-3 h-3" />
                     <span>RAG Source: {msg.sources.join(', ')}</span>
                   </div>

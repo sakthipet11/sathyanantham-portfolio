@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import { useAppStore } from '@/lib/store';
-import { Sparkles, Download, FileText } from 'lucide-react';
+import { Sparkles, Download } from 'lucide-react';
 import Link from 'next/link';
 
 export function Navbar() {
@@ -11,10 +12,15 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 py-4 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 transition-all duration-300">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
-        {/* Logo & Status */}
+        {/* Logo & Avatar */}
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="font-mono text-xs font-bold px-2.5 py-1 bg-cyan-950/80 text-cyan-400 border border-cyan-800/80 rounded group-hover:border-cyan-400 transition-colors">
-            SV.AI
+          <div className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-cyan-500/60 group-hover:border-cyan-400 shadow-[0_0_10px_rgba(56,189,248,0.3)] transition-colors shrink-0">
+            <Image
+              src="/avatar.jpg"
+              alt="Sathyanantham V"
+              fill
+              className="object-cover"
+            />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold text-white tracking-tight group-hover:text-cyan-400 transition-colors font-mono">
