@@ -55,10 +55,10 @@ export function useScrollReveal(options: ScrollRevealOptions = {}) {
   return { ref: setRef, isVisible: isVisible || hasAnimated, hasAnimated };
 }
 
-export function useInView(
+export function useInView<T extends HTMLElement = HTMLElement>(
   options: IntersectionObserverInit = {}
-): [React.RefObject<HTMLElement>, boolean] {
-  const ref = useRef<HTMLElement>(null);
+): [React.RefObject<T | null>, boolean] {
+  const ref = useRef<T | null>(null);
   const [isInView, setIsInView] = useState(false);
 
   useEffect(() => {
