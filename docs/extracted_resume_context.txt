@@ -1,0 +1,154 @@
+Sathyanantham V
+60, Cheran Avenue,
+Phase I,
+Kalapatt,
+Coimbatore, TN, India 641048
+Ph: +91.8870956756
+v.sathyanantham@gmail.com
+https://sathyanantham-career.herokuapp.com/
+Professional Summary
+Vision-driven change agent with career-long record of technical design, software development, and e-commerce optimization success for leading organizations
+Proven talent for aligning business strategy and objectives with established life science, food service & e-commerce and development management paradigms to achieve maximum operational impacts with minimum resource expenditures. Growth-focused thought leader with expertise spanning offshore communication, management development, training and mentoring, application optimization, technical design, testing and evaluation, technology solutions, cross-functional team leadership, performance assessment, client relationship management, and project management. Exceptional administrator with keen interpersonal, communication, and organizational skills.
+Career Snapshot
+Serve as Lead Developer and have garnered 11+ years of experience in developing the Large scale life science, food service, Ecommerce, Banking  & Order Management domain in Cloud Optimized Solutions and Web Application Development.
+Demonstrate passion in analyzing the business and technical requirements and converting into the working solutions.
+Worked on various web technologies, HTML5, CSS3, JQuery, JavaScript, Handlebars, Ajax, FTL(Freemarker Template), ReactJS, ExpressJS, NodeJS, Drupal theming and DX8, MongoDB, Vite config, NxtJs and Micro Front End Architecturess.
+Adept at learning and adapting to new technologies quickly.
+Strong team player; worked on most of the software development aspects like requirement analysis, resource planning, providing technical guidance, developing large scale modules and complex logics, testing, writing technical design documentation.
+Garnered excellent retail domain Knowledge
+Able to work independently by taking ownership of the tasks.
+Professional Experience
+Nextuple Private Ltd, Bangalore, Karnataka, India Aug 2022 to present
+SENIOR UI ENGINEER August 2022 to June 2023
+SENIOR SOFTWARE ENGINEER  June 2023 to present
+Cognizant, Coimbatore, Tamil Nadu, India,  November 2018 to Aug 2022
+SENIOR ASSOCIATENovember 2018 to  Aug 2022
+SKAVA Systems Private Ltd. (An Infosys Company), Coimbatore, Tamil Nadu, India,  February 2012 to November 2018
+DEV LEADMarch 2016 to November 2018
+SENIOR SOFTWARE ENGINEER, January 2015 to February 2016
+SOFTWARE ENGINEERFebruary 2014 to December 2015
+ASSOCIATE SOFTWARE ENGINEERFebruary 2012 to December 2013
+Education and Credentials
+Master of Computer Application, 2012 , scored 8.28%
+Dr.Mahalingam College of Engineering and Technology, Pollachi, Tamilnadu
+Bachelor of Science – Computer Science , 2009 , scored 78.51%
+Nallamuthu Gounder Mahalingam College, Pollachi, Tamilnadu
+Higher Secondary Course , 2006 , scored 81.91%
+Nallamuthu Gounder Nachimuthu Gounder Higher Secondary School, Reddiarur, Pollachi, Tamilnadu
+Secondary School Level Course , 2004 , scored 94.4%
+Nallamuthu Gounder Nachimuthu Gounder Higher Secondary School, Reddiarur, Pollachi, Tamilnadu
+Technical Skills
+Web Technologies: JavaScript, HTML5, CSS3, SASS, JQuery, Handlebars, NodeJS, FTL , AJAX, ReactJS, ExpressJS, Vite config, NxtJs and Micro Front End Architecture
+Strong knowledge of Drupal programming, DX8 and theming
+Build tools: Ant, maven, Web pack, Vite config
+Continuous integration tool: Hudson, Jenkins
+Testing Tools: Jest, React Test Library and, JSLint, ESLint
+Application Servers: Apache, Tomcat, NodeJS
+Data Base: MongoDB
+Bug Tracking Tools: Jira
+Operating Systems: Mac, Windows,IOS
+Debugging Tool: Fire bug, chrome dev tools, safari dev tools
+Tools/Utilities: Eclipse, Sublime, Jmeter, Fiddler, Photoshop, Sketch, Visual Studio Code
+Version control systems: CVS, GIT, Bitbucket, GITHub
+Project Details
+Nextuple Order Management System(SKU Ranking Service, picking, packing, staging app, Inventory and promise engine, nextuple hub web application )
+Channel: Web Application
+Technologies Used: Work as Full stack developer to Order management module to React.js, Jest, Node.js, JavaScript, React Native, HTML, CSS, and Micro Frontend architecture
+Role: lead software engineer
+Client: Nextuple, disk’s sports goods
+Responsibilities:
+Lead the architecture and development of scalable, high-performance frontend applications.
+Design and implement AI-powered UI automation, real-time collaboration tools, and intelligent design systems.
+Drive best practices in React.js, TypeScript, Redux, and modern frontend frameworks.
+Enhance UI modularity, extensibility, and maintainability for long-term scalability.
+Work closely with UI/UX designers to translate designs into pixel-perfect, responsive UIs.
+Implement AI-driven UX improvements, accessibility checks, and performance monitoring.
+Optimize UI performance through efficient rendering, lazy loading, and state management.
+Integrate with backend services, APIs, and cloud-based infrastructures for seamless functionality.
+Lead code reviews, mentorship, and technical strategy for the frontend team.
+Stay ahead of industry trends and incorporate AI, machine learning, and automation into UI development.
+US Bank (Login Help)
+Channel: responsive Site
+Technologies Used: Work as React JS UI developer to develop Login help module to using React JS, Jest, styleguidist, Transmit,  JavaScript, JQuery, HTML, CSS, SASS
+Role: senior associate
+Client: Bank
+Elevit & Bepanthan (https://www.bepanthenol.it/ & https://www.elevit.com.au/)
+Channel: responsive & multi localization Site(include 30+ sites)
+Technologies Used: Work as Drupal UI developer to develop content management using Drupal and acquia DX8
+, JavaScript, JQuery, HTML, CSS, SASS, ReactJs.
+Role: senior associate
+Client: BAYER
+HR CAREER(https://career.bayer.us/en)
+Channel: responsive & multi localization Site(include 30+ sites)
+Technologies Used: Work as Drupal UI developer to develop content management using Drupal
+, JavaScript, JQuery, HTML, CSS, SASS
+Role: senior associate
+Client: BAYER
+BAYER HMP(https://www.heavymenstrualbleeding.com/)
+Channel: responsive site & multi localization Site(include 2+ sites)
+Technologies Used: Work as Drupal UI developer to develop content management using Drupal, JavaScript, JQuery, HTML, CSS, SASS
+Role: senior associate
+Client: BAYER
+Responsibilities:
+Performed requirement analysis and drew up technical design documents
+Delivered the requirements to the offshore station.
+Rated and prioritized tasks and juggled team training.
+Participated in standup meetings and tech discussions, demonstrating the product.
+Completed code reviews and rectified P1 issues.
+food Service website with responsive & amp for Kraft(www.kraftrecipes.com)
+Channel: responsive site
+Technologies Used: JavaScript, JQuery, Handlebars, FTL, HTML, CSS, SASS, Ajax, Rest API integration for data, CMS.
+Role: Lead Developer
+Client: Kraft
+sportswear ecommerce website with responsive for adidas & reebook (shop.adidas.co.in, shop4reebok.com/)
+Channel: responsive site
+Technologies Used: ReactJS, ECMAScript 6, Bebel, Redex framework, Web pack, NodeJS, ExpressJS, MongoDB
+Role: Lead Developer
+Client: adidas & reebook
+food Service website with responsive for responsive for Kraft(http://kraftrecipes.com)
+Channel: responsive site
+Technologies Used: JavaScript, JQuery, Handlebars, FTL, HTML, CSS, SASS, Ajax, Rest API integration for data, CMS.
+Role: Lead Developer
+Client: Kraft
+Responsibilities:
+Performed requirement analysis and drew up technical design documents
+Delivered the requirements to the offshore station.
+Rated and prioritized tasks and juggled team training.
+Participated in standup meetings and tech discussions, demonstrating the product.
+Completed code reviews and rectified P1 issues.
+KOHLS Tablet (mobile.kohls.com)
+Channel: Tablet
+Technologies: JavaScript, JQuery, Handlebars, FTL, HTML, CSS, Ajax, Rest API integration for data, CMS.
+Role: Senior Software Engineer
+Client: Kohl’s
+Responsibilities:
+Evolved large scale modules such as Home, Category, Product list, Product, Offers, Shopping bag, Omni channel bag, Find in store, Pick up in store, List, Registry, Loyalty, Checkout, and My account.
+Directed a team of 7 members through code reviews and addressing P1 issues.
+KOHLS Mobile(m.kohls.com)
+Channel: Mobile
+Technologies Used: JavaScript, JQuery, Handlebars, FTL, HTML, CSS, SASS, Ajax, Rest API integration for data, CMS.
+Role: Senior Software Engineer
+Client: Kohl’s
+Responsibilities:
+Drew up large scale modules such as Home, Category, Product list, Product, Offers, Shopping bag, Omni channel bag, Find in store, Pick up in store, List, Registry, Loyalty, Checkout, and My account..
+Supervised a team of 8 members and steered them through Visa checkout integration in mobile and tablet site.
+Installed Checkout, my account, Bopus, Omniture , Google analytics Product page and Product list, List and registry module, Foresee and product recommendation.
+Executed V5 standardization Implementation.
+Toysrus Tablet And Mobile(m.toysrus.com and t.toysrus.com)
+Channel: Tablet And Mobile
+Technologies Used: JavaScript, JQuery, HTML, CSS, Ajax, CMS.
+Role: Software Engineer
+Client: Toysrus
+Responsibilities:
+Optimized small scale module Find in store.
+Awards and Honors
+Awarded as Top performer of the 2023 in Nexuple Private Ltd.
+Received Monthly Spot Award for delivering the critical timeline project on time, with good quality
+Received best performer award on 2019, 2020 performance Cycle in cognizant.
+Awarded as Skava Star Performer of the Year, 2013, 2015 for excellence in development
+Certified in Dot Net Technology in Apollo Computer Education LTD.
+Windows mobile phone 7 Training from Microsoft Dreamspark Yatra.
+Secured First place in “phoenix’11, EBET College, kangayam”, Web Designing event in 2011
+Additional Information
+Languages: English, Tamil (bilingual)
+Hobbies: Travelling, Exploring new cultures, Cricket, Movies.

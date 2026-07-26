@@ -1,0 +1,264 @@
+
+--- Page 1 ---
+SATHYANANTHAM V
+Lead Software Engineer | Frontend Architect | Enterprise UI Platforms | React.js Expert | Micro Frontend 
+Architecture | Technical Mentor | Generative AI Practitioner
+v.sathyanantham@gmail.com +91-8870956756 Coimbatore, Tamil Nadu, India Portfolio
+https:/ /www.linkedin.com/in/sathyanantham-v-646b911b
+Technical Skills
+Frontend Architecture
+Expert
+React.js, TypeScript, JavaScript (ES6+), 
+Next.js, HTML5, CSS3, SCSS, Redux 
+Toolkit, React Router, Vite, Webpack, 
+Micro Frontend Architecture, 
+Module Federation, UI Extensibility 
+Framework, Design Systems, 
+Responsive Web Applications, 
+Performance Optimization
+Backend (Working Experience)
+Advanced
+Node.js, Express.js, Spring Boot, 
+Python, REST APIs, Microservices, 
+PostgreSQL, MongoDB, Kafka, Redis
+Enterprise Platforms
+Advanced
+IBM Sterling OMS (Learning & 
+Production Contribution), IBM Call 
+Center, Order Management Systems, 
+Digital Commerce, Retail Solutions
+AI & Emerging Technologies
+Advanced
+Generative AI (Applied in Production), 
+Python (Applied for AI Integration), 
+Claude AI, Claude Skills, OpenAI 
+APIs, IBM AI Models, IBM watsonx.ai 
+(Learning), Prompt Engineering, AI 
+Agents, MCP (Model Context Protocol), 
+LangChain (Learning), RAG Concepts
+DevOps & Tools
+Professional Summary
+Lead Software Engineer with 13+ years of experience designing, 
+architecting, and delivering enterprise-scale frontend applications, 
+digital commerce platforms, and Order Management solutions. 
+Specialized in React.js, TypeScript, Enterprise UI Platforms, 
+Micro Frontend Architecture, and scalable frontend ecosystems 
+with extensive experience leading engineering teams, mentoring 
+developers, and driving technical architecture for global enterprise 
+clients. 
+Currently leading a team of 8 engineers, providing technical 
+leadership through architecture reviews, design discussions, code 
+reviews, engineering standards, and mentoring frontend and backend 
+developers. 
+Recently expanded into Generative AI by contributing to the 
+integration of an IBM AI-powered Chatbot for enterprise Call Center 
+and Order Management applications, supporting IBM Sterling OMS 
+customizations, developing Python-based AI integration services, and 
+building reusable Claude Skills that significantly improve engineering 
+productivity across frontend and backend teams.
+In addition to frontend architecture, contribute to backend 
+development using Node.js and Spring Boot, supporting enterprise 
+integrations and business services while continuing to strengthen 
+expertise in these technologies. Passionate about building reusable 
+engineering platforms, scalable frontend architectures, developer 
+productivity tools, and enterprise software that delivers measurable 
+business value.
+Professional Experience
+Nextuple Inc. August 2023 – Present
+Lead Software Engineer
+--- Page 2 ---
+Expert
+Git, Bitbucket, Jenkins, Docker, Maven, 
+Jira, SonarQube, VS Code, Eclipse
+Key Highlights
+Expert
+13+ Years of Software Engineering 
+Experience, Frontend Architecture 
+Specialist, Lead Software Engineer, 
+Team Lead (8 Engineers), Technical 
+Mentor, React.js Expert, TypeScript 
+Specialist, Enterprise UI Platforms, 
+Micro Frontend Architecture, Module 
+Federation, IBM Call Center 
+Integration, IBM Sterling OMS 
+(Production Experience & Learning), 
+Generative AI Practitioner, Python for 
+AI Integration, Claude Skills Creator, 
+AI-assisted Engineering Workflows, 
+Enterprise Order Management 
+Solutions, Performance Optimization, 
+Solution Design, Technical Leadership
+Technical Leadership
+Expert
+Lead a team of 8 engineers across 
+frontend and backend development, 
+Mentor engineers through technical 
+guidance, architecture discussions, 
+and code reviews, Define engineering 
+standards and reusable development 
+patterns, Drive frontend architecture 
+decisions for enterprise applications, 
+Collaborate with architects, product 
+owners, UX designers, QA teams, 
+and client stakeholders, Conduct 
+architecture reviews and technical 
+design sessions, Promote engineering 
+best practices and knowledge sharing, 
+Guide team members in adopting 
+modern frontend technologies and 
+AI-assisted development workflows
+Professional Strengths
+Expert
+Frontend Architecture, Technical 
+Leadership, Team Management, 
+Mentoring & Coaching, 
+Enterprise Solution Design, 
+Performance Optimization, Micro 
+Frontend Architecture, Engineering 
+Productivity, AI-assisted Development, 
+Technical Leadership:
+• Lead frontend architecture for enterprise Order Management and 
+commerce applications
+• Mentor a team of 8 engineers across frontend and backend 
+development
+• Establish engineering standards, reusable frameworks, and 
+development best practices Drive architecture reviews, code reviews, 
+and solution design discussions
+• Collaborate with product managers, architects, UX teams, QA 
+engineers, and client stakeholders Frontend Architecture
+• Design and develop scalable enterprise applications using React.js and 
+Micro Frontend Architecture
+• Build reusable UI component libraries and extensibility frameworks 
+• Improve application performance using lazy loading, code splitting, 
+and optimized rendering techniques
+• Deliver reusable architecture across 15+ enterprise modules and 
+applications
+• Develop schema-driven UI solutions that improve maintainability and 
+reduce implementation effort IBM AI & Innovation
+• Lead integration of IBM AI-powered chatbot into enterprise Call Center 
+and Order Management applications
+• Contribute to IBM Sterling OMS customizations and frontend 
+integrations for enterprise clients
+• Develop Python-based utilities supporting AI-enabled workflows
+• Contribute to backend integration services using Node.js and Spring 
+Boot
+• Collaborate with AI and backend teams to deliver enterprise AI 
+solutions Claude Skills Initiative
+• Designed and implemented reusable Claude Skills for frontend and 
+backend engineering teams
+Automated and standardized:
+• UI Schema Generation, Technical Design Documentation, Code 
+Generation, Unit Test Generation, Architecture Guidance, Development 
+Standards, API Documentation, Frontend Development Patterns 
+Business Impact
+• Reduced engineering effort for common development activities from 
+~20 days to 5 days
+• Improved engineering consistency and reduced repetitive 
+development work
+•
+--- Page 3 ---
+Cross-functional Collaboration, Agile 
+Delivery, Problem Solving
+Accelerated onboarding of developers and increased code reuse across 
+multiple teams Performance Improvements
+• Optimized React application performance through lazy loading and 
+code splitting
+• Improved UI rendering performance and maintainability through 
+reusable frontend architecture
+• Increased code reuse across multiple projects using Micro Frontend
+Architecture Enterprise Clients:
+• O'Reilly, Tapestry (IBM Sterling OMS), DICK'S Sporting Goods (DSG), 
+Ashley Furniture
+Technologies:
+• React.js, TypeScript, JavaScript, Node.js, Spring Boot, Python, IBM 
+Sterling OMS, IBM AI, REST APIs, Kafka, Redis, PostgreSQL, Micro 
+Frontend Architecture, Vite, Module Federation
+Nextuple Inc. August 2022 – July 2023
+Senior Software Engineer
+Technical Leadership:
+• Developed enterprise Order Management applications
+• Contributed to Promise Engine, Inventory, Picking, Packing, Staging, 
+and Hub applications
+• Built reusable React components and frontend frameworks
+• Worked closely with architects and product owners Technologies: 
+React.js, TypeScript, JavaScript, Node.js, Spring Boot, REST APIs, Kafka, 
+Redis, PostgreSQL
+Cognizant Technology Solutions November 2018 – August 2022
+Senior Associate
+Key Responsibilities
+• Developed enterprise applications using React.js and Drupal for global 
+clients in Banking, Healthcare, and Life Sciences
+• Delivered responsive websites for global brands • Built reusable UI 
+components • Worked closely with offshore and onsite teams
+• Conducted code reviews and mentored junior developers Major Clients: 
+Bayer, US Bank Technologies: React.js, Drupal, AEM, JavaScript, 
+HTML5, CSS3, SCSS, Node.js
+Skava Systems (Infosys) February 2016 – November 2018
+Lead Developer
+Key Responsibilities
+--- Page 4 ---
+• Led frontend development for large-scale retail eCommerce platforms
+• Mentored engineers and conducted architecture reviews
+• Delivered enterprise commerce applications and implemented 
+responsive web applications Major Clients: Adidas, Reebok, Kohl's, 
+Kraft Foods Technologies: React.js, JavaScript, HTML5, CSS3, Node.js, 
+Micro Frontend Architecture
+Skava Systems (Infosys) February 2014 – January 2016
+Senior Software Engineer
+Key Responsibilities
+• Worked on enterprise commerce applications for Kohl's and Toys"R"Us
+• Developed using JavaScript, React.js, HTML5, CSS3, and Node.js
+Skava Systems (Infosys) July 2012 – January 2014
+Software Engineer
+Key Responsibilities
+• Worked on retail commerce platforms implementing frontend features, 
+performance improvements, and CMS integrations
+Key Projects & Initiatives
+Claude Skills Initiative
+Designed and implemented reusable Claude Skills for frontend and 
+backend engineering teams, automating UI Schema Generation, 
+Technical Design Documentation, Code Generation, Unit Test 
+Generation, Architecture Guidance, Development Standards, API 
+Documentation, and Frontend Development Patterns.
+Reduced engineering effort from ~20 days to 5 days for common 
+development activities.
+IBM AI-Powered Chatbot Integration
+Led integration of IBM AI-powered chatbot into enterprise Call Center 
+and Order Management applications.
+Developed Python-based AI integration services and collaborated with 
+AI/Backend teams to deliver enterprise AI solutions.
+Enterprise Micro Frontend Architecture
+Architected and delivered scalable Micro Frontend Architecture using 
+Module Federation across 15+ enterprise modules and applications.
+Built reusable UI component libraries, extensibility frameworks, and 
+schema-driven UI solutions.
+--- Page 5 ---
+IBM Sterling OMS Customizations
+Contributed to IBM Sterling OMS customizations and frontend 
+integrations for enterprise clients including Tapestry, DSG, and Ashley 
+Furniture.
+Education
+Dr. Mahalingam College of Engineering and Technology
+Master of Computer Applications (MCA) • 8.28%
+Pollachi, Tamil Nadu, India • July 2009 – June 2012
+Nallamuthu Gounder Mahalingam College
+Bachelor of Science (Computer Science) •  78.51%
+Pollachi, Tamil Nadu, India • July 2006 – May 2009
+Certifications
+Introduction to Agent Skills
+Claude Certificate
+React Testing Library with Jest / Vitest
+Principles of Secure Coding
+Docker for the Absolute Beginner
+Azure Serverless – Hands-on Learning
+Generactive AI 
+Awards & Recognition
+Top Performer Award 2023
+Nextuple
+Monthly Spot Award
+Nextuple
+Best Performer Award 2019, 2020
+Cognizant
+Skava Star Performer Award 2013, 2015
+Skava Systems
+First Place – Phoenix'11 Web Designing Competition 2011
