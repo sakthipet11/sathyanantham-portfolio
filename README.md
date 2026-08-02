@@ -71,6 +71,6 @@ Designed a schema-driven UI framework adopted across enterprise Order Management
 
 ### 📫 Let's Connect
 
-📧 [v.sathyanantham@gmail.com](mailto:v.sathyanantham@gmail.com) &nbsp;|&nbsp; 💼 [LinkedIn](https://linkedin.com/in/sathyanantham-v-646b911b) &nbsp;|&nbsp; 🌐 [Portfolio](https://sathya-ai-studio.lovable.app)
+📧 [v.sathyanantham@gmail.com](mailto:v.sathyanantham@gmail.com) &nbsp;|&nbsp; 💼 [LinkedIn](https://linkedin.com/in/sathyanantham-v-646b911b) &nbsp;|&nbsp; 🌐 [Portfolio](https://sathyanantham-portfolio-tv.vercel.app/)
 
 <p align="center"><i>Open to Frontend Architect, Technical Lead, and Enterprise UI Architect roles — India, Singapore, Remote.</i></p>
