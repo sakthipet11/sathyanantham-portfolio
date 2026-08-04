@@ -22,12 +22,87 @@ const SUGGESTED_PROMPTS = [
   "Can I schedule a live chat handoff or leave my contact details?"
 ];
 
-const AVAILABLE_MODELS = [
+const DEFAULT_MODEL_ID = process.env.NEXT_PUBLIC_OPENROUTER_API_MODEL || 'anthropic/claude-3.5-sonnet';
+
+const formatModelName = (id: string) => {
+  const parts = id.split('/');
+  const name = parts[parts.length - 1] || id;
+  return name
+    .split(':')
+    .shift()!
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase()) + ' (Configured LLM)';
+};
+
+function parseMarkdown(text: string) {
+  if (!text) return '';
+  
+  // Escape HTML entities to prevent XSS
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+    
+  // 1. Process bold: **text** -> <strong>text</strong>
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-cyan-300">$1</strong>');
+  
+  // 2. Process bullet points: start with bullet, dash, or asterisk
+  const lines = html.split('\n');
+  let inList = false;
+  const processedLines = lines.map(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+      const content = trimmed.substring(1).trim();
+      let prefix = '';
+      if (!inList) {
+        inList = true;
+        prefix = '<ul class="my-2 space-y-1">';
+      }
+      return `${prefix}<li class="ml-4 list-disc pl-1">${content}</li>`;
+    } else {
+      let suffix = '';
+      if (inList) {
+        inList = false;
+        suffix = '</ul>';
+      }
+      return `${suffix}${line}`;
+    }
+  });
+  
+  if (inList) {
+    processedLines.push('</ul>');
+  }
+  
+  html = processedLines.join('\n');
+  
+  // 3. Process links: [text](url) -> <a href="$2" target="_blank" rel="noopener noreferrer" class="text-cyan-400 font-semibold underline hover:text-cyan-300 transition-colors">$1</a>
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-cyan-400 font-semibold underline hover:text-cyan-300 transition-colors">$1</a>');
+  
+  // 4. Line breaks: convert single newlines to <br/>
+  html = html.replace(/\n/g, '<br />');
+  
+  return html;
+}
+
+const BASE_MODELS = [
   { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (OpenRouter)' },
   { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash (OpenRouter)' },
   { id: 'openai/gpt-4o', name: 'GPT-4o (OpenRouter)' },
   { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1 (OpenRouter)' }
 ];
+
+const getAvailableModels = () => {
+  const models = [...BASE_MODELS];
+  if (!models.some(m => m.id === DEFAULT_MODEL_ID)) {
+    models.unshift({
+      id: DEFAULT_MODEL_ID,
+      name: formatModelName(DEFAULT_MODEL_ID)
+    });
+  }
+  return models;
+};
+
+const AVAILABLE_MODELS = getAvailableModels();
 
 export function AITwinDrawer() {
   const {
@@ -49,6 +124,12 @@ export function AITwinDrawer() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    if (!isAIDrawerOpen) {
+      setChatMode('ai_twin');
+    }
+  }, [isAIDrawerOpen, setChatMode]);
 
   if (!isAIDrawerOpen) return null;
 
@@ -81,15 +162,20 @@ export function AITwinDrawer() {
                 className="object-cover"
               />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-white tracking-tight">Sathyanantham AI Twin</h3>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
-                  RAG Active
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">Trained on Sathyanantham's 13+ years career docs</p>
-            </div>
+             <div>
+               <div className="flex items-center gap-2">
+                 <h3 className="text-sm font-bold text-white tracking-tight">Sathyanantham V</h3>
+                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full flex items-center gap-1.5 ${
+                   isSathyananthamOnline
+                     ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/60'
+                     : 'bg-slate-800/80 text-slate-400 border border-slate-700/60'
+                 }`}>
+                   <span className={`w-1.5 h-1.5 rounded-full ${isSathyananthamOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                   {isSathyananthamOnline ? 'Online' : 'Offline'}
+                 </span>
+               </div>
+               <p className="text-[11px] text-slate-400">AI Digital Twin Assistant</p>
+             </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -112,16 +198,8 @@ export function AITwinDrawer() {
         {/* Model & Presence Controls */}
         <div className="px-5 py-2.5 bg-slate-950/40 border-b border-slate-800/60 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <Cpu className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="bg-slate-900 text-slate-200 font-mono text-[11px] border border-slate-700/80 rounded px-2 py-1 focus:outline-none focus:border-cyan-500"
-            >
-              {AVAILABLE_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-slate-300 font-mono text-[11px]">AI Twin Active</span>
           </div>
 
           <button
@@ -168,16 +246,11 @@ export function AITwinDrawer() {
                     : 'bg-slate-800/90 border border-slate-700/60 rounded-tl-none font-normal'
                 }`}
               >
-                {/* Render text lines */}
-                <div className="whitespace-pre-wrap">{msg.content}</div>
-
-                {/* Sources & Citations */}
-                {msg.sources && msg.sources.length > 0 && (
-                  <div className="mt-3 pt-2 border-t border-slate-700/60 flex items-center gap-1.5 text-[10px] text-cyan-400 font-mono">
-                    <FileText className="w-3 h-3" />
-                    <span>RAG Source: {msg.sources.join(', ')}</span>
-                  </div>
-                )}
+                 {/* Render parsed markdown content */}
+                 <div 
+                   className="text-xs leading-relaxed space-y-1"
+                   dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.content) }}
+                 />
               </div>
             </div>
           ))}
@@ -185,7 +258,7 @@ export function AITwinDrawer() {
           {isLoading && (
             <div className="flex items-center gap-2 text-cyan-400 text-xs font-mono animate-pulse">
               <Sparkles className="w-3.5 h-3.5 animate-spin" />
-              <span>Generating RAG response...</span>
+              <span>{chatMode === 'live_human' ? 'Connecting live chat...' : 'AI Twin is thinking...'}</span>
             </div>
           )}
 
@@ -210,16 +283,22 @@ export function AITwinDrawer() {
 
         {/* Input Box */}
         <form onSubmit={handleSubmit} className="p-4 bg-slate-950 border-t border-slate-800 flex items-center gap-2">
-          <input
-            type="text"
+          <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+            rows={Math.min(5, inputText.split('\n').length || 1)}
             placeholder={chatMode === 'live_human' ? 'Send direct message to Sathyanantham V...' : 'Ask AI Twin about experience, projects, stack...'}
-            className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+            className="flex-1 bg-slate-900 border border-slate-700/80 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all resize-none max-h-32 min-h-[38px] scrollbar-none"
           />
           <button
             type="submit"
-            disabled={!inputText.trim() || isLoading}
+            disabled={!inputText.trim() || (isLoading && chatMode !== 'live_human')}
             className="p-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 disabled:opacity-50 transition-colors"
           >
             <Send className="w-4 h-4" />

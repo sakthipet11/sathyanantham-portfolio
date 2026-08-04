@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAppStore } from '@/lib/store';
+import { useAnalytics } from '@/components/providers';
 import { Radio, Mail, Phone, MapPin, Send, CheckCircle2, MessageSquare, Terminal } from 'lucide-react';
 
 const contactSchema = z.object({
@@ -17,6 +18,7 @@ type ContactFormData = z.infer<typeof contactSchema>;
 
 export function LiveHandoffSection() {
   const { isSathyananthamOnline, setChatMode, setAIDrawerOpen } = useAppStore();
+  const { trackEvent } = useAnalytics();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,8 +38,13 @@ export function LiveHandoffSection() {
       await fetch(`${apiHost}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          message: data.notes
+        })
       });
+      trackEvent('contact_submit', { email: data.email, name: data.name });
     } catch (e) {
       console.warn('Contact API offline, logging locally:', data);
     } finally {

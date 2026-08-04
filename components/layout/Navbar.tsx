@@ -4,9 +4,15 @@ import Image from 'next/image';
 import { useAppStore } from '@/lib/store';
 import { Sparkles, Download } from 'lucide-react';
 import Link from 'next/link';
+import { useAnalytics } from '@/components/providers';
 
 export function Navbar() {
   const { toggleAIDrawer, isSathyananthamOnline } = useAppStore();
+  const { trackEvent } = useAnalytics();
+
+  const handleResumeDownload = () => {
+    trackEvent('resume_download', { source: 'navbar' });
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 py-4 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 transition-all duration-300">
@@ -60,6 +66,7 @@ export function Navbar() {
           <a
             href="/resume.pdf"
             download="Sathyanantham_V_Lead_Software_Engineer_Resume.pdf"
+            onClick={handleResumeDownload}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-mono font-bold text-slate-200 bg-slate-900 border border-slate-700/80 rounded-lg hover:border-cyan-400 hover:text-cyan-300 transition-all duration-300"
           >
             <Download className="w-3.5 h-3.5 text-cyan-400" />

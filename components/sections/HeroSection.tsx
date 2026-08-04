@@ -6,10 +6,12 @@ import { useAITwin } from '@/hooks/useAITwin';
 import { SentientSphereCanvas } from '@/components/canvas/SentientSphereCanvas';
 import { Sparkles, Terminal, ArrowRight, Code2, ShieldCheck, Layers, Send, Download, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAnalytics } from '@/components/providers';
 
 export function HeroSection() {
   const { toggleAIDrawer, setAIDrawerOpen } = useAppStore();
   const { sendMessage } = useAITwin();
+  const { trackEvent } = useAnalytics();
   const [promptInput, setPromptInput] = useState('');
 
   const handlePromptSubmit = (e: React.FormEvent) => {
@@ -100,6 +102,7 @@ export function HeroSection() {
           <a
             href="/resume.pdf"
             download="Sathyanantham_V_Lead_Software_Engineer_Resume.pdf"
+            onClick={() => trackEvent('resume_download', { source: 'hero' })}
             className="inline-flex items-center gap-2 px-6 py-3.5 text-xs font-mono font-bold tracking-wider uppercase text-slate-950 bg-cyan-400 rounded-lg hover:bg-cyan-300 shadow-[0_0_30px_rgba(56,189,248,0.3)] transition-all duration-300"
           >
             <Download className="w-4 h-4" />

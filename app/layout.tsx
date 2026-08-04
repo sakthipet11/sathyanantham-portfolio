@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
+import { AnalyticsProvider } from '@/components/providers';
 import './globals.css';
 
 const inter = Inter({
@@ -38,7 +39,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-[#050505] text-slate-100 font-sans antialiased selection:bg-cyan-400 selection:text-slate-950">
-        {children}
+        <AnalyticsProvider>
+          {children}
+        </AnalyticsProvider>
       </body>
     </html>
   );
