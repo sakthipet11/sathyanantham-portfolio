@@ -205,7 +205,7 @@ VALUES (
     '+91-8870956756',
     'Coimbatore, Tamil Nadu, India',
     'https://www.linkedin.com/in/sathyanantham-v-646b911b',
-    'https://github.com/sathyanantham',
+    'https://github.com/sakthipet11',
     'Lead Software Engineer with 13+ years of experience designing, architecting, and delivering enterprise-scale frontend applications, digital commerce platforms, and Order Management solutions. Specialized in React.js, TypeScript, Enterprise UI Platforms, Micro Frontend Architecture, and scalable frontend ecosystems with extensive experience leading engineering teams, mentoring developers, and driving technical architecture for global enterprise clients.'
 );
 
@@ -358,9 +358,12 @@ INSERT INTO education (institution, degree, duration, score, location, display_o
 
 -- Seed Certificates
 INSERT INTO certificates (name, issuer, issue_date, verification_url, display_order) VALUES
-('Introduction to Agent Skills', 'Anthropic Claude', '2024-05-15', NULL, 1),
-('React Testing Library with Jest / Vitest', 'Udemy', '2023-11-20', NULL, 2),
-('Principles of Secure Coding', 'Cognizant Academy', '2021-08-10', NULL, 3),
-('Docker for the Absolute Beginner', 'KodeKloud', '2022-03-05', NULL, 4),
-('Azure Serverless – Hands-on Learning', 'Microsoft', '2022-09-12', NULL, 5),
-('Generative AI Practitioner', 'Google Cloud', '2024-01-20', NULL, 6);
+('Introduction to Model Context Protocol', 'Anthropic Claude', '2024-06-01', NULL, 1),
+('Building with the Claude API', 'Anthropic Claude', '2024-05-20', NULL, 2),
+('Introduction to Agent Skills', 'Anthropic Claude', '2024-05-15', NULL, 3),
+('Claude 101', 'Anthropic Claude', '2024-04-10', NULL, 4),
+('Agentic AI', 'Udemy', '2024-08-12', NULL, 5),
+('Generative AI Mastermind', 'Outskill', '2026-02-01', NULL, 6),
+('Microfrontends with React: A Complete Developer''s Guide', 'Udemy', '2023-12-15', NULL, 7),
+('Advanced JavaScript – ECMAScript, ES2017', 'Udemy Academy', '2022-07-20', NULL, 8),
+('React Complete Guide – React Hooks, React Router', 'Udemy Academy', '2023-05-10', NULL, 9);
