@@ -217,7 +217,7 @@ export function useAITwin() {
 
     const apiHost = getApiHost();
     const wsProto = apiHost.startsWith('https') ? 'wss' : 'ws';
-    const wsHost = apiHost.replace('http://', '').replace('https://', '');
+    const wsHost = apiHost.replace('http://', '').replace('https://', '').replace(/\/$/, '');
     const wsUrl = `${wsProto}://${wsHost}/ws/chat?session_id=${sessionId}&role=visitor`;
 
     try {

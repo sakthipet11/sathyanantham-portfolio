@@ -127,7 +127,7 @@ export default function AdminPage() {
     if (hostSocketRef.current) return;
 
     const wsProto = apiHost.startsWith('https') ? 'wss' : 'ws';
-    const wsHost = apiHost.replace('http://', '').replace('https://', '');
+    const wsHost = apiHost.replace('http://', '').replace('https://', '').replace(/\/$/, '');
     const wsUrl = `${wsProto}://${wsHost}/ws/chat?role=host`;
 
     try {
