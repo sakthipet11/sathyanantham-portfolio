@@ -130,7 +130,7 @@ export function ProjectsSection() {
 
   return (
     <section id="projects" className="py-24 px-4 sm:px-8 relative z-10 max-w-7xl mx-auto">
-      
+
       {/* Header */}
       <div className="flex flex-col items-start gap-2 mb-16 border-l-2 border-cyan-400 pl-4">
         <span className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
@@ -159,7 +159,7 @@ export function ProjectsSection() {
             className="group relative border-t border-slate-800 py-8 md:py-10 cursor-pointer transition-colors hover:bg-slate-900/40 px-4 rounded-xl"
           >
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              
+
               {/* Index & Year */}
               <div className="flex items-center gap-4 shrink-0 font-mono text-xs text-slate-500">
                 <span className="text-cyan-400 font-bold text-sm">// {proj.num}</span>
@@ -237,8 +237,8 @@ export function ProjectsSection() {
       {/* Deep-Dive Modal */}
       {selectedProject && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-            
+          <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[70vh] overflow-y-auto">
+
             <button
               onClick={() => setSelectedProject(null)}
               className="absolute top-4 right-4 p-2 rounded-lg bg-slate-800/80 text-slate-400 hover:text-white transition-colors z-10 sm:top-6 sm:right-6"
