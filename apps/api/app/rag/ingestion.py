@@ -57,6 +57,22 @@ class KnowledgeBase:
                     file_text = "\n".join(extracted)
                 except Exception as e:
                     print(f"Error reading PDF file {filename}: {e}")
+            elif ext == '.docx':
+                try:
+                    import docx
+                    doc = docx.Document(filepath)
+                    extracted = []
+                    for para in doc.paragraphs:
+                        if para.text.strip():
+                            extracted.append(para.text.strip())
+                    for table in doc.tables:
+                        for row in table.rows:
+                            for cell in row.cells:
+                                if cell.text.strip():
+                                    extracted.append(cell.text.strip())
+                    file_text = "\n".join(extracted)
+                except Exception as e:
+                    print(f"Error reading DOCX file {filename}: {e}")
                     
             if file_text.strip():
                 has_loaded_any = True
