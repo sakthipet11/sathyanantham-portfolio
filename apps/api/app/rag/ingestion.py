@@ -21,48 +21,88 @@ class KnowledgeBase:
         self.load_documents()
 
     def load_documents(self):
-        context_files = [
-            "extracted_full_resume.txt",
-            "extracted_cover_letter.txt",
-            "extracted_ai_fullstack_cover_letter.txt",
-            "extracted_resume_context.txt"
-        ]
-        
-        combined_text = []
-        for cfile in context_files:
-            cpath = os.path.join(DOCS_DIR, cfile)
-            if os.path.exists(cpath):
-                try:
-                    with open(cpath, "r", encoding="utf-8") as f:
-                        combined_text.append(f.read())
-                except Exception as e:
-                    print(f"Error reading {cfile}: {e}")
-
-        self.raw_text = "\n\n".join(combined_text) if combined_text else DEFAULT_SUMMARY
-
-        # Parse chunks
-        lines = [line.strip() for line in self.raw_text.splitlines() if line.strip()]
-        curr_chunk = []
+        self.chunks = []
         chunk_id = 1
+        
+        if not os.path.exists(DOCS_DIR):
+            print(f"Docs directory {DOCS_DIR} not found.")
+            return
 
-        for line in lines:
-            curr_chunk.append(line)
-            if len("\n".join(curr_chunk)) > 400:
+        files = os.listdir(DOCS_DIR)
+        has_loaded_any = False
+
+        for filename in sorted(files):
+            filepath = os.path.join(DOCS_DIR, filename)
+            if not os.path.isfile(filepath):
+                continue
+                
+            ext = os.path.splitext(filename)[1].lower()
+            file_text = ""
+            
+            if ext in ['.txt', '.md']:
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        file_text = f.read()
+                except Exception as e:
+                    print(f"Error reading text file {filename}: {e}")
+            elif ext == '.pdf':
+                try:
+                    import pypdf
+                    reader = pypdf.PdfReader(filepath)
+                    extracted = []
+                    for page in reader.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            extracted.append(page_text)
+                    file_text = "\n".join(extracted)
+                except Exception as e:
+                    print(f"Error reading PDF file {filename}: {e}")
+                    
+            if file_text.strip():
+                has_loaded_any = True
+                lines = [line.strip() for line in file_text.splitlines() if line.strip()]
+                curr_chunk = []
+                for line in lines:
+                    curr_chunk.append(line)
+                    if len("\n".join(curr_chunk)) > 500:
+                        self.chunks.append({
+                            "id": f"doc-{chunk_id}",
+                            "section": f"Profile Document: {filename}",
+                            "content": "\n".join(curr_chunk),
+                            "source": filename
+                        })
+                        chunk_id += 1
+                        curr_chunk = []
+                if curr_chunk:
+                    self.chunks.append({
+                        "id": f"doc-{chunk_id}",
+                        "section": f"Profile Document: {filename}",
+                        "content": "\n".join(curr_chunk),
+                        "source": filename
+                    })
+                    chunk_id += 1
+
+        if not has_loaded_any:
+            lines = [line.strip() for line in DEFAULT_SUMMARY.splitlines() if line.strip()]
+            curr_chunk = []
+            for line in lines:
+                curr_chunk.append(line)
+                if len("\n".join(curr_chunk)) > 400:
+                    self.chunks.append({
+                        "id": f"doc-{chunk_id}",
+                        "section": "Default Career Summary",
+                        "content": "\n".join(curr_chunk),
+                        "source": "Default Profile Summary"
+                    })
+                    chunk_id += 1
+                    curr_chunk = []
+            if curr_chunk:
                 self.chunks.append({
                     "id": f"doc-{chunk_id}",
-                    "section": "Career & Cover Letter Knowledge",
+                    "section": "Default Career Summary",
                     "content": "\n".join(curr_chunk),
-                    "source": "Sathyanantham V Resume & Cover Letter Documents"
+                    "source": "Default Profile Summary"
                 })
-                chunk_id += 1
-                curr_chunk = []
-        if curr_chunk:
-            self.chunks.append({
-                "id": f"doc-{chunk_id}",
-                "section": "Career & Cover Letter Knowledge",
-                "content": "\n".join(curr_chunk),
-                "source": "Sathyanantham V Resume & Cover Letter Documents"
-            })
 
     def retrieve_context(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         query_words = set(re.findall(r'\w+', query.lower()))
