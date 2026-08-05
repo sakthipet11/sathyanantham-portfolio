@@ -141,3 +141,32 @@ export function getInitials(name: string): string {
 export function classNames(...classes: (string | boolean | undefined | null)[]): string {
   return classes.filter(Boolean).join(' ');
 }
+
+export function getApiHost(): string {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl;
+  }
+  
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const proto = window.location.protocol;
+    
+    // Check if local network / local machine IP
+    const isLocal = 
+      hostname === 'localhost' || 
+      hostname === '127.0.0.1' || 
+      hostname.startsWith('192.168.') || 
+      hostname.startsWith('10.') || 
+      hostname.startsWith('172.');
+      
+    if (isLocal) {
+      return `${proto}//${hostname}:8000`;
+    }
+    
+    // In production / live domain, use the current origin (routed via standard reverse proxy port 80/443)
+    return `${proto}//${hostname}`;
+  }
+  
+  return 'http://localhost:8000';
+}

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAppStore, ChatMessage } from '@/lib/store';
+import { getApiHost } from '@/lib/utils';
 
 // Keep a module-level socket ref so it persists across drawer open/close
 let globalSocket: WebSocket | null = null;
@@ -37,7 +38,7 @@ export function useAITwin() {
   useEffect(() => {
     const fetchPresence = async () => {
       try {
-        const apiHost = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const apiHost = getApiHost();
         const res = await fetch(`${apiHost}/api/presence`);
         const data = await res.json();
         setSathyananthamOnline(data.is_online);
@@ -61,7 +62,7 @@ export function useAITwin() {
     setIsLoading(true);
 
     try {
-      const apiHost = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiHost = getApiHost();
       const response = await fetch(`${apiHost}/api/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,7 +215,7 @@ export function useAITwin() {
       return globalSocket;
     }
 
-    const apiHost = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiHost = getApiHost();
     const wsProto = apiHost.startsWith('https') ? 'wss' : 'ws';
     const wsHost = apiHost.replace('http://', '').replace('https://', '');
     const wsUrl = `${wsProto}://${wsHost}/ws/chat?session_id=${sessionId}&role=visitor`;

@@ -8,6 +8,8 @@ import { useAppStore } from '@/lib/store';
 import { useAnalytics } from '@/components/providers';
 import { Radio, Mail, Phone, MapPin, Send, CheckCircle2, MessageSquare, Terminal } from 'lucide-react';
 
+import { getApiHost } from '@/lib/utils';
+
 const contactSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email address'),
@@ -34,7 +36,7 @@ export function LiveHandoffSection() {
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
     try {
-      const apiHost = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiHost = getApiHost();
       await fetch(`${apiHost}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

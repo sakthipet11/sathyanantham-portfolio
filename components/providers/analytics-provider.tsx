@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
+import { getApiHost } from '@/lib/utils';
 
 interface AnalyticsContextProps {
   trackEvent: (eventType: string, details?: Record<string, any>) => Promise<void>;
@@ -37,7 +38,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     if (!activeSessionId) return;
 
     try {
-      const apiHost = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiHost = getApiHost();
       const userAgent = typeof window !== 'undefined' ? navigator.userAgent : '';
       
       await fetch(`${apiHost}/api/visitor/event`, {
@@ -70,7 +71,7 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
 
     // Track initial page view event once sessionId is configured in state
     const triggerInitialView = async () => {
-      const apiHost = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiHost = getApiHost();
       const userAgent = navigator.userAgent;
       
       try {

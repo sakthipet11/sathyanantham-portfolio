@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
+import { getApiHost } from '@/lib/utils';
 import {
   Terminal,
   ShieldCheck,
@@ -48,7 +49,7 @@ export default function AdminPage() {
   const [isHostOnline, setIsHostOnline] = useState(false);
   const hostSocketRef = useRef<WebSocket | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const apiHost = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const apiHost = getApiHost();
 
   // 1. Password Verification
   const handleLogin = (e: React.FormEvent) => {
