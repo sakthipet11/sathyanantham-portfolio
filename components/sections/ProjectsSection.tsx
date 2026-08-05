@@ -236,10 +236,17 @@ export function ProjectsSection() {
 
       {/* Deep-Dive Modal */}
       {selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xl animate-in fade-in duration-200">
           <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
             
-            <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
+            <button
+              onClick={() => setSelectedProject(null)}
+              className="absolute top-4 right-4 p-2 rounded-lg bg-slate-800/80 text-slate-400 hover:text-white transition-colors z-10 sm:top-6 sm:right-6"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4 pr-10">
               <div>
                 <span className="text-xs font-mono text-cyan-400 px-2.5 py-1 rounded bg-cyan-950 border border-cyan-800">
                   {selectedProject.num} // {selectedProject.category}
@@ -247,12 +254,6 @@ export function ProjectsSection() {
                 <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-2">{selectedProject.title}</h3>
                 <p className="text-xs text-slate-400 font-mono mt-0.5">Client: {selectedProject.client}</p>
               </div>
-              <button
-                onClick={() => setSelectedProject(null)}
-                className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
             <div>
