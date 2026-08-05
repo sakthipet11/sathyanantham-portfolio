@@ -3,11 +3,11 @@ export const siteConfig = {
   title: 'Sathyanantham V — Lead Software Engineer & AI Architect',
   description:
     'Senior AI/Full-Stack Engineer with 13+ years building scalable systems. Specializing in AI-enabled applications, cloud architecture, and team leadership.',
-  url: 'https://sathyanantham.ai',
+  url: 'https://sathyanantham-portfolio-tv.vercel.app',
   ogImage: '/images/og-default.png',
   links: {
-    github: 'https://github.com/sathyanantham',
-    linkedin: 'https://linkedin.com/in/sathyanantham',
+    github: 'https://github.com/sakthipet11',
+    linkedin: 'https://www.linkedin.com/in/sathyanantham-v-646b911b/',
     twitter: 'https://twitter.com/sathyanantham',
     email: 'mailto:sathyanantham.v@gmail.com',
   },
