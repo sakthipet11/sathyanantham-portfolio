@@ -1,8 +1,13 @@
-node_modules
-.next
-out
-build
+node_modules/
+.next/
+out/
+build/
 .env
-node_modules
-venv
-__pycache__
+.env*.local
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
