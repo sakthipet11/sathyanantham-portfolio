@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import DOMPurify from 'isomorphic-dompurify';
 import { useAppStore, ChatMessage } from '@/lib/store';
 import { useAITwin } from '@/hooks/useAITwin';
 import {
@@ -34,7 +35,7 @@ const formatModelName = (id: string) => {
     .replace(/\b\w/g, (c) => c.toUpperCase()) + ' (Configured LLM)';
 };
 
-function parseMarkdown(text: string): string {
+export function parseMarkdown(text: string): string {
   if (!text) return '';
 
   let html = text
@@ -155,7 +156,7 @@ function parseMarkdown(text: string): string {
     return result;
   }).join('\n');
 
-  return html;
+  return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] });
 }
 
 const BASE_MODELS = [
