@@ -210,6 +210,10 @@ class SupabaseHelper:
         """
         Creates or updates a portfolio item in the specified table (skills, experience, projects).
         """
+        allowed = {"skills", "experience", "projects", "education", "certificates"}
+        if table_name not in allowed:
+            return {"status": "error", "message": f"Table '{table_name}' not allowed"}
+
         if self.client:
             try:
                 res = self.client.table(table_name).upsert(item).execute()
@@ -223,6 +227,10 @@ class SupabaseHelper:
         """
         Deletes a portfolio item in the specified table.
         """
+        allowed = {"skills", "experience", "projects", "education", "certificates"}
+        if table_name not in allowed:
+            return {"status": "error", "message": f"Table '{table_name}' not allowed"}
+
         if self.client:
             try:
                 res = self.client.table(table_name).delete().eq("id", item_id).execute()
@@ -231,5 +239,21 @@ class SupabaseHelper:
                 print(f"Error deleting from {table_name}: {e}")
                 return {"status": "error", "message": str(e)}
         return {"status": "mock_success", "message": "CMS delete mocked"}
+
+    def delete_chat_session(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Deletes a specific chat session or all chat sessions if session_id is None.
+        """
+        if self.client:
+            try:
+                if session_id:
+                    res = self.client.table("chat_sessions").delete().eq("id", session_id).execute()
+                else:
+                    res = self.client.table("chat_sessions").delete().neq("id", "none").execute()
+                return {"status": "success", "data": res.data}
+            except Exception as e:
+                print(f"Error deleting chat sessions: {e}")
+                return {"status": "error", "message": str(e)}
+        return {"status": "mock_success", "message": "Chat session delete mocked"}
 
 db_helper = SupabaseHelper()

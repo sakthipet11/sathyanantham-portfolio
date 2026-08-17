@@ -51,21 +51,39 @@ export default function AdminPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const apiHost = getApiHost();
 
-  // 1. Password Verification
-  const handleLogin = (e: React.FormEvent) => {
+  // Helper to get auth header
+  const getAuthHeaders = () => {
+    const token = sessionStorage.getItem('sathya_admin_token') || '';
+    return {
+      'Content-Type': 'application/json',
+      'X-Admin-Token': token
+    };
+  };
+
+  // 1. Password Verification via Backend
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const systemPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || '';
-    if (password === systemPassword) {
-      setIsAuthenticated(true);
-      setAuthError('');
-      sessionStorage.setItem('sathya_admin_auth', 'true');
-    } else {
-      setAuthError('Incorrect system credential code.');
+    setAuthError('');
+    try {
+      const res = await fetch(`${apiHost}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        sessionStorage.setItem('sathya_admin_token', data.token);
+        setIsAuthenticated(true);
+      } else {
+        setAuthError(data.detail || 'Incorrect system credential code.');
+      }
+    } catch (err) {
+      setAuthError('Failed to connect to authentication server.');
     }
   };
 
   useEffect(() => {
-    if (sessionStorage.getItem('sathya_admin_auth') === 'true') {
+    if (sessionStorage.getItem('sathya_admin_token')) {
       setIsAuthenticated(true);
     }
     setIsCheckingAuth(false);
@@ -76,18 +94,23 @@ export default function AdminPage() {
     if (!isAuthenticated) return;
     setLoadingData(true);
     try {
+      const headers = getAuthHeaders();
       // Fetch stats
-      const aRes = await fetch(`${apiHost}/api/admin/analytics`);
+      const aRes = await fetch(`${apiHost}/api/admin/analytics`, { headers });
+      if (aRes.status === 401) {
+        handleLogout();
+        return;
+      }
       const aData = await aRes.json();
       setAnalytics(aData);
 
       // Fetch contacts
-      const cRes = await fetch(`${apiHost}/api/admin/contacts`);
+      const cRes = await fetch(`${apiHost}/api/admin/contacts`, { headers });
       const cData = await cRes.json();
       setContacts(cData);
 
       // Fetch sessions
-      const sRes = await fetch(`${apiHost}/api/admin/chat/sessions`);
+      const sRes = await fetch(`${apiHost}/api/admin/chat/sessions`, { headers });
       const sData = await sRes.json();
       setChatSessions(sData);
     } catch (err) {
@@ -113,7 +136,7 @@ export default function AdminPage() {
     try {
       await fetch(`${apiHost}/api/admin/presence`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ is_online: online })
       });
       setIsHostOnline(online);
@@ -189,7 +212,9 @@ export default function AdminPage() {
   const selectChatSession = async (sessionId: string) => {
     setSelectedSessionId(sessionId);
     try {
-      const res = await fetch(`${apiHost}/api/admin/chat/messages?session_id=${sessionId}`);
+      const res = await fetch(`${apiHost}/api/admin/chat/messages?session_id=${sessionId}`, {
+        headers: getAuthHeaders()
+      });
       const data = await res.json();
       setCurrentChatMessages(data);
     } catch (err) {
@@ -223,7 +248,7 @@ export default function AdminPage() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('sathya_admin_auth');
+    sessionStorage.removeItem('sathya_admin_token');
     setIsAuthenticated(false);
     disconnectHostSocket();
   };
@@ -539,7 +564,10 @@ export default function AdminPage() {
                         <button
                           onClick={async () => {
                             // Close/end session on backend
-                            await fetch(`${apiHost}/api/admin/chat/sessions`, { method: 'DELETE' }); // simple clean
+                            await fetch(`${apiHost}/api/admin/chat/sessions?session_id=${selectedSessionId}`, {
+                              method: 'DELETE',
+                              headers: getAuthHeaders()
+                            });
                             refreshDashboardData();
                             setSelectedSessionId('');
                           }}
