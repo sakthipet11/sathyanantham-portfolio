@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import DOMPurify from 'isomorphic-dompurify';
 import { useAppStore, ChatMessage } from '@/lib/store';
 import { useAITwin } from '@/hooks/useAITwin';
 import {
@@ -34,7 +35,7 @@ const formatModelName = (id: string) => {
     .replace(/\b\w/g, (c) => c.toUpperCase()) + ' (Configured LLM)';
 };
 
-function parseMarkdown(text: string): string {
+export function parseMarkdown(text: string): string {
   if (!text) return '';
 
   let html = text
@@ -125,17 +126,8 @@ function parseMarkdown(text: string): string {
 
   html = processed.join('\n');
 
-  // 6. Process links with protocol sanitization to prevent XSS (javascript:, data:, etc.)
-  html = html.replace(/\[(.*?)\]\((.*?)\)/g, (_, label, url) => {
-    const cleanUrl = url.trim();
-    const isSafe = cleanUrl.startsWith('/') ||
-                   cleanUrl.startsWith('http://') ||
-                   cleanUrl.startsWith('https://') ||
-                   cleanUrl.startsWith('mailto:') ||
-                   cleanUrl.startsWith('tel:');
-    const safeHref = isSafe ? cleanUrl : '#';
-    return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 font-semibold underline hover:text-cyan-300 transition-colors">${label}</a>`;
-  });
+  // 6. Process links
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-cyan-400 font-semibold underline hover:text-cyan-300 transition-colors">$1</a>');
 
   // 7. Line breaks
   const finalLines = html.split('\n');
@@ -164,7 +156,7 @@ function parseMarkdown(text: string): string {
     return result;
   }).join('\n');
 
-  return html;
+  return DOMPurify.sanitize(html, { ADD_ATTR: ['target'] });
 }
 
 const BASE_MODELS = [
