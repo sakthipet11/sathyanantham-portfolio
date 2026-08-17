@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { getApiHost } from '@/lib/utils';
 import {
@@ -325,6 +326,14 @@ export default function AdminPage() {
 
           {/* Navigation Links */}
           <nav className="p-4 space-y-1">
+            <Link
+              href="/admin/dashboard"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors bg-gradient-to-r from-cyan-950/80 to-blue-950/80 text-cyan-300 border border-cyan-500/40 hover:border-cyan-400 mb-2 shadow-lg shadow-cyan-500/10"
+            >
+              <LayoutDashboard className="w-4 h-4 text-cyan-400" />
+              <span>Multi-Agent Admin OS</span>
+            </Link>
+
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'dashboard' ? 'bg-cyan-950/60 text-cyan-400 border border-cyan-800/40' : 'text-slate-400 hover:text-white hover:bg-slate-900'

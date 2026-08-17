@@ -1,0 +1,19 @@
+# Google Cloud Scheduler Cron Configuration
+version: "1.0"
+jobs:
+  - name: job-discovery-daily-scan
+    schedule: "0 8 * * *"
+    time_zone: "UTC"
+    http_target:
+      uri: "https://api.sathya-ai.studio/api/jobs/workflow/run"
+      http_method: "POST"
+      headers:
+        Content-Type: "application/json"
+      body: '{"target_role": "Lead Frontend Architect"}'
+
+  - name: email-outreach-sync
+    schedule: "*/30 * * * *"
+    time_zone: "UTC"
+    http_target:
+      uri: "https://api.sathya-ai.studio/api/admin/chat/sessions"
+      http_method: "GET"

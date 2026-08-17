@@ -6,6 +6,8 @@ build/
 .env*.local
 .venv/
 venv/
+.agents/
+.claude/
 
 # Python cache
 __pycache__/
