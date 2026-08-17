@@ -50,9 +50,8 @@ class ConnectionManager:
     def disconnect_sathyanantham(self, websocket: WebSocket):
         if websocket in self.sathyanantham_connections:
             self.sathyanantham_connections.remove(websocket)
-        # Note: We do NOT automatically set is_sathyanantham_online = False here.
-        # This keeps the host online even if the WebSocket temporarily disconnects or tab goes to sleep,
-        # ensuring the status is strictly driven by the "GO ONLINE" toggle button.
+        if len(self.sathyanantham_connections) == 0:
+            self.is_sathyanantham_online = False
 
     async def send_to_visitor(self, session_id: str, message: dict):
         if session_id in self.active_visitor_connections:

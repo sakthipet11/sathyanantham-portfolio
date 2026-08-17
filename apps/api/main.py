@@ -1,8 +1,10 @@
 import os
 import json
 import asyncio
+import secrets
+import hashlib
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -54,6 +56,27 @@ class EventRequest(BaseModel):
     city: Optional[str] = None
     browser: Optional[str] = None
     os: Optional[str] = None
+
+class AdminLoginRequest(BaseModel):
+    password: str
+
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", os.getenv("NEXT_PUBLIC_ADMIN_PASSWORD", "sathya_admin_passkey_2026"))
+
+def generate_admin_token(password: str) -> str:
+    return hashlib.sha256(f"sathya_salt_{password}".encode()).hexdigest()
+
+def verify_admin_token(x_admin_token: Optional[str] = Header(None, alias="X-Admin-Token")):
+    expected_token = generate_admin_token(ADMIN_PASSWORD)
+    if not x_admin_token or not secrets.compare_digest(x_admin_token, expected_token):
+        raise HTTPException(status_code=401, detail="Unauthorized admin access")
+    return True
+
+@app.post("/api/admin/login")
+def admin_login(req: AdminLoginRequest):
+    if req.password == ADMIN_PASSWORD:
+        token = generate_admin_token(ADMIN_PASSWORD)
+        return {"status": "success", "token": token}
+    raise HTTPException(status_code=401, detail="Incorrect password credentials")
 
 @app.get("/")
 def read_root():
@@ -252,31 +275,41 @@ class CmsDeleteRequest(BaseModel):
 class PresenceToggleRequest(BaseModel):
     is_online: bool
 
-@app.get("/api/admin/analytics")
+ALLOWED_CMS_TABLES = {"skills", "experience", "projects", "education", "certificates"}
+
+@app.get("/api/admin/analytics", dependencies=[Depends(verify_admin_token)])
 def get_admin_analytics():
     return db_helper.get_analytics_summary()
 
-@app.get("/api/admin/contacts")
+@app.get("/api/admin/contacts", dependencies=[Depends(verify_admin_token)])
 def get_admin_contacts():
     return db_helper.get_contacts()
 
-@app.get("/api/admin/chat/sessions")
+@app.get("/api/admin/chat/sessions", dependencies=[Depends(verify_admin_token)])
 def get_admin_chat_sessions():
     return db_helper.get_chat_sessions()
 
-@app.get("/api/admin/chat/messages")
+@app.delete("/api/admin/chat/sessions", dependencies=[Depends(verify_admin_token)])
+def delete_admin_chat_session(session_id: Optional[str] = Query(None, description="ID of the chat session to delete")):
+    return db_helper.delete_chat_session(session_id)
+
+@app.get("/api/admin/chat/messages", dependencies=[Depends(verify_admin_token)])
 def get_admin_chat_messages(session_id: str = Query(..., description="ID of the chat session")):
     return db_helper.get_chat_messages(session_id)
 
-@app.post("/api/admin/cms/upsert")
+@app.post("/api/admin/cms/upsert", dependencies=[Depends(verify_admin_token)])
 def upsert_cms_item(req: CmsUpsertRequest):
+    if req.table_name not in ALLOWED_CMS_TABLES:
+        raise HTTPException(status_code=400, detail=f"Table name '{req.table_name}' is not in allowed CMS tables list.")
     return db_helper.upsert_portfolio_item(req.table_name, req.item)
 
-@app.post("/api/admin/cms/delete")
+@app.post("/api/admin/cms/delete", dependencies=[Depends(verify_admin_token)])
 def delete_cms_item(req: CmsDeleteRequest):
+    if req.table_name not in ALLOWED_CMS_TABLES:
+        raise HTTPException(status_code=400, detail=f"Table name '{req.table_name}' is not in allowed CMS tables list.")
     return db_helper.delete_portfolio_item(req.table_name, req.item_id)
 
-@app.post("/api/admin/presence")
+@app.post("/api/admin/presence", dependencies=[Depends(verify_admin_token)])
 async def toggle_admin_presence(req: PresenceToggleRequest):
     ws_manager.is_sathyanantham_online = req.is_online
     await ws_manager.broadcast_presence_to_visitors(req.is_online)
