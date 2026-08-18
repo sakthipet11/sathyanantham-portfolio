@@ -1,7 +1,13 @@
 import os
+import json
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 from dotenv import load_dotenv
-from supabase import create_client, Client
+try:
+    from supabase import create_client, Client
+except ImportError:
+    create_client = None
+    Client = Any
 
 load_dotenv()
 
@@ -29,9 +35,154 @@ class SupabaseHelper:
         else:
             print("SUPABASE_URL or SUPABASE_KEY missing. Database helper will run in Mock/Offline Mode.")
 
+        # In-memory mock stores for offline development / test resilience
+        self._mock_profile = {
+            "id": "00000000-0000-0000-0000-000000000001",
+            "full_name": "Sathyanantham V",
+            "email": "sakthipet111@gmail.com",
+            "phone": "+91-XXXXXXXXXX",
+            "location": "Bangalore, India (Open to Remote / Relocation)",
+            "work_authorization": "Authorized in India; Open to Global Sponsorship & Remote",
+            "years_of_experience": 13.5,
+            "notice_period_days": 30,
+            "current_salary": 0.0,
+            "expected_salary_min": 140000.0,
+            "primary_skills": ["React", "TypeScript", "Micro Frontends", "Next.js", "System Architecture", "Module Federation"],
+            "secondary_skills": ["Node.js", "Python", "FastAPI", "Tailwind CSS", "Docker", "Supabase", "AWS", "GCP"],
+            "experience_history": [
+                {
+                    "company": "Enterprise Tech Solutions",
+                    "role": "Lead Frontend Architect",
+                    "period": "2021 - Present",
+                    "highlights": [
+                        "Architected large-scale Micro Frontend platform serving 5M+ monthly active users with Module Federation.",
+                        "Spearheaded UI design system adoption across 14 engineering pods, cutting time-to-market by 35%."
+                    ]
+                }
+            ],
+            "education_history": [
+                {
+                    "degree": "Bachelor of Engineering in Computer Science & Engineering",
+                    "institution": "Anna University",
+                    "period": "2007 - 2011"
+                }
+            ],
+            "certifications": [{"name": "AWS Certified Solutions Architect", "year": "2023"}],
+            "portfolio_urls": {"github": "https://github.com/sakthipet11", "portfolio": "https://sathya-ai.studio"},
+            "answers_to_common_questions": {"require_sponsorship": "No / Yes depending on location", "willing_to_relocate": "Yes"}
+        }
+
+        self._mock_settings = {
+            "id": "00000000-0000-0000-0000-000000000002",
+            "user_profile_id": "00000000-0000-0000-0000-000000000001",
+            "daily_application_limit": 10,
+            "min_ats_score_threshold": 80.0,
+            "auto_apply_enabled": False,
+            "require_human_review_for_apply": True,
+            "require_human_review_for_email": True,
+            "target_titles": ["Lead Frontend Architect", "Principal UI Platform Engineer", "Staff Micro Frontend Architect"],
+            "target_locations": ["Remote", "Hybrid", "Bangalore", "US Remote"],
+            "blacklisted_companies": ["Revature", "CyberCoders"],
+            "blacklisted_keywords": ["Unpaid", "Volunteer", "Junior Intern"],
+            "is_active": True
+        }
+
+        self._mock_audit_logs: List[Dict[str, Any]] = []
+
     def is_configured(self) -> bool:
         return self.client is not None
 
+    # =========================================================================
+    # Phase 1: Candidate Truth Store & Settings
+    # =========================================================================
+    def get_user_profile(self) -> Dict[str, Any]:
+        if self.client:
+            try:
+                res = self.client.table("user_profile").select("*").limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data[0]
+            except Exception as e:
+                print(f"Error fetching user profile from Supabase: {e}")
+        return self._mock_profile
+
+    def update_user_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+        profile_data["updated_at"] = datetime.utcnow().isoformat()
+        if self.client:
+            try:
+                # Upsert profile record
+                existing = self.get_user_profile()
+                target_id = existing.get("id") or self._mock_profile["id"]
+                profile_data["id"] = target_id
+                res = self.client.table("user_profile").upsert(profile_data).execute()
+                return {"status": "success", "data": res.data[0] if res.data else profile_data}
+            except Exception as e:
+                print(f"Error updating user profile in Supabase: {e}")
+                return {"status": "error", "message": str(e)}
+        self._mock_profile.update(profile_data)
+        return {"status": "mock_success", "data": self._mock_profile}
+
+    def get_automation_settings(self) -> Dict[str, Any]:
+        if self.client:
+            try:
+                res = self.client.table("automation_settings").select("*").limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data[0]
+            except Exception as e:
+                print(f"Error fetching automation settings from Supabase: {e}")
+        return self._mock_settings
+
+    def update_automation_settings(self, settings_data: Dict[str, Any]) -> Dict[str, Any]:
+        settings_data["updated_at"] = datetime.utcnow().isoformat()
+        if self.client:
+            try:
+                existing = self.get_automation_settings()
+                target_id = existing.get("id") or self._mock_settings["id"]
+                settings_data["id"] = target_id
+                res = self.client.table("automation_settings").upsert(settings_data).execute()
+                return {"status": "success", "data": res.data[0] if res.data else settings_data}
+            except Exception as e:
+                print(f"Error updating automation settings in Supabase: {e}")
+                return {"status": "error", "message": str(e)}
+        self._mock_settings.update(settings_data)
+        return {"status": "mock_success", "data": self._mock_settings}
+
+    # =========================================================================
+    # Phase 1: Audit Logging Vault
+    # =========================================================================
+    def insert_audit_log(self, actor_type: str, actor_id: str, action: str, entity_type: str, entity_id: str, before_state: Dict[str, Any] = None, after_state: Dict[str, Any] = None, justification: str = None, ip_address: str = None) -> Dict[str, Any]:
+        payload = {
+            "actor_type": actor_type,
+            "actor_id": actor_id,
+            "action": action,
+            "entity_type": entity_type,
+            "entity_id": str(entity_id),
+            "before_state": before_state or {},
+            "after_state": after_state or {},
+            "justification_rationale": justification or "",
+            "ip_address": ip_address or "127.0.0.1",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        if self.client:
+            try:
+                res = self.client.table("audit_logs").insert(payload).execute()
+                return {"status": "success", "data": res.data}
+            except Exception as e:
+                print(f"Error persisting audit log to Supabase: {e}")
+        self._mock_audit_logs.insert(0, payload)
+        return {"status": "mock_success", "data": payload}
+
+    def get_audit_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        if self.client:
+            try:
+                res = self.client.table("audit_logs").select("*").order("timestamp", desc=True).limit(limit).execute()
+                return res.data
+            except Exception as e:
+                print(f"Error fetching audit logs: {e}")
+        return self._mock_audit_logs[:limit]
+
+    # =========================================================================
+    # Core Portfolio & Contacts (Existing)
+    # =========================================================================
     def insert_contact(self, name: str, email: str, message: str, company: str = "", budget: str = "", purpose: str = "") -> Dict[str, Any]:
         payload = {
             "name": name,

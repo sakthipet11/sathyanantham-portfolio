@@ -5,11 +5,11 @@ jobs:
     schedule: "0 8 * * *"
     time_zone: "UTC"
     http_target:
-      uri: "https://api.sathya-ai.studio/api/jobs/workflow/run"
+      uri: "https://api.sathya-ai.studio/api/automation/jobs/discover"
       http_method: "POST"
       headers:
         Content-Type: "application/json"
-      body: '{"target_role": "Lead Frontend Architect"}'
+      body: '{"target_role": "Lead Frontend Architect", "triggered_by": "CLOUD_SCHEDULER"}'
 
   - name: email-outreach-sync
     schedule: "*/30 * * * *"
