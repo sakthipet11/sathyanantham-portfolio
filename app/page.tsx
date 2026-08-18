@@ -3,6 +3,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/footer';
 import { SmoothScroll } from '@/components/layout/SmoothScroll';
 import { HeroSection } from '@/components/sections/HeroSection';
+import { GlassmorphismPortfolioBlock } from '@/components/ui/glassmorphism-portfolio-block-shadcnui';
 import { CoverLetterSection } from '@/components/sections/CoverLetterSection';
 import { ExperienceSection } from '@/components/sections/ExperienceSection';
 import { ProjectsSection } from '@/components/sections/ProjectsSection';
@@ -14,17 +15,21 @@ import { AITwinDrawer } from '@/components/ai/AITwinDrawer';
 export default function Home() {
   return (
     <SmoothScroll>
-      <div className="relative min-h-screen bg-[#050505] text-slate-100 font-sans selection:bg-cyan-400 selection:text-slate-950 overflow-x-hidden">
+      <div className="relative min-h-screen bg-[#030712] text-slate-100 font-sans selection:bg-cyan-400 selection:text-slate-950 overflow-x-hidden">
         
-        {/* Custom Glowing Cursor matching reference template */}
+        {/* Custom Glowing Cursor */}
         <CustomCursor />
 
-        {/* Global Navigation Header */}
+        {/* Global Glass Navigation Header */}
         <Navbar />
 
         {/* Main Content Sections */}
-        <main className="relative z-10">
+        <main className="relative z-10 space-y-4">
           <HeroSection />
+          
+          {/* Glassmorphism Portfolio Showcase Block */}
+          <GlassmorphismPortfolioBlock />
+
           <CoverLetterSection />
           <ExperienceSection />
           <ProjectsSection />
@@ -33,7 +38,7 @@ export default function Home() {
           <LiveHandoffSection />
         </main>
 
-        {/* Global Footer */}
+        {/* Global Glass Footer */}
         <Footer />
 
         {/* AI Digital Twin Slide-Over Drawer */}

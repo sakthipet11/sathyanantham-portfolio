@@ -23,18 +23,27 @@
 }
 
 :root {
-  --background: 240 10% 2.5%;
+  --background: 240 10% 3.9%;
   --foreground: 0 0% 98%;
-  --card: 240 10% 4%;
+  --card: 240 10% 5%;
   --card-foreground: 0 0% 98%;
   --primary: 188 94% 43%;
+  --primary-foreground: 240 10% 3.9%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
   --accent: 188 94% 43%;
-  --border: 240 6% 12%;
-  --input: 240 6% 12%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 3.7% 18%;
+  --input: 240 3.7% 18%;
+  --ring: 188 94% 43%;
 }
 
 body {
-  background-color: #050505;
+  background-color: #030712;
   color: #f9fafb;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -43,6 +52,29 @@ body {
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Glassmorphism custom classes */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-card-hover:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 25px rgba(56, 189, 248, 0.15);
 }
 
 /* Marquee Animations */
@@ -66,13 +98,14 @@ html {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #050505;
+  background: #030712;
 }
 ::-webkit-scrollbar-thumb {
   background: #1e293b;
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #38bdf8;

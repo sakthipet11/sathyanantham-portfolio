@@ -2,7 +2,9 @@
 
 import { useRef } from 'react';
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
-import { Download, FileText, Sparkles, UserCheck, ShieldCheck } from 'lucide-react';
+import { Download, FileText, Sparkles, UserCheck, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 const PHILOSOPHY_STATEMENTS = [
   "I architect frontend systems that scale effortlessly.",
@@ -25,10 +27,12 @@ export function CoverLetterSection() {
   return (
     <section id="cover-letter" className="py-20 relative z-10 overflow-hidden">
       
-      {/* Horizontal Philosophy Marquee Scroll matching template About.tsx */}
-      <div ref={containerRef} className="relative py-12 bg-slate-950/80 border-y border-slate-800/80 mb-16">
+      {/* Horizontal Philosophy Marquee Scroll */}
+      <div ref={containerRef} className="relative py-12 bg-slate-950/40 border-y border-slate-800/80 backdrop-blur-xl mb-16">
         <div className="px-6 md:px-12 mb-4 max-w-7xl mx-auto">
-          <p className="font-mono text-xs tracking-[0.3em] text-cyan-400 uppercase">// 01. PHILOSOPHY & INTENT</p>
+          <Badge variant="outline" className="font-mono text-xs tracking-[0.3em] uppercase text-cyan-400 border-cyan-500/30 bg-cyan-950/40">
+            // 01. PHILOSOPHY & INTENT
+          </Badge>
         </div>
         <div className="flex items-center overflow-hidden whitespace-nowrap">
           <motion.div style={{ x: smoothX }} className="flex gap-16 md:gap-24 px-6 md:px-12">
@@ -48,46 +52,47 @@ export function CoverLetterSection() {
         </div>
       </div>
 
-      {/* Main Cover Letter Container */}
+      {/* Main Glass Cover Letter Container */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <motion.div
-          initial={{ opacity: 0, y: 25 }}
+          initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="p-8 sm:p-10 rounded-2xl bg-slate-950/90 border border-slate-800 backdrop-blur-xl relative overflow-hidden group shadow-2xl space-y-6"
+          className="p-8 sm:p-12 rounded-3xl border border-slate-800/80 bg-slate-950/50 backdrop-blur-2xl relative overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.5)] space-y-8"
         >
-          {/* Ambient Top Laser Line */}
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-indigo-500" />
+          {/* Glass Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-indigo-500/5 pointer-events-none" />
 
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-cyan-950/80 border border-cyan-800 text-cyan-400 font-mono text-xs font-bold">
+          <div className="relative flex flex-wrap items-center justify-between gap-6 border-b border-slate-800/80 pb-8">
+            <div className="flex items-center gap-4">
+              <div className="p-3.5 rounded-2xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-bold shadow-lg">
                 STATEMENT
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white tracking-tight font-mono">
+                <h3 className="text-xl font-bold text-white tracking-tight">
                   Sathyanantham V — Lead Software Engineer Statement
                 </h3>
-                <p className="text-xs font-mono text-slate-400">
-                  Application: Lead Software Engineer / Frontend Architect / AI-Enabled Full Stack Engineer
+                <p className="text-xs font-mono text-slate-400 mt-1">
+                  Target: Lead Software Engineer / Frontend Architect / AI-Enabled Full Stack Lead
                 </p>
               </div>
             </div>
 
-            {/* Resume Download Action Button */}
+            {/* Download Action Button */}
             <a
               href="/resume.pdf"
               download="Sathyanantham_V_Lead_Software_Engineer_Resume.pdf"
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-mono font-bold text-slate-950 bg-cyan-400 rounded-lg hover:bg-cyan-300 shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all duration-300 shrink-0"
             >
-              <Download className="w-4 h-4" />
-              <span>Download Resume PDF</span>
+              <Button size="default" className="gap-2 rounded-xl px-5 text-xs font-mono font-bold uppercase tracking-wider">
+                <Download className="w-4 h-4" />
+                <span>Download Resume PDF</span>
+              </Button>
             </a>
           </div>
 
           {/* Letter Body */}
-          <div className="space-y-4 text-slate-300 text-sm leading-relaxed">
+          <div className="relative space-y-4 text-slate-300 text-sm sm:text-base leading-relaxed">
             <p>
               With over <strong className="text-white">13+ years of enterprise software engineering experience</strong>, I specialize in designing, architecting, and delivering high-performance frontend applications, digital commerce platforms, and Order Management solutions for global clients across <strong className="text-cyan-300 font-mono">Retail, E-Commerce, Banking, and Life Sciences</strong>.
             </p>
@@ -99,9 +104,9 @@ export function CoverLetterSection() {
             </p>
           </div>
 
-          {/* Key Strategic Initiatives Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-800/80">
-            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+          {/* Strategic Initiatives Grid */}
+          <div className="relative grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-800/80">
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md hover:border-cyan-500/40 transition-colors space-y-2">
               <div className="flex items-center gap-2 font-mono text-xs text-cyan-400 font-bold">
                 <Sparkles className="w-4 h-4" />
                 <span>// ENTERPRISE AI & CLAUDE SKILLS</span>
@@ -111,7 +116,7 @@ export function CoverLetterSection() {
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-900/70 border border-slate-800 space-y-2">
+            <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md hover:border-indigo-500/40 transition-colors space-y-2">
               <div className="flex items-center gap-2 font-mono text-xs text-indigo-400 font-bold">
                 <ShieldCheck className="w-4 h-4" />
                 <span>// FULL-STACK INTEGRATION & OMS</span>
@@ -122,8 +127,8 @@ export function CoverLetterSection() {
             </div>
           </div>
 
-          {/* Footer Action */}
-          <div className="pt-4 flex flex-wrap items-center justify-between gap-4 font-mono text-xs text-slate-400">
+          {/* Footer Status */}
+          <div className="relative pt-4 flex flex-wrap items-center justify-between gap-4 font-mono text-xs text-slate-400">
             <div className="flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-emerald-400" />
               <span>Available for Lead Engineering & Architectural Roles</span>
@@ -133,10 +138,10 @@ export function CoverLetterSection() {
               href="/resume.pdf"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 underline underline-offset-4"
+              className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition-colors"
             >
-              <FileText className="w-3.5 h-3.5" />
-              <span>View Full Resume PDF Online</span>
+              <span>View Full Resume Online</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
             </a>
           </div>
 

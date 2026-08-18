@@ -1,7 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Briefcase, Award, Calendar, MapPin, CheckCircle2, Terminal } from 'lucide-react';
+import { Award, Calendar, MapPin, CheckCircle2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const EXPERIENCES = [
   {
@@ -66,20 +67,20 @@ export function ExperienceSection() {
     <section id="experience" className="py-24 px-4 sm:px-6 relative z-10 max-w-6xl mx-auto">
       
       {/* Section Header */}
-      <div className="flex flex-col items-start gap-2 mb-16 border-l-2 border-cyan-400 pl-4">
-        <span className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
-          // 01. CAREER MILESTONES
-        </span>
+      <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-cyan-400 pl-4">
+        <Badge variant="outline" className="font-mono text-xs tracking-widest uppercase text-cyan-400 border-cyan-500/30 bg-cyan-950/40">
+          // 02. CAREER MILESTONES
+        </Badge>
         <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
           13+ Years of Lead Engineering
         </h2>
-        <p className="text-slate-400 text-sm max-w-xl">
+        <p className="text-slate-400 text-sm sm:text-base max-w-xl">
           Track record leading frontend architecture and high-impact engineering teams.
         </p>
       </div>
 
-      {/* Timeline List */}
-      <div className="space-y-12 relative">
+      {/* Timeline List with Glass Cards */}
+      <div className="space-y-10 relative">
         {EXPERIENCES.map((exp, idx) => (
           <motion.div
             key={idx}
@@ -87,47 +88,50 @@ export function ExperienceSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: idx * 0.15 }}
-            className="p-6 sm:p-8 rounded-2xl bg-slate-950/90 border border-slate-800 hover:border-cyan-500/60 transition-all duration-300 backdrop-blur-xl relative group"
+            className="p-6 sm:p-10 rounded-3xl bg-slate-950/50 border border-slate-800/80 backdrop-blur-2xl hover:border-cyan-500/50 transition-all duration-300 relative group shadow-2xl overflow-hidden"
           >
+            {/* Glass Overlay Glow */}
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-indigo-500/5 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
             {/* Header info */}
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-4 mb-6">
+            <div className="relative flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
               <div>
-                <span className="text-[10px] font-mono text-cyan-400 tracking-widest">{exp.tag}</span>
-                <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-0.5">{exp.company}</h3>
+                <span className="text-[11px] font-mono text-cyan-400 tracking-widest block font-semibold">{exp.tag}</span>
+                <h3 className="text-2xl font-bold text-white tracking-tight mt-1">{exp.company}</h3>
                 <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
                   <MapPin className="w-3.5 h-3.5 text-slate-500" />
                   <span>{exp.location}</span>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 text-xs font-mono text-cyan-300 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
-                <Calendar className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-2 text-xs font-mono text-cyan-300 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800 shadow-inner backdrop-blur-md">
+                <Calendar className="w-3.5 h-3.5 text-cyan-400" />
                 <span>{exp.period}</span>
               </div>
             </div>
 
             {/* Roles */}
-            <div className="space-y-1.5 mb-6">
+            <div className="relative space-y-2 mb-6 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60 backdrop-blur-sm">
               {exp.roles.map((r, rIdx) => (
-                <div key={rIdx} className="flex items-center justify-between text-xs font-mono">
-                  <span className="font-bold text-slate-200">{r.title}</span>
-                  <span className="text-slate-500">{r.duration}</span>
+                <div key={rIdx} className="flex items-center justify-between text-xs sm:text-sm font-mono">
+                  <span className="font-bold text-slate-100">{r.title}</span>
+                  <span className="text-slate-400 text-xs">{r.duration}</span>
                 </div>
               ))}
             </div>
 
             {/* Award Banner */}
             {exp.award && (
-              <div className="flex items-center gap-2.5 p-3 mb-6 rounded-xl bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs font-mono">
+              <div className="relative flex items-center gap-3 p-4 mb-6 rounded-2xl bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs font-mono backdrop-blur-md shadow-md">
                 <Award className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>{exp.award}</span>
               </div>
             )}
 
             {/* Bullet Highlights */}
-            <ul className="space-y-2.5 mb-6">
+            <ul className="relative space-y-3 mb-8">
               {exp.highlights.map((h, hIdx) => (
-                <li key={hIdx} className="flex items-start gap-2.5 text-xs text-slate-300 leading-relaxed">
+                <li key={hIdx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
                   <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
                   <span>{h}</span>
                 </li>
@@ -135,11 +139,11 @@ export function ExperienceSection() {
             </ul>
 
             {/* Tech Stack Bracket Tags */}
-            <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-800/80">
+            <div className="relative flex flex-wrap gap-2 pt-6 border-t border-slate-800/80">
               {exp.tech.map((t, tIdx) => (
                 <span
                   key={tIdx}
-                  className="text-[11px] font-mono px-2.5 py-1 rounded bg-slate-900 text-cyan-300 border border-slate-800"
+                  className="text-[11px] font-mono px-3 py-1 rounded-xl bg-slate-900/80 text-cyan-300 border border-slate-800 shadow-sm"
                 >
                   [{t}]
                 </span>
