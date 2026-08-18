@@ -66,7 +66,8 @@ class GenericLLMProvider:
         messages: List[Dict[str, str]],
         stream: bool = True,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
+        timeout: float = 15.0
     ) -> AsyncGenerator[str, None]:
         """
         Streams or yields completion tokens from the configured LLM endpoint.
@@ -92,7 +93,7 @@ class GenericLLMProvider:
         if max_tokens:
             payload["max_tokens"] = max_tokens
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             if not stream:
                 try:
                     res = await client.post(url, headers=headers, json=payload)
@@ -127,14 +128,15 @@ class GenericLLMProvider:
         self,
         messages: List[Dict[str, str]],
         fallback: Optional[Dict[str, Any]] = None,
-        temperature: float = 0.2
+        temperature: float = 0.2,
+        timeout: float = 8.0
     ) -> Dict[str, Any]:
         """
         Executes a non-streaming LLM prompt and reliably parses the returned JSON.
         """
         full_text = ""
         try:
-            async for chunk in self.chat_completion(messages, stream=False, temperature=temperature):
+            async for chunk in self.chat_completion(messages, stream=False, temperature=temperature, timeout=timeout):
                 full_text += chunk
             
             # Robust JSON extraction via regex

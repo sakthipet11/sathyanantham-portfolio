@@ -25,9 +25,13 @@ import {
   RefreshCw,
   X,
   Target,
-  BarChart3
+  BarChart3,
+  Trash2
 } from 'lucide-react';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
+import { BulkActionBar } from '@/components/admin/BulkActionBar';
+import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 export default function AdminJobsPage() {
   const apiHost = getApiHost();
@@ -37,20 +41,27 @@ export default function AdminJobsPage() {
   const [minScoreFilter, setMinScoreFilter] = useState<number>(0);
 
   const [metrics, setMetrics] = useState({
-    jobs_discovered_today: 18,
-    qualified_jobs: 14,
-    average_ats_score: 91.5,
-    excellent_matches: 8,
-    strong_matches: 6,
-    applications_pending_approval: 4,
-    applications_submitted: 9
+    jobs_discovered_today: 0,
+    qualified_jobs: 0,
+    average_ats_score: 0.0,
+    excellent_matches: 0,
+    strong_matches: 0,
+    applications_pending_approval: 0,
+    applications_submitted: 0
   });
 
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any | null>(null);
+  useLockBodyScroll(!!selectedJob);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Data Lifecycle Multi-Select & Delete State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -60,127 +71,32 @@ export default function AdminJobsPage() {
   const fetchJobsAndMetrics = async () => {
     try {
       setLoading(true);
+      const timestamp = Date.now();
       const [jobsRes, metricsRes] = await Promise.all([
-        fetchWithTimeout(`${apiHost}/api/v2/jobs?limit=100`, {}, 1500),
-        fetchWithTimeout(`${apiHost}/api/v2/jobs/metrics`, {}, 1500)
+        fetchWithTimeout(`${apiHost}/api/v2/jobs?limit=100&_t=${timestamp}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+        }, 1500),
+        fetchWithTimeout(`${apiHost}/api/v2/jobs/metrics?_t=${timestamp}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+        }, 1500)
       ]);
 
       if (jobsRes.ok) {
         const jData = await jobsRes.json();
-        if (jData.jobs) setJobs(jData.jobs);
+        setJobs(Array.isArray(jData.jobs) ? jData.jobs : []);
+      } else {
+        setJobs([]);
       }
+
       if (metricsRes.ok) {
         const mData = await metricsRes.json();
         if (mData.metrics) setMetrics(mData.metrics);
       }
     } catch (err) {
-      console.warn("Using offline demo data for jobs radar:", err);
-      // High-quality fallback state
-      const sampleJobs = [
-        {
-          id: "job-figma-501",
-          company: "Figma",
-          title: "Lead UI Platform Architect",
-          location: "Remote - Global",
-          location_type: "Remote",
-          source: "greenhouse",
-          portal_type: "greenhouse",
-          status: "QUALIFIED",
-          match_score: 96.5,
-          posted_date: "2026-08-17",
-          discovered_at: "2026-08-17T18:00:00Z",
-          apply_url: "https://boards.greenhouse.io/figma/jobs/501",
-          description_raw: "We are seeking a Lead UI Platform Architect to scale our micro frontend ecosystem, module federation, and design system architecture across enterprise tool suites.",
-          requirements_clean: "10+ years in React, TypeScript, Webpack Module Federation, state management, and web performance optimization.",
-          score_details: {
-            overall_score: 96.5,
-            match_level: "EXCELLENT",
-            skills_match: 98.0,
-            experience_match: 95.0,
-            title_match: 95.0,
-            responsibility_match: 94.0,
-            education_match: 90.0,
-            location_match: 100.0,
-            seniority_match: 96.0,
-            matching_keywords: ["React", "TypeScript", "Micro Frontends", "Module Federation", "Web Performance", "Design Systems"],
-            missing_keywords: ["GraphQL Federation"],
-            strengths: [
-              "13+ years directly matches senior frontend platform scope",
-              "Deep Module Federation and distributed micro frontend production track record"
-            ],
-            gaps: ["Verify proprietary build pipeline tooling"],
-            recommendation: "Tier 1 Priority Target — candidate background matches all core platform architecture requirements."
-          }
-        },
-        {
-          id: "job-stripe-302",
-          company: "Stripe",
-          title: "Principal Frontend Engineer - Micro Frontends",
-          location: "Remote - US",
-          location_type: "Remote",
-          source: "lever",
-          portal_type: "lever",
-          status: "READY_FOR_REVIEW",
-          match_score: 94.0,
-          posted_date: "2026-08-17",
-          discovered_at: "2026-08-17T18:05:00Z",
-          apply_url: "https://jobs.lever.co/stripe/302",
-          description_raw: "Lead the modernization of frontend applications across global commerce suites utilizing micro frontend federation.",
-          requirements_clean: "Strong mastery of React, TypeScript, Next.js, architecture leadership, and mentoring high-velocity engineering pods.",
-          score_details: {
-            overall_score: 94.0,
-            match_level: "EXCELLENT",
-            skills_match: 95.0,
-            experience_match: 95.0,
-            title_match: 92.0,
-            responsibility_match: 92.0,
-            education_match: 90.0,
-            location_match: 95.0,
-            seniority_match: 95.0,
-            matching_keywords: ["React", "TypeScript", "Next.js", "Architecture", "Micro Frontends"],
-            missing_keywords: ["Ruby on Rails"],
-            strengths: [
-              "Proven enterprise scalability with 5M+ MAU architecture experience",
-              "Demonstrated design system adoption across 14 engineering pods"
-            ],
-            gaps: ["Minor backend stack variance"],
-            recommendation: "Excellent fit for platform modernization leadership."
-          }
-        },
-        {
-          id: "job-oracle-4099",
-          company: "Oracle Enterprise",
-          title: "Principal UI Architect - Cloud Solutions",
-          location: "Remote",
-          location_type: "Remote",
-          source: "workday",
-          portal_type: "workday",
-          status: "MANUAL_REQUIRED",
-          match_score: 88.5,
-          posted_date: "2026-08-17",
-          discovered_at: "2026-08-17T18:10:00Z",
-          apply_url: "https://oracle.myworkdayjobs.com/careers/job/4099",
-          description_raw: "Lead architecture for cloud portal user experiences and distributed micro-apps.",
-          requirements_clean: "React, Micro Frontends, System Architecture, Web Performance.",
-          score_details: {
-            overall_score: 88.5,
-            match_level: "STRONG",
-            skills_match: 90.0,
-            experience_match: 90.0,
-            title_match: 90.0,
-            responsibility_match: 86.0,
-            education_match: 90.0,
-            location_match: 90.0,
-            seniority_match: 90.0,
-            matching_keywords: ["React", "Micro Frontends", "System Architecture"],
-            missing_keywords: ["OCI CLI"],
-            strengths: ["13+ years frontend architecture experience matches requirements"],
-            gaps: ["Workday portal uses protected SSO and bot sentinel"],
-            recommendation: "Strong match. Automation halted safely for manual application via browser."
-          }
-        }
-      ];
-      setJobs(sampleJobs);
+      console.warn("Error fetching jobs radar data:", err);
+      setJobs([]);
     } finally {
       setLoading(false);
     }
@@ -236,6 +152,71 @@ export default function AdminJobsPage() {
     );
     if (selectedJob && selectedJob.id === jobId) {
       setSelectedJob((prev: any) => ({ ...prev, status: newStatus }));
+    }
+  };
+
+  // Selection & Delete Handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredJobs.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredJobs.map((j) => j.id));
+    }
+  };
+
+  const toggleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const promptSingleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setItemsToDelete([id]);
+    setDeleteModalOpen(true);
+  };
+
+  const promptBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    setItemsToDelete(selectedIds);
+    setDeleteModalOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (itemsToDelete.length === 0) return;
+    setIsDeleting(true);
+    const targetIds = [...itemsToDelete];
+    try {
+      if (targetIds.length === 1) {
+        const id = targetIds[0];
+        const res = await fetch(`${apiHost}/api/v2/jobs/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast(`Job record hard-deleted.`);
+        }
+      } else {
+        const res = await fetch(`${apiHost}/api/v2/jobs/bulk-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: targetIds })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Bulk hard-delete complete: ${data.deleted_count} jobs deleted.`);
+        }
+      }
+    } catch {
+      showToast(`Deleted locally.`);
+    } finally {
+      setJobs((prev) => prev.filter((j) => !targetIds.includes(j.id)));
+      setSelectedIds((prev) => prev.filter((id) => !targetIds.includes(id)));
+      if (selectedJob && targetIds.includes(selectedJob.id)) {
+        setSelectedJob(null);
+      }
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+      setItemsToDelete([]);
+      await fetchJobsAndMetrics();
     }
   };
 
@@ -419,6 +400,14 @@ export default function AdminJobsPage() {
           <table className="w-full text-left text-xs text-foreground">
             <thead className="bg-muted/50 border-b border-border/80 text-[11px] font-mono text-muted-foreground uppercase">
               <tr>
+                <th className="w-10 px-4 py-3.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredJobs.length > 0 && selectedIds.length === filteredJobs.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                  />
+                </th>
                 <th className="px-5 py-3.5">Company & Role</th>
                 <th className="px-4 py-3.5">Location</th>
                 <th className="px-4 py-3.5">ATS Score</th>
@@ -431,7 +420,7 @@ export default function AdminJobsPage() {
             <tbody className="divide-y divide-border/60">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
                     No jobs match your filter criteria. Try changing filters or trigger a fresh job scan.
                   </td>
                 </tr>
@@ -439,13 +428,22 @@ export default function AdminJobsPage() {
                 filteredJobs.map((job) => {
                   const score = job.match_score || (job.score_details ? job.score_details.overall_score : 85);
                   const level = (job.score_details && job.score_details.match_level) || (score >= 90 ? 'EXCELLENT' : score >= 85 ? 'STRONG' : 'POTENTIAL');
+                  const isSelected = selectedIds.includes(job.id);
 
                   return (
                     <tr
                       key={job.id}
-                      className="hover:bg-muted/50 transition-colors group cursor-pointer"
+                      className={`hover:bg-muted/50 transition-colors group cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => setSelectedJob(job)}
                     >
+                      <td className="px-4 py-4 text-center" onClick={(e) => toggleSelectRow(job.id, e)}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                        />
+                      </td>
                       <td className="px-5 py-4">
                         <div className="font-semibold text-foreground text-sm flex items-center gap-2">
                           {job.title}
@@ -533,6 +531,14 @@ export default function AdminJobsPage() {
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
+
+                          <button
+                            onClick={(e) => promptSingleDelete(job.id, e)}
+                            className="p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 transition-colors cursor-pointer"
+                            title="Hard-Delete Record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -727,6 +733,27 @@ export default function AdminJobsPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        pipelineName="Jobs"
+        onClearSelection={() => setSelectedIds([])}
+        onTriggerBulkDelete={promptBulkDelete}
+      />
+
+      {/* Hard Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        itemCount={itemsToDelete.length}
+        pipelineName="Job Discovery"
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setItemsToDelete([]);
+        }}
+        onConfirm={executeDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
@@ -41,7 +41,7 @@ import {
   Save
 } from 'lucide-react';
 
-export default function AdminDashboardPage() {
+function AdminDashboardContent() {
   // Authentication State
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -64,27 +64,27 @@ export default function AdminDashboardPage() {
 
   // Dashboard Overview & Telemetry State
   const [overview, setOverview] = useState<any>({
-    jobs_discovered_today: 18,
-    qualified_jobs: 14,
-    average_ats_score: 88.5,
-    matches_90_plus: 6,
-    applications_pending: 12,
-    applications_submitted: 5,
-    interview_requests: 5,
-    referral_opportunities: 8,
-    recruiter_responses: 16
+    jobs_discovered_today: 0,
+    qualified_jobs: 0,
+    average_ats_score: 0.0,
+    matches_90_plus: 0,
+    applications_pending: 0,
+    applications_submitted: 0,
+    interview_requests: 0,
+    referral_opportunities: 0,
+    recruiter_responses: 0
   });
 
   const [pipeline, setPipeline] = useState<any>({
-    DISCOVERED: 18,
-    SCORED: 18,
-    QUALIFIED: 14,
-    TAILORING: 4,
-    READY_FOR_REVIEW: 3,
-    APPROVED: 2,
-    APPLYING: 1,
-    APPLIED: 5,
-    INTERVIEW: 5
+    DISCOVERED: 0,
+    SCORED: 0,
+    QUALIFIED: 0,
+    TAILORING: 0,
+    READY_FOR_REVIEW: 0,
+    APPROVED: 0,
+    APPLYING: 0,
+    APPLIED: 0,
+    INTERVIEW: 0
   });
 
   const [agents, setAgents] = useState<any[]>([]);
@@ -98,10 +98,10 @@ export default function AdminDashboardPage() {
 
   // Analytics & Contact State
   const [analytics, setAnalytics] = useState<any>({
-    total_page_views: 1240,
-    total_resume_downloads: 320,
-    total_contacts: 14,
-    total_chat_sessions: 28
+    total_page_views: 0,
+    total_resume_downloads: 0,
+    total_contacts: 0,
+    total_chat_sessions: 0
   });
   const [contacts, setContacts] = useState<any[]>([]);
   const [selectedContact, setSelectedContact] = useState<any | null>(null);
@@ -144,54 +144,27 @@ export default function AdminDashboardPage() {
     return { 'X-Admin-Token': token || '' };
   }
 
-  // Sample Chat Data Fallbacks
-  const sampleSessions = [
-    {
-      id: "sess-v8921-tech-recruiter",
-      visitor_id: "Tech Recruiter (Linear App)",
-      last_message: "Hi Sathya! Are you open to Lead Architect roles in SF or Remote?",
-      updated_at: new Date(Date.now() - 1200000).toISOString(),
-      status: "active"
-    },
-    {
-      id: "sess-v4412-engineering-vp",
-      visitor_id: "VP of Engineering (Figma)",
-      last_message: "Interested in your AI Digital Twin setup. Let's connect!",
-      updated_at: new Date(Date.now() - 7200000).toISOString(),
-      status: "active"
-    },
-    {
-      id: "sess-v3109-stripe-lead",
-      visitor_id: "Staff Recruiter (Stripe)",
-      last_message: "Looking forward to our discussion on Micro Frontend architecture.",
-      updated_at: new Date(Date.now() - 86400000).toISOString(),
-      status: "closed"
-    }
-  ];
-
-  const sampleMessagesMap: Record<string, any[]> = {
-    "sess-v8921-tech-recruiter": [
-      { role: 'user', content: 'Hello Sathya! I saw your digital twin portfolio.', timestamp: '10:14 AM' },
-      { role: 'assistant', content: 'Hi there! Welcome. How can I help you explore my experience?', timestamp: '10:14 AM' },
-      { role: 'user', content: 'Hi Sathya! Are you open to Lead Architect roles in SF or Remote?', timestamp: '10:15 AM' }
-    ],
-    "sess-v4412-engineering-vp": [
-      { role: 'user', content: 'Interested in your AI Digital Twin setup. Let\'s connect!', timestamp: '08:30 AM' },
-      { role: 'assistant', content: 'Thanks! Feel free to leave your contact email or request a live handoff.', timestamp: '08:31 AM' }
-    ],
-    "sess-v3109-stripe-lead": [
-      { role: 'user', content: 'Looking forward to our discussion on Micro Frontend architecture.', timestamp: 'Yesterday' }
-    ]
-  };
-
   // Auth Check & Global Event Listener for Presence
   useEffect(() => {
-    const token = sessionStorage.getItem('sathya_admin_token');
-    if (token) {
-      setIsAuthenticated(true);
-      fetchDashboardData();
-    }
-    setIsCheckingAuth(false);
+    const checkAuth = () => {
+      const token = sessionStorage.getItem('sathya_admin_token');
+      if (token) {
+        setIsAuthenticated(true);
+        fetchDashboardData();
+      } else {
+        setIsAuthenticated(false);
+      }
+      setIsCheckingAuth(false);
+    };
+
+    checkAuth();
+
+    const handleAuthChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('admin-auth-changed', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
 
     const handlePresenceChange = (e: Event) => {
       const customEvent = e as CustomEvent;
@@ -201,7 +174,11 @@ export default function AdminDashboardPage() {
     };
 
     window.addEventListener('host-presence-changed', handlePresenceChange);
-    return () => window.removeEventListener('host-presence-changed', handlePresenceChange);
+    return () => {
+      window.removeEventListener('admin-auth-changed', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+      window.removeEventListener('host-presence-changed', handlePresenceChange);
+    };
   }, []);
 
   // WebSocket Live Intercept Connection (Correct route: /ws/chat?role=host)
@@ -284,17 +261,13 @@ export default function AdminDashboardPage() {
       }
       if (chatSessionsRes?.ok) {
         const sessList = await chatSessionsRes.json();
-        if (Array.isArray(sessList) && sessList.length > 0) {
-          setChatSessions(sessList);
-        } else {
-          setChatSessions(sampleSessions);
-        }
+        setChatSessions(Array.isArray(sessList) ? sessList : []);
       } else {
-        setChatSessions(sampleSessions);
+        setChatSessions([]);
       }
     } catch (e) {
-      console.warn("Failed loading live dashboard endpoint, rendering fallback offline data:", e);
-      setChatSessions(sampleSessions);
+      console.warn("Failed loading live dashboard endpoint:", e);
+      setChatSessions([]);
     } finally {
       setLoadingData(false);
     }
@@ -371,6 +344,7 @@ export default function AdminDashboardPage() {
       sessionStorage.setItem('sathya_admin_token', password);
       setIsAuthenticated(true);
       fetchDashboardData();
+      window.dispatchEvent(new Event('admin-auth-changed'));
     } else {
       setAuthError('Invalid Master Passkey. Access Denied.');
     }
@@ -429,38 +403,7 @@ export default function AdminDashboardPage() {
   }
 
   // Filtered Job Explorer List
-  const filteredJobs = (jobsList.length > 0 ? jobsList : [
-    {
-      id: "job-figma-01",
-      title: "Lead UI Platform Architect",
-      company: "Figma",
-      location: "San Francisco, CA (Remote)",
-      ats_score: 96,
-      source: "LinkedIn Direct",
-      status: "APPROVED",
-      lifecycle: ["DISCOVERED", "SCORED", "QUALIFIED", "TAILORING", "READY_FOR_REVIEW", "APPROVED"]
-    },
-    {
-      id: "job-stripe-02",
-      title: "Principal Frontend Engineer - Micro Frontends",
-      company: "Stripe",
-      location: "Remote - US",
-      ats_score: 94,
-      source: "Greenhouse",
-      status: "APPLIED",
-      lifecycle: ["DISCOVERED", "SCORED", "QUALIFIED", "TAILORING", "READY_FOR_REVIEW", "APPROVED", "APPLYING", "APPLIED"]
-    },
-    {
-      id: "job-linear-03",
-      title: "Staff Frontend Systems Engineer",
-      company: "Linear",
-      location: "Remote - Global",
-      ats_score: 92,
-      source: "Company Portal",
-      status: "READY_FOR_REVIEW",
-      lifecycle: ["DISCOVERED", "SCORED", "QUALIFIED", "TAILORING", "READY_FOR_REVIEW"]
-    }
-  ]).filter((j: any) => {
+  const filteredJobs = jobsList.filter((j: any) => {
     const matchesSearch = (j.title || '').toLowerCase().includes(jobSearch.toLowerCase()) ||
       (j.company || '').toLowerCase().includes(jobSearch.toLowerCase());
     const matchesStat = jobStatusFilter === 'ALL' || j.status === jobStatusFilter;
@@ -468,28 +411,7 @@ export default function AdminDashboardPage() {
     return matchesSearch && matchesStat && matchesAts;
   });
 
-  const filteredContacts = (contacts.length > 0 ? contacts : [
-    {
-      id: "cnt-01",
-      name: "Marcus Vance",
-      email: "m.vance@linear.app",
-      company: "Linear",
-      inquiry_type: "Hiring / Recruiter",
-      subject: "Staff Frontend Systems role",
-      message: "Hey Sathya, saw your impressive AI Twin and WebGL canvas. We'd love to chat about our UI platform team.",
-      created_at: new Date(Date.now() - 3600000).toISOString()
-    },
-    {
-      id: "cnt-02",
-      name: "Elena Rostova",
-      email: "elena@figma.com",
-      company: "Figma",
-      inquiry_type: "Engineering Collaboration",
-      subject: "Lead UI Platform Architect interview",
-      message: "Your background in micro-frontend federation aligns perfectly with our 2026 roadmap. Let's schedule a deep-dive.",
-      created_at: new Date(Date.now() - 86400000).toISOString()
-    }
-  ]).filter((c: any) => {
+  const filteredContacts = contacts.filter((c: any) => {
     const q = contactSearch.toLowerCase();
     return (c.name || '').toLowerCase().includes(q) ||
       (c.company || '').toLowerCase().includes(q) ||
@@ -1314,13 +1236,9 @@ export default function AdminDashboardPage() {
       console.warn("Failed to load session messages:", e);
     }
 
-    if (sampleMessagesMap[sessionId]) {
-      setCurrentChatMessages(sampleMessagesMap[sessionId]);
-    } else {
-      setCurrentChatMessages([
-        { role: 'user', content: 'Session initiated by visitor.', timestamp: new Date().toLocaleTimeString() }
-      ]);
-    }
+    setCurrentChatMessages([
+      { role: 'user', content: 'Session initiated by visitor.', timestamp: new Date().toLocaleTimeString() }
+    ]);
   }
 
   function sendHostReply(e: React.FormEvent) {
@@ -1356,4 +1274,16 @@ export default function AdminDashboardPage() {
       return s;
     }));
   }
+}
+
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center font-mono text-primary text-xs animate-pulse">
+        Loading Command Center...
+      </div>
+    }>
+      <AdminDashboardContent />
+    </Suspense>
+  );
 }

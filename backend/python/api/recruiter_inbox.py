@@ -89,3 +89,16 @@ def reject_email_reply(email_id: str):
     updated = email_repository.update_email_status(email_id, status="REJECTED")
     email_repository.log_audit(email_id, "REPLY_DECLINED", "HUMAN_ADMIN", "Administrator declined to send a reply.")
     return {"status": "success", "email": updated}
+
+@router.post("/bulk-delete")
+def bulk_delete_emails(payload: Dict[str, List[str]] = Body(...)):
+    ids = payload.get("ids", [])
+    if len(ids) > 500:
+        raise HTTPException(status_code=400, detail="Bulk delete batch size exceeds limit of 500 IDs.")
+    deleted_count = email_repository.delete_bulk(ids, actor="admin_user", action="MANUAL_DELETE")
+    return {"status": "success", "pipeline": "emails", "requested_count": len(ids), "deleted_count": deleted_count}
+
+@router.delete("/{email_id}")
+def delete_email(email_id: str):
+    deleted = email_repository.delete_by_id(email_id, actor="admin_user", action="MANUAL_DELETE")
+    return {"status": "success", "message": f"Email {email_id} hard-deleted.", "deleted": deleted}

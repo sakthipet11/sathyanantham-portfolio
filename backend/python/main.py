@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot
+from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot, portfolio, data_lifecycle
 from backend.python.services.websocket_service import ws_manager
 from backend.python.repositories.supabase_repo import db_helper
 from backend.python.services.notifications import notify_handoff_requested
@@ -28,6 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(data_lifecycle.router)
 app.include_router(admin.router)
 app.include_router(chat.router)
 app.include_router(contact.router)
@@ -39,6 +40,7 @@ app.include_router(referrals.router)
 app.include_router(control_center.router)
 app.include_router(hardening.router)
 app.include_router(copilot.router)
+app.include_router(portfolio.router)
 
 @app.get("/")
 def read_root():

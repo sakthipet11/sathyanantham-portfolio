@@ -33,9 +33,13 @@ import {
   Award,
   ToggleLeft,
   ToggleRight,
-  Bot
+  Bot,
+  Trash2
 } from 'lucide-react';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
+import { BulkActionBar } from '@/components/admin/BulkActionBar';
+import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 export default function AdminReferralsPage() {
   const apiHost = getApiHost();
@@ -43,23 +47,30 @@ export default function AdminReferralsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedConnectionType, setSelectedConnectionType] = useState<string>('ALL');
 
-  const [metrics, setMetrics] = useState({
-    total_qualified_jobs: 8,
-    first_degree_contacts: 5,
-    messages_drafted: 6,
-    ready_for_review: 4,
-    approved: 2,
-    sent: 3,
-    replied: 1
+  const [metrics, setMetrics] = useState<any>({
+    total_qualified_jobs: 0,
+    first_degree_contacts: 0,
+    messages_drafted: 0,
+    ready_for_review: 0,
+    approved: 0,
+    sent: 0,
+    replied: 0
   });
 
   const [referrals, setReferrals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [selectedReferral, setSelectedReferral] = useState<any | null>(null);
+  useLockBodyScroll(!!selectedReferral);
   const [draftMessage, setDraftMessage] = useState<string>('');
   const [includeTwin, setIncludeTwin] = useState<boolean>(true);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Multi-Select & Delete State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -76,13 +87,9 @@ export default function AdminReferralsPage() {
 
       if (refsRes.ok) {
         const rData = await refsRes.json();
-        if (rData.referrals && rData.referrals.length > 0) {
-          setReferrals(rData.referrals);
-        } else {
-          loadFallbackData();
-        }
+        setReferrals(Array.isArray(rData.referrals) ? rData.referrals : []);
       } else {
-        loadFallbackData();
+        setReferrals([]);
       }
 
       if (metricsRes.ok) {
@@ -90,71 +97,11 @@ export default function AdminReferralsPage() {
         if (mData.metrics) setMetrics(mData.metrics);
       }
     } catch (err) {
-      console.warn("Using demo data for referrals:", err);
-      loadFallbackData();
+      console.warn("Error fetching referrals data:", err);
+      setReferrals([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadFallbackData = () => {
-    const demoReferrals = [
-      {
-        id: "ref-figma-01",
-        job_id: "job-figma-lead-arch",
-        job_title: "Lead UI Platform Architect",
-        job_ats_score: 96,
-        company: "Figma",
-        person_name: "Marcus Vance",
-        role: "VP of Core Product Engineering",
-        profile_url: "https://linkedin.com/in/marcus-vance-figma",
-        connection_type: "1ST_DEGREE_LINKEDIN",
-        referral_score: 98,
-        reason: "1st-Degree LinkedIn connection. VP of Engineering overseeing UI platform organization.",
-        relationship_evidence: "Verified 1st-Degree LinkedIn connection (Connected since 2022). Direct messaging available.",
-        message: "Hi Marcus,\n\nHope all is well! I noticed Figma is actively looking for a Lead UI Platform Architect to scale your core canvas and design system infrastructure.\n\nGiven my 13.5+ years leading Module Federation and React performance optimizations at scale, this role aligns directly with my engineering focus.\n\nWould you be open to putting in an internal referral for me? Here is my portfolio: https://sathyanantham.dev (or test my live interactive AI Twin at https://sathyanantham.dev?openTwin=true).\n\nBest regards,\nSathyanantham V",
-        include_twin_demo: true,
-        status: "READY_FOR_REVIEW",
-        created_at: "2026-08-17T18:00:00Z"
-      },
-      {
-        id: "ref-stripe-02",
-        job_id: "job-stripe-mfe-01",
-        job_title: "Principal Frontend Engineer - Micro Frontends",
-        job_ats_score: 94,
-        company: "Stripe",
-        person_name: "Elena Rostova",
-        role: "Staff Engineering Manager, Developer Infrastructure",
-        profile_url: "https://linkedin.com/in/elena-rostova-stripe",
-        connection_type: "1ST_DEGREE_LINKEDIN",
-        referral_score: 95,
-        reason: "1st-Degree LinkedIn connection. Manages Stripe's Web Developer Infrastructure & UI Architecture.",
-        relationship_evidence: "Verified 1st-Degree LinkedIn connection (Connected since 2023). Shared technical network.",
-        message: "Hi Elena,\n\nHope you're having a great week! I saw that Stripe is hiring a Principal Frontend Engineer for the Micro Frontends initiative.\n\nHaving architected enterprise Module Federation platforms handling high-throughput payments, I'd love to explore this opportunity with the team.\n\nWould you be comfortable referring me internally? You can review my architecture case studies at https://sathyanantham.dev.\n\nBest,\nSathyanantham V",
-        include_twin_demo: false,
-        status: "READY_FOR_REVIEW",
-        created_at: "2026-08-17T17:30:00Z"
-      },
-      {
-        id: "ref-linear-03",
-        job_id: "job-linear-staff-01",
-        job_title: "Staff Frontend Systems Engineer",
-        job_ats_score: 92,
-        company: "Linear",
-        person_name: "David Lindqvist",
-        role: "Principal Systems Engineer",
-        profile_url: "https://linkedin.com/in/david-lindqvist-linear",
-        connection_type: "PUBLIC_DIRECTORY",
-        referral_score: 88,
-        reason: "Public team lead on Linear sync engine & UI desktop architecture.",
-        relationship_evidence: "Public employee directory / engineering team member at Linear. No prior direct connection.",
-        message: "Hi David,\n\nI came across your profile while researching the platform engineering team at Linear. I've been following Linear's high-performance synchronization architecture with great interest.\n\nI'm exploring the Staff Frontend Systems opening at Linear. With 13.5+ years optimizing sub-50ms React render cycles and state sync pipelines, I believe I can make an immediate impact.\n\nWould you be open to submitting an internal referral or introducing me to the hiring manager? My portfolio: https://sathyanantham.dev\n\nBest regards,\nSathyanantham V",
-        include_twin_demo: true,
-        status: "QUALIFIED",
-        created_at: "2026-08-17T16:15:00Z"
-      }
-    ];
-    setReferrals(demoReferrals);
   };
 
   useEffect(() => {
@@ -295,6 +242,70 @@ export default function AdminReferralsPage() {
     }
   };
 
+  // Multi-Select & Deletion Handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredReferrals.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredReferrals.map((r) => r.id));
+    }
+  };
+
+  const toggleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const promptSingleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setItemsToDelete([id]);
+    setDeleteModalOpen(true);
+  };
+
+  const promptBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    setItemsToDelete(selectedIds);
+    setDeleteModalOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (itemsToDelete.length === 0) return;
+    setIsDeleting(true);
+    try {
+      if (itemsToDelete.length === 1) {
+        const id = itemsToDelete[0];
+        const res = await fetch(`${apiHost}/api/v2/referrals/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast(`Referral record hard-deleted.`);
+        }
+      } else {
+        const res = await fetch(`${apiHost}/api/v2/referrals/bulk-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: itemsToDelete })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Bulk hard-delete complete: ${data.deleted_count} referrals deleted.`);
+        }
+      }
+    } catch {
+      showToast(`Deleted locally.`);
+    } finally {
+      setReferrals((prev) => prev.filter((r) => !itemsToDelete.includes(r.id)));
+      setSelectedIds((prev) => prev.filter((id) => !itemsToDelete.includes(id)));
+      if (selectedReferral && itemsToDelete.includes(selectedReferral.id)) {
+        setSelectedReferral(null);
+      }
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+      setItemsToDelete([]);
+      fetchReferralsData();
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'READY_FOR_REVIEW':
@@ -432,6 +443,14 @@ export default function AdminReferralsPage() {
           <table className="w-full text-left text-xs text-foreground">
             <thead className="bg-muted/50 border-b border-border/80 text-[11px] font-mono text-muted-foreground uppercase">
               <tr>
+                <th className="w-10 px-4 py-3.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredReferrals.length > 0 && selectedIds.length === filteredReferrals.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                  />
+                </th>
                 <th className="px-5 py-3.5">Company & Target Job</th>
                 <th className="px-4 py-3.5">ATS Score</th>
                 <th className="px-5 py-3.5">Referral Contact</th>
@@ -444,17 +463,27 @@ export default function AdminReferralsPage() {
             <tbody className="divide-y divide-border/60">
               {filteredReferrals.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
                     No referral opportunities found matching current filters.
                   </td>
                 </tr>
               ) : (
-                filteredReferrals.map((ref) => (
-                  <tr
-                    key={ref.id}
-                    className="hover:bg-muted/30 transition-colors group cursor-pointer"
-                    onClick={() => handleSelectReferral(ref)}
-                  >
+                filteredReferrals.map((ref) => {
+                  const isSelected = selectedIds.includes(ref.id);
+                  return (
+                    <tr
+                      key={ref.id}
+                      className={`hover:bg-muted/30 transition-colors group cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => handleSelectReferral(ref)}
+                    >
+                      <td className="px-4 py-4 text-center" onClick={(e) => toggleSelectRow(ref.id, e)}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                        />
+                      </td>
                     <td className="px-5 py-4">
                       <div className="font-semibold text-foreground text-sm flex items-center gap-1.5 font-sans">
                         <Building className="w-3.5 h-3.5 text-primary" />
@@ -526,10 +555,19 @@ export default function AdminReferralsPage() {
                             <Send className="w-3.5 h-3.5" /> Send
                           </button>
                         )}
+
+                        <button
+                          onClick={(e) => promptSingleDelete(ref.id, e)}
+                          className="p-1.5 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 transition-colors cursor-pointer"
+                          title="Hard-Delete Record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+              })
               )}
             </tbody>
           </table>
@@ -659,6 +697,27 @@ export default function AdminReferralsPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        pipelineName="Referrals"
+        onClearSelection={() => setSelectedIds([])}
+        onTriggerBulkDelete={promptBulkDelete}
+      />
+
+      {/* Hard Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        itemCount={itemsToDelete.length}
+        pipelineName="Referrals Discovery"
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setItemsToDelete([]);
+        }}
+        onConfirm={executeDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

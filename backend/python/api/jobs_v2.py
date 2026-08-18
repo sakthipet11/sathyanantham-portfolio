@@ -83,3 +83,16 @@ def update_job_status(job_id: str, req: StatusUpdateRequest):
     if not updated:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
     return {"status": "success", "job": updated}
+
+@router.post("/api/v2/jobs/bulk-delete")
+def bulk_delete_jobs(payload: Dict[str, List[str]] = Body(...)):
+    ids = payload.get("ids", [])
+    if len(ids) > 500:
+        raise HTTPException(status_code=400, detail="Bulk delete batch size exceeds limit of 500 IDs.")
+    deleted_count = job_repository.delete_bulk(ids, actor="admin_user", action="MANUAL_DELETE")
+    return {"status": "success", "pipeline": "jobs", "requested_count": len(ids), "deleted_count": deleted_count}
+
+@router.delete("/api/v2/jobs/{job_id}")
+def delete_job(job_id: str):
+    deleted = job_repository.delete_by_id(job_id, actor="admin_user", action="MANUAL_DELETE")
+    return {"status": "success", "message": f"Job {job_id} hard-deleted.", "deleted": deleted}

@@ -14,6 +14,7 @@ import {
   Bot,
   BarChart3,
   ShieldCheck,
+  ShieldAlert,
   Settings,
   User,
   ArrowUpRight,
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 interface NavItem {
   label: string;
@@ -47,9 +49,38 @@ export function AdminSidebar() {
   
   // Mobile menu drawer toggle
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  useLockBodyScroll(isMobileOpen);
   
   // Host presence toggle state
   const [isHostOnline, setIsHostOnline] = useState(false);
+
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = typeof window !== 'undefined' ? sessionStorage.getItem('sathya_admin_token') : null;
+      const authed = !!token;
+      setIsAuthenticated(authed);
+
+      if (!authed && pathname && pathname !== '/admin' && pathname !== '/admin/dashboard') {
+        window.location.href = '/admin';
+      }
+    };
+
+    checkAuth();
+
+    const handleAuthChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('admin-auth-changed', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+    return () => {
+      window.removeEventListener('admin-auth-changed', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
+  }, [pathname]);
 
   // Auto-close mobile drawer when pathname/searchParams change
   useEffect(() => {
@@ -114,7 +145,8 @@ export function AdminSidebar() {
         { label: 'Recruiter inbox', href: '/admin/recruiter-inbox', icon: Inbox },
         { label: 'Referrals', href: '/admin/referrals', icon: Users },
         { label: 'Resumes', href: '/admin/resumes', icon: FileCheck },
-        { label: 'Automation', href: '/admin/automation', icon: Sliders }
+        { label: 'Automation', href: '/admin/automation', icon: Sliders, exactMatch: true },
+        { label: 'Data retention', href: '/admin/automation/retention', icon: ShieldAlert }
       ]
     },
     {
@@ -150,6 +182,7 @@ export function AdminSidebar() {
 
   const handleLogout = () => {
     sessionStorage.removeItem('sathya_admin_token');
+    window.dispatchEvent(new Event('admin-auth-changed'));
     window.location.href = '/admin';
   };
 
@@ -261,6 +294,10 @@ export function AdminSidebar() {
       </div>
     </div>
   );
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>

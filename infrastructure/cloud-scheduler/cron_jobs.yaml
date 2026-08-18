@@ -1,19 +1,19 @@
-# Google Cloud Scheduler Cron Configuration
-version: "1.0"
+# Cloud Scheduler Cron Jobs Configuration
+# GCP Cloud Scheduler Job definitions for automated retention purge & periodic tasks
+
 jobs:
-  - name: job-discovery-daily-scan
-    schedule: "0 8 * * *"
+  - name: daily-data-retention-purge
+    description: "Daily automated hard purge of old records across Jobs, Applications, Resumes, Referrals, and Recruiter Inbox based on retention policies."
+    schedule: "0 2 * * *" # Daily at 02:00 AM UTC
     time_zone: "UTC"
     http_target:
-      uri: "https://api.sathya-ai.studio/api/automation/jobs/discover"
+      uri: "https://api.sathyanantham.dev/api/v2/automation/retention/run"
       http_method: "POST"
       headers:
         Content-Type: "application/json"
-      body: '{"target_role": "Lead Frontend Architect", "triggered_by": "CLOUD_SCHEDULER"}'
-
-  - name: email-outreach-sync
-    schedule: "*/30 * * * *"
-    time_zone: "UTC"
-    http_target:
-      uri: "https://api.sathya-ai.studio/api/admin/chat/sessions"
-      http_method: "GET"
+        X-Service-Token: "sched-secret-token-2026"
+    retry_config:
+      retry_count: 3
+      max_retry_duration: "300s"
+      min_backoff_duration: "10s"
+      max_backoff_duration: "60s"

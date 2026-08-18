@@ -23,9 +23,13 @@ import {
   Sparkles,
   Award,
   Terminal,
-  FileCheck
+  FileCheck,
+  Trash2
 } from 'lucide-react';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
+import { BulkActionBar } from '@/components/admin/BulkActionBar';
+import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 export default function AdminApplicationsPage() {
   const apiHost = getApiHost();
@@ -33,20 +37,27 @@ export default function AdminApplicationsPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
   const [metrics, setMetrics] = useState({
-    total_applications: 12,
-    ready_for_review: 4,
-    approved: 2,
-    submitted: 5,
-    manual_required: 1,
+    total_applications: 0,
+    ready_for_review: 0,
+    approved: 0,
+    submitted: 0,
+    manual_required: 0,
     failed: 0,
-    success_rate: 100.0
+    success_rate: 0.0
   });
 
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
+  useLockBodyScroll(!!selectedApp);
   const [appEvents, setAppEvents] = useState<any[]>([]);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Multi-Select & Delete State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -56,20 +67,23 @@ export default function AdminApplicationsPage() {
   const fetchApplications = async () => {
     try {
       setLoading(true);
+      const timestamp = Date.now();
       const [appsRes, metricsRes] = await Promise.all([
-        fetchWithTimeout(`${apiHost}/api/v2/applications?limit=100`, {}, 1500),
-        fetchWithTimeout(`${apiHost}/api/v2/applications/metrics`, {}, 1500)
+        fetchWithTimeout(`${apiHost}/api/v2/applications?limit=100&_t=${timestamp}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+        }, 1500),
+        fetchWithTimeout(`${apiHost}/api/v2/applications/metrics?_t=${timestamp}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+        }, 1500)
       ]);
 
       if (appsRes.ok) {
         const aData = await appsRes.json();
-        if (aData.applications && aData.applications.length > 0) {
-          setApplications(aData.applications);
-        } else {
-          loadFallbackData();
-        }
+        setApplications(Array.isArray(aData.applications) ? aData.applications : []);
       } else {
-        loadFallbackData();
+        setApplications([]);
       }
 
       if (metricsRes.ok) {
@@ -77,78 +91,11 @@ export default function AdminApplicationsPage() {
         if (mData.metrics) setMetrics(mData.metrics);
       }
     } catch (err) {
-      console.warn("Using demo data for applications:", err);
-      loadFallbackData();
+      console.warn("Error fetching applications:", err);
+      setApplications([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadFallbackData = () => {
-    const demoApps = [
-      {
-        id: "app-figma-501",
-        job_id: "job-figma-501",
-        company: "Figma",
-        role_title: "Lead UI Platform Architect",
-        resume_version_id: "resume-v2026-sathya-architect-figma",
-        status: "READY_FOR_REVIEW",
-        submission_method: "mcp_browserbase",
-        match_score: 96.5,
-        created_at: "2026-08-17T18:15:00Z",
-        submitted_at: null,
-        apply_url: "https://boards.greenhouse.io/figma/jobs/501",
-        last_event: "APPLICATION_READY_FOR_REVIEW",
-        form_payload: {
-          first_name: { semantic_label: "First Name", value: "Sathyanantham", is_verified: true },
-          last_name: { semantic_label: "Last Name", value: "V", is_verified: true },
-          email: { semantic_label: "Email Address", value: "sathya.leadarchitect@gmail.com", is_verified: true },
-          phone: { semantic_label: "Phone Number", value: "+1 (555) 382-9912", is_verified: true },
-          location: { semantic_label: "Location", value: "Bangalore (US/Global Remote)", is_verified: true },
-          linkedin: { semantic_label: "LinkedIn Profile", value: "https://linkedin.com/in/sathyanantham-v", is_verified: true },
-          portfolio: { semantic_label: "Portfolio", value: "https://sathyanantham.dev", is_verified: true },
-          resume: { field_label: "Attached Resume", file_name: "Sathya_Lead_Frontend_Architect_Tailored.pdf", status: "ATTACHED" }
-        }
-      },
-      {
-        id: "app-stripe-302",
-        job_id: "job-stripe-302",
-        company: "Stripe",
-        role_title: "Principal Frontend Engineer - Micro Frontends",
-        resume_version_id: "resume-v2026-sathya-architect-stripe",
-        status: "SUBMITTED",
-        submission_method: "mcp_browserbase",
-        match_score: 94.0,
-        created_at: "2026-08-17T17:30:00Z",
-        submitted_at: "2026-08-17T17:45:00Z",
-        external_confirmation_id: "CONF-STRIPE-89102",
-        apply_url: "https://jobs.lever.co/stripe/302",
-        last_event: "APPLICATION_SUBMITTED",
-        form_payload: {
-          full_name: { semantic_label: "Full Name", value: "Sathyanantham V", is_verified: true },
-          email: { semantic_label: "Email Address", value: "sathya.leadarchitect@gmail.com", is_verified: true },
-          linkedin: { semantic_label: "LinkedIn Profile", value: "https://linkedin.com/in/sathyanantham-v", is_verified: true },
-          work_auth: { semantic_label: "Work Authorization", value: "Authorized / Remote Contract Eligible", is_verified: true }
-        }
-      },
-      {
-        id: "app-oracle-4099",
-        job_id: "job-oracle-4099",
-        company: "Oracle Enterprise",
-        role_title: "Principal UI Architect - Cloud Solutions",
-        resume_version_id: "resume-v2026-sathya-architect-oracle",
-        status: "MANUAL_REQUIRED",
-        manual_reason: "Workday SSO & Anti-Bot Protection requires human manual application in browser",
-        submission_method: "manual_browser",
-        match_score: 88.5,
-        created_at: "2026-08-17T16:00:00Z",
-        submitted_at: null,
-        apply_url: "https://oracle.myworkdayjobs.com/careers/job/4099",
-        last_event: "CAPTCHA_DETECTED",
-        form_payload: {}
-      }
-    ];
-    setApplications(demoApps);
   };
 
   useEffect(() => {
@@ -242,6 +189,71 @@ export default function AdminApplicationsPage() {
     );
     if (selectedApp && selectedApp.id === appId) {
       setSelectedApp((prev: any) => ({ ...prev, status: "SUBMITTED" }));
+    }
+  };
+
+  // Multi-Select & Deletion Handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredApps.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredApps.map((a) => a.id));
+    }
+  };
+
+  const toggleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const promptSingleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setItemsToDelete([id]);
+    setDeleteModalOpen(true);
+  };
+
+  const promptBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    setItemsToDelete(selectedIds);
+    setDeleteModalOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (itemsToDelete.length === 0) return;
+    setIsDeleting(true);
+    const targetIds = [...itemsToDelete];
+    try {
+      if (targetIds.length === 1) {
+        const id = targetIds[0];
+        const res = await fetch(`${apiHost}/api/v2/applications/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast(`Application record hard-deleted.`);
+        }
+      } else {
+        const res = await fetch(`${apiHost}/api/v2/applications/bulk-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: targetIds })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Bulk hard-delete complete: ${data.deleted_count} applications deleted.`);
+        }
+      }
+    } catch {
+      showToast(`Deleted locally.`);
+    } finally {
+      setApplications((prev) => prev.filter((a) => !targetIds.includes(a.id)));
+      setSelectedIds((prev) => prev.filter((id) => !targetIds.includes(id)));
+      if (selectedApp && targetIds.includes(selectedApp.id)) {
+        setSelectedApp(null);
+      }
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+      setItemsToDelete([]);
+      await fetchApplications();
     }
   };
 
@@ -377,6 +389,14 @@ export default function AdminApplicationsPage() {
           <table className="w-full text-left text-xs text-foreground">
             <thead className="bg-muted/50 border-b border-border/80 text-[11px] font-mono text-muted-foreground uppercase">
               <tr>
+                <th className="w-10 px-4 py-3.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredApps.length > 0 && selectedIds.length === filteredApps.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                  />
+                </th>
                 <th className="px-5 py-3.5">Company & Role</th>
                 <th className="px-4 py-3.5">ATS Score</th>
                 <th className="px-4 py-3.5">Tailored Resume</th>
@@ -388,17 +408,27 @@ export default function AdminApplicationsPage() {
             <tbody className="divide-y divide-border/60">
               {filteredApps.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground font-mono">
+                  <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground font-mono">
                     No applications found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                filteredApps.map((app) => (
-                  <tr
-                    key={app.id}
-                    className="hover:bg-muted/30 transition-colors group cursor-pointer"
-                    onClick={() => handleSelectApp(app)}
-                  >
+                filteredApps.map((app) => {
+                  const isSelected = selectedIds.includes(app.id);
+                  return (
+                    <tr
+                      key={app.id}
+                      className={`hover:bg-muted/30 transition-colors group cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => handleSelectApp(app)}
+                    >
+                      <td className="px-4 py-4 text-center" onClick={(e) => toggleSelectRow(app.id, e)}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                        />
+                      </td>
                     <td className="px-5 py-4">
                       <div className="font-semibold text-foreground text-sm font-sans">{app.role_title || "Lead Frontend Architect"}</div>
                       <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 font-sans">
@@ -411,14 +441,14 @@ export default function AdminApplicationsPage() {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1.5 font-mono">
                         <Sparkles className="w-3.5 h-3.5 text-primary" />
-                        <span className="font-mono font-bold text-sm text-foreground">{app.match_score || 95}%</span>
+                        <span className="font-mono font-bold text-sm text-foreground">{app.match_score ? `${app.match_score}%` : 'N/A'}</span>
                       </div>
                     </td>
 
                     <td className="px-4 py-4 font-mono text-[11px] text-muted-foreground">
                       <span className="flex items-center gap-1 text-foreground">
                         <FileText className="w-3.5 h-3.5 text-primary" />
-                        {app.resume_version || "Tailored_V1.pdf"}
+                        {app.resume_version || app.resume_version_id || "Standard Resume"}
                       </span>
                     </td>
 
@@ -447,10 +477,19 @@ export default function AdminApplicationsPage() {
                             <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                           </button>
                         )}
+
+                        <button
+                          onClick={(e) => promptSingleDelete(app.id, e)}
+                          className="p-1.5 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 transition-colors cursor-pointer"
+                          title="Hard-Delete Record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+              })
               )}
             </tbody>
           </table>
@@ -581,6 +620,27 @@ export default function AdminApplicationsPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        pipelineName="Applications"
+        onClearSelection={() => setSelectedIds([])}
+        onTriggerBulkDelete={promptBulkDelete}
+      />
+
+      {/* Hard Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        itemCount={itemsToDelete.length}
+        pipelineName="Applications Automation"
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setItemsToDelete([]);
+        }}
+        onConfirm={executeDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Zap, ArrowLeft, Play, Workflow } from 'lucide-react';
+import { Zap, ArrowLeft, Play, Workflow, ShieldAlert } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function AdminAutomationPage() {
@@ -27,6 +27,13 @@ export default function AdminAutomationPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Link
+            href="/admin/automation/retention"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-card/60 border border-border/80 text-foreground hover:bg-muted/80 text-xs font-semibold transition-colors font-mono"
+          >
+            <ShieldAlert className="w-4 h-4 text-amber-500" />
+            <span>Data Retention & Purge Manager</span>
+          </Link>
           <ThemeToggle />
         </div>
       </div>

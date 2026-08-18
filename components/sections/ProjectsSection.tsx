@@ -8,115 +8,26 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
-const PROJECTS = [
-  {
-    num: 'Project_01',
-    id: 'nextuple-oms',
-    year: '2023 - PRESENT',
-    title: 'Nextuple Enterprise Order Management System',
-    category: 'Micro Frontend & AI UI Automation',
-    client: 'Nextuple Inc. & Dick’s Sporting Goods',
-    description: 'High-performance order fulfillment suite including SKU Ranking Service, picking/packing/staging apps, Inventory Promise Engine, and Hub Web Application.',
-    architecture: 'Micro Frontend Architecture with React 19, Node.js, TypeScript, and AI-driven automated UI rendering.',
-    highlights: [
-      'Engineered scalable micro frontends serving high-throughput fulfillment orders.',
-      'Built real-time inventory promise engine and staging workflows.',
-      'Integrated AI UI automation checks and performance monitors.'
-    ],
-    tech: ['React 19', 'Micro Frontends', 'Node.js', 'TypeScript', 'Jest', 'AI UI Automation'],
-    link: 'https://nextuple.com'
-  },
-  {
-    num: 'Project_02',
-    id: 'bayer-ecosystem',
-    year: '2018 - 2022',
-    title: 'BAYER 30+ Global Digital Ecosystem',
-    category: 'Enterprise Digital Platforms',
-    client: 'BAYER AG (Global)',
-    description: 'Multi-localized responsive platforms across 30+ global markets including Bepanthenol, Elevit, Bayer HR Career, and Heavy Menstrual Bleeding.',
-    architecture: 'Acquia DX8, Drupal theming engine, React.js components, and multi-tenant localization routing.',
-    highlights: [
-      'Architected and delivered 30+ country-specific web platforms.',
-      'Standardized component library using Acquia DX8 and React.',
-      'Managed offshore delivery teams with zero P1 production outages.'
-    ],
-    tech: ['React.js', 'Drupal DX8', 'Acquia', 'SASS', 'JavaScript ES6+', 'Multi-localization'],
-    link: 'https://www.elevit.com.au'
-  },
-  {
-    num: 'Project_03',
-    id: 'kohls-omnichannel',
-    year: '2014 - 2018',
-    title: 'Kohl’s Omnichannel Mobile & Tablet Engine',
-    category: 'High-Scale E-Commerce',
-    client: 'Kohl’s Department Stores (USA)',
-    description: 'Mobile and tablet e-commerce suite (m.kohls.com, mobile.kohls.com) managing Home, Product List, Cart, BOPUS (Buy Online Pick Up In Store), and Checkout.',
-    architecture: 'High-throughput JavaScript/Handlebars/FTL engine integrated with REST APIs, Visa Checkout, and Omniture analytics.',
-    highlights: [
-      'Directed 8+ developers for core e-commerce shopping bag & checkout modules.',
-      'Pioneered Visa Checkout integration across mobile and tablet platforms.',
-      'Achieved peak holiday performance handling millions of concurrent users.'
-    ],
-    tech: ['JavaScript', 'Handlebars', 'Visa Checkout', 'REST APIs', 'Node.js', 'Omniture'],
-    link: 'https://m.kohls.com'
-  },
-  {
-    num: 'Project_04',
-    id: 'adidas-reebok',
-    year: '2015 - 2017',
-    title: 'Adidas & Reebok E-Commerce Platform',
-    category: 'Sportswear Retail Engine',
-    client: 'Adidas & Reebok India',
-    description: 'Responsive online shopping experience (shop.adidas.co.in, shop4reebok.com) with product discovery, cart management, and payment gateway.',
-    architecture: 'Full-stack React, Redux, Node.js, Express, and MongoDB micro-services architecture.',
-    highlights: [
-      'Implemented full-stack product catalog and dynamic cart management.',
-      'Optimized catalog search and checkout flow for high mobile conversion.',
-      'Configured Webpack build pipelines and Babel transpilation.'
-    ],
-    tech: ['React.js', 'Redux', 'Node.js', 'ExpressJS', 'MongoDB', 'Webpack'],
-    link: 'https://shop.adidas.co.in'
-  },
-  {
-    num: 'Project_05',
-    id: 'us-bank',
-    year: '2019 - 2021',
-    title: 'US Bank Login & Authentication Help Portal',
-    category: 'Banking & Security',
-    client: 'US Bank (USA)',
-    description: 'Secure, accessible responsive web application for bank account login assistance, identity verification, and security retrieval.',
-    architecture: 'React.js, Styleguidist, Transmit framework, and WCAG AA accessibility compliance.',
-    highlights: [
-      'Delivered ultra-secure banking login assistance workflows.',
-      'Ensured strict compliance with banking accessibility standards (WCAG).',
-      'Automated unit testing using Jest and React Testing Library.'
-    ],
-    tech: ['React JS', 'Jest', 'Transmit', 'WCAG AA Accessibility', 'SASS'],
-    link: 'https://usbank.com'
-  },
-  {
-    num: 'Project_06',
-    id: 'kraft-recipes',
-    year: '2013 - 2015',
-    title: 'Kraft Foods Culinary Platform',
-    category: 'Food Service & Content Engine',
-    client: 'Kraft Heinz (USA)',
-    description: 'Interactive recipe discovery and food service platform (kraftrecipes.com) serving culinary content and ingredient search.',
-    architecture: 'Responsive frontend template engine (FTL/Handlebars) integrated with CMS and REST APIs.',
-    highlights: [
-      'Built fast recipe search, filterable ingredients, and shopping list features.',
-      'Optimized page load speed and Google AMP performance.',
-      'Integrated CMS backend with real-time content updates.'
-    ],
-    tech: ['JavaScript', 'Handlebars', 'FTL Templates', 'REST APIs', 'CSS3/SASS'],
-    link: 'http://kraftrecipes.com'
-  }
-];
+export interface ProjectItem {
+  id: string | number;
+  num: string;
+  year?: string;
+  title: string;
+  category: string;
+  client: string;
+  description: string;
+  architecture: string;
+  highlights: string[];
+  tech: string[];
+  link: string;
+}
 
 export function ProjectsSection() {
-  const [selectedProject, setSelectedProject] = useState<typeof PROJECTS[0] | null>(null);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const mouseX = useMotionValue(0);
@@ -127,6 +38,36 @@ export function ProjectsSection() {
 
   useEffect(() => {
     setMounted(true);
+    async function loadProjectsFromDB() {
+      try {
+        const res = await fetch('/api/portfolio/projects');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.projects && Array.isArray(data.projects) && data.projects.length > 0) {
+            const mapped: ProjectItem[] = data.projects.map((p: any, idx: number) => ({
+              id: p.id || `proj-${idx}`,
+              num: `Project_0${idx + 1}`,
+              year: p.year || (idx === 0 ? '2023 - PRESENT' : idx === 1 ? '2018 - 2022' : '2013 - 2018'),
+              title: p.title || '',
+              category: p.category || (idx === 0 ? 'Micro Frontend & AI UI Automation' : 'Enterprise Digital Platforms'),
+              client: p.client || (idx === 0 ? 'Nextuple Inc. & Dick’s Sporting Goods' : idx === 1 ? 'BAYER AG (Global)' : 'Enterprise Retail'),
+              description: p.description || p.overview || '',
+              architecture: p.overview || p.solution || 'Micro Frontend & Cloud Microservices Architecture',
+              highlights: Array.isArray(p.highlights) ? p.highlights : [p.challenges, p.results].filter(Boolean),
+              tech: Array.isArray(p.tech_stack) ? p.tech_stack : ['React', 'TypeScript', 'Node.js'],
+              link: p.live_url || 'https://github.com/sakthipet11'
+            }));
+            setProjects(mapped);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load projects from DB:', err);
+      }
+      setLoading(false);
+    }
+    loadProjectsFromDB();
   }, []);
 
   useEffect(() => {
@@ -154,19 +95,23 @@ export function ProjectsSection() {
       {/* Section Header */}
       <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-primary pl-4">
         <Badge variant="default" className="font-mono text-xs tracking-wider uppercase bg-primary/10 text-primary border-primary/20">
-          FEATURED WORKS & ARCHITECTURE GALLERY
+          FEATURED WORKS & ARCHITECTURE GALLERY (LIVE DB)
         </Badge>
         <h2 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight">
           Selected Enterprise Platforms
         </h2>
         <p className="text-muted-foreground text-sm max-w-xl font-normal">
-          High-availability Order Management Systems, Global Digital Ecosystems, and Omnichannel E-commerce Solutions.
+          High-availability Order Management Systems, Global Digital Ecosystems, and Omnichannel E-commerce Solutions loaded from PostgreSQL Database.
         </p>
       </div>
 
       {/* Interactive Glass List View */}
       <div ref={containerRef} onMouseMove={handleMouseMove} className="relative space-y-3">
-        {PROJECTS.map((proj, index) => (
+        {loading ? (
+          <div className="p-8 text-center font-mono text-xs text-muted-foreground animate-pulse">
+            Loading enterprise project records from database...
+          </div>
+        ) : projects.map((proj, index) => (
           <motion.div
             key={proj.id}
             initial={{ opacity: 0, y: 30 }}
@@ -225,27 +170,27 @@ export function ProjectsSection() {
             translateY: '-130%',
           }}
           animate={{
-            opacity: hoveredIndex !== null ? 1 : 0,
-            scale: hoveredIndex !== null ? 1 : 0.8,
+            opacity: hoveredIndex !== null && projects[hoveredIndex] ? 1 : 0,
+            scale: hoveredIndex !== null && projects[hoveredIndex] ? 1 : 0.8,
           }}
           transition={{ duration: 0.2 }}
         >
-          {hoveredIndex !== null && (
+          {hoveredIndex !== null && projects[hoveredIndex] && (
             <>
               <div>
                 <span className="text-[10px] font-mono text-primary font-semibold block mb-1">
-                  {PROJECTS[hoveredIndex].num} // {PROJECTS[hoveredIndex].client}
+                  {projects[hoveredIndex].num} // {projects[hoveredIndex].client}
                 </span>
                 <h4 className="text-sm font-bold text-foreground tracking-tight line-clamp-2">
-                  {PROJECTS[hoveredIndex].title}
+                  {projects[hoveredIndex].title}
                 </h4>
                 <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed font-normal">
-                  {PROJECTS[hoveredIndex].description}
+                  {projects[hoveredIndex].description}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/60">
-                {PROJECTS[hoveredIndex].tech.slice(0, 3).map((t, idx) => (
+                {projects[hoveredIndex].tech.slice(0, 3).map((t, idx) => (
                   <Badge key={idx} variant="outline" className="text-[9px] font-mono px-2 py-0.5 bg-muted/80 border-border/60 text-muted-foreground">
                     {t}
                   </Badge>
@@ -257,7 +202,7 @@ export function ProjectsSection() {
 
       </div>
 
-      {/* Deep-Dive Glass Modal (Rendered via React Portal directly into document.body) */}
+      {/* Deep-Dive Glass Modal */}
       {mounted && selectedProject && createPortal(
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-2xl animate-in fade-in duration-200"
@@ -268,7 +213,7 @@ export function ProjectsSection() {
             onClick={(e) => e.stopPropagation()}
           >
 
-            {/* Sticky Fixed Header with Close Button */}
+            {/* Header */}
             <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/70 p-6 sm:p-8 flex items-start justify-between gap-4 shrink-0">
               <div>
                 <Badge variant="default" className="text-xs font-mono px-3 py-1 bg-primary/10 text-primary border-primary/20">
@@ -286,7 +231,7 @@ export function ProjectsSection() {
               </button>
             </div>
 
-            {/* Scrollable Content Container */}
+            {/* Content */}
             <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1">
               <div>
                 <h4 className="text-xs font-mono font-semibold uppercase text-muted-foreground mb-2">// OVERVIEW</h4>
@@ -300,17 +245,19 @@ export function ProjectsSection() {
                 </p>
               </div>
 
-              <div>
-                <h4 className="text-xs font-mono font-semibold uppercase text-muted-foreground mb-2">// ENGINEERING ACCOMPLISHMENTS</h4>
-                <ul className="space-y-2">
-                  {selectedProject.highlights.map((h, hIdx) => (
-                    <li key={hIdx} className="flex items-start gap-2.5 text-xs sm:text-sm text-foreground/80">
-                      <CheckCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                      <span>{h}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {selectedProject.highlights.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-mono font-semibold uppercase text-muted-foreground mb-2">// ENGINEERING ACCOMPLISHMENTS</h4>
+                  <ul className="space-y-2">
+                    {selectedProject.highlights.map((h, hIdx) => (
+                      <li key={hIdx} className="flex items-start gap-2.5 text-xs sm:text-sm text-foreground/80">
+                        <CheckCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <span>{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               <div className="pt-4 border-t border-border/70 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-wrap gap-1.5">
@@ -341,4 +288,3 @@ export function ProjectsSection() {
     </section>
   );
 }
-

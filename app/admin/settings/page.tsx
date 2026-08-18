@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
@@ -41,7 +41,7 @@ import {
   UserCheck
 } from 'lucide-react';
 
-export default function AdminSettingsPage() {
+function AdminSettingsContent() {
   const apiHost = getApiHost();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -898,5 +898,17 @@ export default function AdminSettingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminSettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center font-mono text-primary text-xs animate-pulse">
+        Loading Settings...
+      </div>
+    }>
+      <AdminSettingsContent />
+    </Suspense>
   );
 }

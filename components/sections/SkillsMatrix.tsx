@@ -1,93 +1,96 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Cpu, Code2, Database, Users, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 
-const SKILL_CATEGORIES = [
-  {
-    tag: '// STACK_01',
-    title: 'Frontend Architecture',
-    icon: Code2,
-    skills: [
-      'React 19 & Next.js 15 (App Router)',
-      'TypeScript & Modern JavaScript ES6+',
-      'Micro Frontend Architectures',
-      'Tailwind CSS v4 & Glassmorphic UI',
-      'Framer Motion & Three.js / WebGL',
-      'Redux Toolkit & Zustand State Store',
-      'Webpack, Vite & Turbopack',
-      'WCAG AA Accessibility & Performance'
-    ]
-  },
-  {
-    tag: '// STACK_02',
-    title: 'AI & RAG Engineering',
-    icon: Cpu,
-    skills: [
-      'OpenRouter API Provider Layer',
-      'Retrieval-Augmented Generation (RAG)',
-      'LangChain & LangGraph Workflows',
-      'Function Tool Calling & Memory',
-      'System Prompt Engineering',
-      'Vector Ingestion & Embeddings',
-      'Streaming SSE & WebSockets',
-      'AI-Powered UI Automation'
-    ]
-  },
-  {
-    tag: '// STACK_03',
-    title: 'Backend & Cloud Microservices',
-    icon: Database,
-    skills: [
-      'Python 3.12+ (FastAPI, AsyncIO, Uvicorn)',
-      'Node.js & Express.js REST APIs',
-      'Supabase PostgreSQL & Realtime',
-      'MongoDB & Redis Caching',
-      'GraphQL & Microservices Architecture',
-      'Docker & Containerization',
-      'AWS & GCP Cloud Infrastructure',
-      'CI/CD Pipelines (Jenkins, GitHub Actions)'
-    ]
-  },
-  {
-    tag: '// STACK_04',
-    title: 'Leadership & Domain',
-    icon: Users,
-    skills: [
-      'Technical Architecture & System Design',
-      'Order Management Systems (OMS & SKU Ranking)',
-      'High-Scale Retail E-Commerce (Kohl’s, Adidas)',
-      'Life Sciences & Healthcare Platforms (Bayer)',
-      'Cross-Functional Mentorship (8+ Engineers)',
-      'Code Review & Governance Best Practices',
-      'Agile / Scrum Sprint Leadership',
-      'Client Relationship & Technical Specs'
-    ]
-  }
-];
+export interface SkillCategory {
+  tag: string;
+  title: string;
+  icon: any;
+  skills: string[];
+}
+
+const CATEGORY_MAP: Record<string, { tag: string; title: string; icon: any }> = {
+  frontend: { tag: '// STACK_01', title: 'Frontend Architecture', icon: Code2 },
+  ai: { tag: '// STACK_02', title: 'AI & RAG Engineering', icon: Cpu },
+  backend: { tag: '// STACK_03', title: 'Backend & Cloud Microservices', icon: Database },
+  cloud: { tag: '// STACK_03', title: 'Backend & Cloud Microservices', icon: Database },
+  leadership: { tag: '// STACK_04', title: 'Leadership & Domain', icon: Users },
+};
 
 export function SkillsMatrix() {
+  const [categories, setCategories] = useState<SkillCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadSkillsFromDB() {
+      try {
+        const res = await fetch('/api/portfolio/skills');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.skills && Array.isArray(data.skills) && data.skills.length > 0) {
+            const grouped: Record<string, string[]> = {};
+            data.skills.forEach((s: any) => {
+              const catKey = s.category ? s.category.toLowerCase() : 'frontend';
+              if (!grouped[catKey]) {
+                grouped[catKey] = [];
+              }
+              grouped[catKey].push(s.name);
+            });
+
+            const catList: SkillCategory[] = Object.keys(grouped).map((catKey) => {
+              const meta = CATEGORY_MAP[catKey] || {
+                tag: '// STACK_01',
+                title: catKey.toUpperCase() + ' STACK',
+                icon: Code2,
+              };
+              return {
+                tag: meta.tag,
+                title: meta.title,
+                icon: meta.icon,
+                skills: grouped[catKey],
+              };
+            });
+
+            setCategories(catList);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load skills from DB:', err);
+      }
+      setLoading(false);
+    }
+    loadSkillsFromDB();
+  }, []);
+
   return (
     <section id="skills" className="py-8 md:py-16 px-4 sm:px-6 relative z-10 max-w-7xl mx-auto">
 
       {/* Header */}
       <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-primary pl-4">
         <Badge variant="default" className="font-mono text-xs tracking-wider uppercase bg-primary/10 text-primary border-primary/20">
-          TECH CONSTELLATION
+          TECH CONSTELLATION (LIVE DB)
         </Badge>
         <h2 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight">
           Technical Stack & Engineering Mastery
         </h2>
         <p className="text-muted-foreground text-sm sm:text-base max-w-xl font-normal">
-          Core capabilities across Modern Web Architecture, AI RAG Pipelines, Cloud Backend Services, and Technical Leadership.
+          Core capabilities across Modern Web Architecture, AI RAG Pipelines, Cloud Backend Services, and Technical Leadership loaded directly from PostgreSQL Database.
         </p>
       </div>
 
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {SKILL_CATEGORIES.map((cat, idx) => (
+        {loading ? (
+          <div className="p-8 text-center font-mono text-xs text-muted-foreground animate-pulse col-span-2">
+            Loading skills records from database...
+          </div>
+        ) : categories.map((cat, idx) => (
           <motion.div
             key={idx}
             initial={{ opacity: 0, y: 25 }}

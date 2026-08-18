@@ -28,9 +28,13 @@ import {
   Mail,
   Edit3,
   Paperclip,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
+import { BulkActionBar } from '@/components/admin/BulkActionBar';
+import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 export default function AdminRecruiterInboxPage() {
   const apiHost = getApiHost();
@@ -38,21 +42,27 @@ export default function AdminRecruiterInboxPage() {
   const [selectedClassification, setSelectedClassification] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
-  const [metrics, setMetrics] = useState({
-    total_emails: 16,
-    interview_requests: 5,
-    resume_requests: 4,
-    pending_review: 6,
-    offers: 1,
-    rejections: 2,
-    replies_sent: 7
+  const [metrics, setMetrics] = useState<any>({
+    total_emails: 0,
+    interview_requests: 0,
+    resume_requests: 0,
+    pending_review: 0,
+    offers: 0,
+    replies_sent: 0
   });
 
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmail, setSelectedEmail] = useState<any | null>(null);
+  useLockBodyScroll(!!selectedEmail);
   const [draftBody, setDraftBody] = useState<string>('');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Multi-Select & Delete State
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -69,13 +79,9 @@ export default function AdminRecruiterInboxPage() {
 
       if (emailsRes.ok) {
         const eData = await emailsRes.json();
-        if (eData.emails && eData.emails.length > 0) {
-          setEmails(eData.emails);
-        } else {
-          loadFallbackData();
-        }
+        setEmails(Array.isArray(eData.emails) ? eData.emails : []);
       } else {
-        loadFallbackData();
+        setEmails([]);
       }
 
       if (metricsRes.ok) {
@@ -83,81 +89,11 @@ export default function AdminRecruiterInboxPage() {
         if (mData.metrics) setMetrics(mData.metrics);
       }
     } catch (err) {
-      console.warn("Using demo data for recruiter inbox:", err);
-      loadFallbackData();
+      console.warn("Error fetching recruiter inbox data:", err);
+      setEmails([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadFallbackData = () => {
-    const demoEmails = [
-      {
-        id: "em-figma-inv-01",
-        gmail_message_id: "msg-figma-88910",
-        thread_id: "th-figma-88910",
-        sender: "sarah.connor@figma.com",
-        sender_name: "Sarah Connor (Staff Tech Recruiter)",
-        company: "Figma",
-        job_title: "Lead UI Platform Architect",
-        subject: "Invitation to connect: Lead UI Platform Architect at Figma",
-        body_raw: "Hi Sathyanantham,\n\nI came across your portfolio and extensive work leading Module Federation and Micro Frontend architecture. Our UI platform engineering team is expanding and we'd love to set up a 30-minute introductory call this week to discuss our architectural roadmap.\n\nAre you available Tuesday or Thursday afternoon?",
-        body_summary: "Inviting candidate for 30-min intro chat regarding Lead UI Platform Architect role...",
-        classification: "INTERVIEW_REQUEST",
-        confidence: 0.96,
-        action: "Confirm availability and accept interview invitation",
-        requires_human_review: true,
-        risk_reasons: [],
-        draft_reply_subject: "Re: Invitation to connect: Lead UI Platform Architect at Figma",
-        draft_reply_body: "Hi Sarah,\n\nThank you for reaching out! I would be delighted to speak with you and the Figma platform engineering team.\n\nI am available this week during the following windows:\n• Tuesday: 10:00 AM – 1:00 PM EST\n• Thursday: 2:00 PM – 5:00 PM EST\n\nPlease let me know what time works best.\n\nBest regards,\nSathyanantham V\nhttps://sathyanantham.dev",
-        status: "DRAFT_READY",
-        received_at: "2026-08-17T18:20:00Z"
-      },
-      {
-        id: "em-stripe-res-02",
-        gmail_message_id: "msg-stripe-77123",
-        thread_id: "th-stripe-77123",
-        sender: "alex.kumar@stripe.com",
-        sender_name: "Alex Kumar (Principal Engineering Recruiter)",
-        company: "Stripe",
-        job_title: "Principal Frontend Engineer - Micro Frontends",
-        subject: "Stripe Micro Frontend Leadership — Updated Resume Request",
-        body_raw: "Hello Sathyanantham,\n\nOur hiring director reviewed your initial profile for the Principal Frontend Engineer opening. Could you please share an updated copy of your resume in PDF highlighting your experience with high-scale payment portals and distributed micro frontend pipelines?\n\nThanks,\nAlex",
-        body_summary: "Requesting updated tailored PDF resume highlighting micro frontend scalability...",
-        classification: "RESUME_REQUEST",
-        confidence: 0.98,
-        action: "Attach tailored Lead Architect resume and reply",
-        requires_human_review: true,
-        risk_reasons: [],
-        draft_reply_subject: "Re: Stripe Micro Frontend Leadership — Updated Resume Request",
-        draft_reply_body: "Hi Alex,\n\nThank you for following up! I have attached my updated resume tailored to the Principal Frontend Engineer role at Stripe, detailing my 13.5+ years leading large-scale React platforms, Module Federation, and sub-second UI performance optimizations.\n\nLooking forward to next steps!\n\nBest regards,\nSathyanantham V\nLead Frontend Architect",
-        attached_resume_id: "resume-v2026-sathya-architect-stripe",
-        status: "DRAFT_READY",
-        received_at: "2026-08-17T17:50:00Z"
-      },
-      {
-        id: "em-fintech-sal-03",
-        gmail_message_id: "msg-fintech-66441",
-        thread_id: "th-fintech-66441",
-        sender: "recruiting@fintechdynamics.com",
-        sender_name: "Talent Acquisition Team",
-        company: "FinTech Dynamics",
-        job_title: "Staff Micro Frontend Architect",
-        subject: "Compensation expectation & visa status check",
-        body_raw: "Hi Sathya,\n\nBefore we schedule the technical panel, could you please confirm your base salary expectation and whether you require visa sponsorship for this remote role?",
-        body_summary: "Inquiring about base salary expectation and work authorization...",
-        classification: "ADDITIONAL_INFORMATION_REQUEST",
-        confidence: 0.91,
-        action: "Human review required for compensation & work auth disclosure",
-        requires_human_review: true,
-        risk_reasons: ["Compensation/Salary negotiation detected", "Legal / Work authorization inquiry detected"],
-        draft_reply_subject: "Re: Compensation expectation & visa status check",
-        draft_reply_body: "Hi Recruiting Team,\n\nRegarding compensation, my expectation for a Staff Architect leadership role is in the $180k - $220k USD range, depending on total rewards structure.\n\nI am legally authorized to work and do not require immediate sponsorship for remote engagements.\n\nBest regards,\nSathyanantham V",
-        status: "DRAFT_READY",
-        received_at: "2026-08-17T16:40:00Z"
-      }
-    ];
-    setEmails(demoEmails);
   };
 
   useEffect(() => {
@@ -226,6 +162,70 @@ export default function AdminRecruiterInboxPage() {
     );
     if (selectedEmail && selectedEmail.id === emailId) {
       setSelectedEmail((prev: any) => ({ ...prev, status: "REJECTED" }));
+    }
+  };
+
+  // Multi-Select & Deletion Handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredEmails.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredEmails.map((e) => e.id));
+    }
+  };
+
+  const toggleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const promptSingleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setItemsToDelete([id]);
+    setDeleteModalOpen(true);
+  };
+
+  const promptBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+    setItemsToDelete(selectedIds);
+    setDeleteModalOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (itemsToDelete.length === 0) return;
+    setIsDeleting(true);
+    try {
+      if (itemsToDelete.length === 1) {
+        const id = itemsToDelete[0];
+        const res = await fetch(`${apiHost}/api/v2/emails/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast(`Email record hard-deleted.`);
+        }
+      } else {
+        const res = await fetch(`${apiHost}/api/v2/emails/bulk-delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: itemsToDelete })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Bulk hard-delete complete: ${data.deleted_count} emails deleted.`);
+        }
+      }
+    } catch {
+      showToast(`Deleted locally.`);
+    } finally {
+      setEmails((prev) => prev.filter((e) => !itemsToDelete.includes(e.id)));
+      setSelectedIds((prev) => prev.filter((id) => !itemsToDelete.includes(id)));
+      if (selectedEmail && itemsToDelete.includes(selectedEmail.id)) {
+        setSelectedEmail(null);
+      }
+      setIsDeleting(false);
+      setDeleteModalOpen(false);
+      setItemsToDelete([]);
+      fetchInboxData();
     }
   };
 
@@ -372,6 +372,14 @@ export default function AdminRecruiterInboxPage() {
           <table className="w-full text-left text-xs text-foreground">
             <thead className="bg-muted/50 border-b border-border/80 text-[11px] font-mono text-muted-foreground uppercase">
               <tr>
+                <th className="w-10 px-4 py-3.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={filteredEmails.length > 0 && selectedIds.length === filteredEmails.length}
+                    onChange={toggleSelectAll}
+                    className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                  />
+                </th>
                 <th className="px-5 py-3.5">Sender & Company</th>
                 <th className="px-4 py-3.5">Subject</th>
                 <th className="px-4 py-3.5">Classification</th>
@@ -384,17 +392,27 @@ export default function AdminRecruiterInboxPage() {
             <tbody className="divide-y divide-border/60">
               {filteredEmails.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-5 py-12 text-center text-muted-foreground">
                     No recruiter messages found in this view.
                   </td>
                 </tr>
               ) : (
-                filteredEmails.map((em) => (
-                  <tr
-                    key={em.id}
-                    className="hover:bg-muted/30 transition-colors group cursor-pointer"
-                    onClick={() => handleSelectEmail(em)}
-                  >
+                filteredEmails.map((em) => {
+                  const isSelected = selectedIds.includes(em.id);
+                  return (
+                    <tr
+                      key={em.id}
+                      className={`hover:bg-muted/30 transition-colors group cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
+                      onClick={() => handleSelectEmail(em)}
+                    >
+                      <td className="px-4 py-4 text-center" onClick={(e) => toggleSelectRow(em.id, e)}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                        />
+                      </td>
                     <td className="px-5 py-4">
                       <div className="font-semibold text-foreground text-sm font-sans">{em.company || "Enterprise Recruiter"}</div>
                       <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 font-sans">
@@ -446,10 +464,19 @@ export default function AdminRecruiterInboxPage() {
                             <Send className="w-3.5 h-3.5" /> Send
                           </button>
                         )}
+
+                        <button
+                          onClick={(e) => promptSingleDelete(em.id, e)}
+                          className="p-1.5 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 transition-colors cursor-pointer"
+                          title="Hard-Delete Record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+              })
               )}
             </tbody>
           </table>
@@ -572,6 +599,27 @@ export default function AdminRecruiterInboxPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        pipelineName="Emails"
+        onClearSelection={() => setSelectedIds([])}
+        onTriggerBulkDelete={promptBulkDelete}
+      />
+
+      {/* Hard Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        itemCount={itemsToDelete.length}
+        pipelineName="Recruiter Inbox"
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setItemsToDelete([]);
+        }}
+        onConfirm={executeDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

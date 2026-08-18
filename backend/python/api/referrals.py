@@ -145,3 +145,16 @@ def skip_referral_opportunity(referral_id: str):
         details="Referral outreach declined/skipped by administrator."
     )
     return {"status": "success", "referral": updated}
+
+@router.post("/bulk-delete")
+def bulk_delete_referrals(payload: Dict[str, List[str]] = Body(...)):
+    ids = payload.get("ids", [])
+    if len(ids) > 500:
+        raise HTTPException(status_code=400, detail="Bulk delete batch size exceeds limit of 500 IDs.")
+    deleted_count = referral_repository.delete_bulk(ids, actor="admin_user", action="MANUAL_DELETE")
+    return {"status": "success", "pipeline": "referrals", "requested_count": len(ids), "deleted_count": deleted_count}
+
+@router.delete("/{referral_id}")
+def delete_referral(referral_id: str):
+    deleted = referral_repository.delete_by_id(referral_id, actor="admin_user", action="MANUAL_DELETE")
+    return {"status": "success", "message": f"Referral {referral_id} hard-deleted.", "deleted": deleted}

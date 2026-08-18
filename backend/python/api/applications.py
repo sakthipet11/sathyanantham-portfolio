@@ -102,3 +102,16 @@ def mark_manually_completed(application_id: str, req: ManualCompleteRequest = Bo
     application_repository.log_event(application_id, "APPLICATION_SUBMITTED_MANUALLY", f"Human completed application manually via browser. Notes: {req.notes or 'Completed'}")
     updated = application_repository.update_application_status(application_id, "SUBMITTED", notes=req.notes)
     return {"status": "success", "application": updated}
+
+@router.post("/bulk-delete")
+def bulk_delete_applications(payload: Dict[str, List[str]] = Body(...)):
+    ids = payload.get("ids", [])
+    if len(ids) > 500:
+        raise HTTPException(status_code=400, detail="Bulk delete batch size exceeds limit of 500 IDs.")
+    deleted_count = application_repository.delete_bulk(ids, actor="admin_user", action="MANUAL_DELETE")
+    return {"status": "success", "pipeline": "applications", "requested_count": len(ids), "deleted_count": deleted_count}
+
+@router.delete("/{application_id}")
+def delete_application(application_id: str):
+    deleted = application_repository.delete_by_id(application_id, actor="admin_user", action="MANUAL_DELETE")
+    return {"status": "success", "message": f"Application {application_id} hard-deleted.", "deleted": deleted}

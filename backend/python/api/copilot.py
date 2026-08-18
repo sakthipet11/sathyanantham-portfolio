@@ -16,12 +16,12 @@ class CopilotActionRequest(BaseModel):
     target_ids: Optional[List[str]] = None
 
 @router.post("/chat")
-def chat_with_copilot(req: CopilotChatRequest):
+async def chat_with_copilot(req: CopilotChatRequest):
     """Processes natural language job search commands and returns interactive reasoning and action cards."""
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     
-    result = ai_job_copilot_service.process_chat_message(req.message, context=req.context)
+    result = await ai_job_copilot_service.process_chat_message_async(req.message, context=req.context)
     return {"status": "success", "data": result}
 
 @router.get("/suggestions")

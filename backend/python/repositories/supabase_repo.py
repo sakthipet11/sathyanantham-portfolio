@@ -3,21 +3,32 @@ import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from dotenv import load_dotenv
+
 try:
     from supabase import create_client, Client
 except ImportError:
     create_client = None
     Client = Any
 
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
+
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", ""))
 SUPABASE_KEY = os.getenv("SUPABASE_SECRET_KEY", os.getenv("SUPABASE_KEY", os.getenv("SUPABASE_ANON_KEY", os.getenv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", ""))))
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/postgres")
 
 class SupabaseHelper:
     def __init__(self):
         self.client: Optional[Client] = None
-        if SUPABASE_URL and SUPABASE_KEY and callable(create_client):
+        self.pg_url: str = DATABASE_URL
+        
+        # 1. Try Supabase Client
+        if SUPABASE_URL and SUPABASE_KEY and callable(create_client) and not SUPABASE_URL.startswith("http://127.0.0.1"):
             try:
                 import re
                 is_jwt = re.match(r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", SUPABASE_KEY)
@@ -32,10 +43,17 @@ class SupabaseHelper:
                 print("Supabase client initialized successfully.")
             except Exception as e:
                 print(f"Failed to initialize Supabase client: {e}")
-        else:
-            print("SUPABASE_URL or SUPABASE_KEY missing. Database helper will run in Mock/Offline Mode.")
 
-        # In-memory mock stores for offline development / test resilience
+        # 2. Check direct PostgreSQL availability
+        if not self.client and psycopg2:
+            try:
+                conn = psycopg2.connect(self.pg_url, connect_timeout=3)
+                conn.close()
+                print(f"Direct PostgreSQL database connection active on {self.pg_url}.")
+            except Exception as e:
+                print(f"Direct PostgreSQL connection notice: {e}")
+
+        # Baseline fallback data structure for uninitialized DB state
         self._mock_profile = {
             "id": "00000000-0000-0000-0000-000000000001",
             "full_name": "Sathyanantham V",
@@ -115,11 +133,21 @@ class SupabaseHelper:
         self._mock_chat_sessions: Dict[str, Dict[str, Any]] = {}
         self._mock_chat_messages: Dict[str, List[Dict[str, Any]]] = {}
 
+    def _get_pg_connection(self):
+        if psycopg2:
+            try:
+                conn = psycopg2.connect(self.pg_url, connect_timeout=3)
+                conn.autocommit = True
+                return conn
+            except Exception:
+                return None
+        return None
+
     def is_configured(self) -> bool:
-        return self.client is not None
+        return self.client is not None or self._get_pg_connection() is not None
 
     # =========================================================================
-    # Phase 1: Candidate Truth Store & Settings
+    # Candidate Truth Store & Settings
     # =========================================================================
     def get_user_profile(self) -> Dict[str, Any]:
         if self.client:
@@ -129,13 +157,26 @@ class SupabaseHelper:
                     return res.data[0]
             except Exception as e:
                 print(f"Error fetching user profile from Supabase: {e}")
+        
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM user_profile LIMIT 1;")
+                    row = cur.fetchone()
+                    if row:
+                        return dict(row)
+            except Exception as e:
+                print(f"PostgreSQL user profile query error: {e}")
+            finally:
+                pg_conn.close()
+
         return self._mock_profile
 
     def update_user_profile(self, profile_data: Dict[str, Any]) -> Dict[str, Any]:
         profile_data["updated_at"] = datetime.utcnow().isoformat()
         if self.client:
             try:
-                # Upsert profile record
                 existing = self.get_user_profile()
                 target_id = existing.get("id") or self._mock_profile["id"]
                 profile_data["id"] = target_id
@@ -144,6 +185,40 @@ class SupabaseHelper:
             except Exception as e:
                 print(f"Error updating user profile in Supabase: {e}")
                 return {"status": "error", "message": str(e)}
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                existing = self.get_user_profile()
+                target_id = existing.get("id") or self._mock_profile["id"]
+                profile_data["id"] = target_id
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        INSERT INTO user_profile (id, full_name, email, phone, location, years_of_experience, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                        ON CONFLICT (id) DO UPDATE SET
+                            full_name = EXCLUDED.full_name,
+                            email = EXCLUDED.email,
+                            phone = EXCLUDED.phone,
+                            location = EXCLUDED.location,
+                            years_of_experience = EXCLUDED.years_of_experience,
+                            updated_at = NOW()
+                        RETURNING *;
+                    """, (
+                        target_id,
+                        profile_data.get("full_name"),
+                        profile_data.get("email"),
+                        profile_data.get("phone"),
+                        profile_data.get("location"),
+                        profile_data.get("years_of_experience", 13.0)
+                    ))
+                    row = cur.fetchone()
+                    return {"status": "success", "data": dict(row) if row else profile_data}
+            except Exception as e:
+                print(f"PostgreSQL profile update error: {e}")
+            finally:
+                pg_conn.close()
+
         self._mock_profile.update(profile_data)
         return {"status": "mock_success", "data": self._mock_profile}
 
@@ -155,6 +230,20 @@ class SupabaseHelper:
                     return res.data[0]
             except Exception as e:
                 print(f"Error fetching automation settings from Supabase: {e}")
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM automation_settings LIMIT 1;")
+                    row = cur.fetchone()
+                    if row:
+                        return dict(row)
+            except Exception as e:
+                print(f"PostgreSQL automation settings query error: {e}")
+            finally:
+                pg_conn.close()
+
         return self._mock_settings
 
     def update_automation_settings(self, settings_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -169,11 +258,12 @@ class SupabaseHelper:
             except Exception as e:
                 print(f"Error updating automation settings in Supabase: {e}")
                 return {"status": "error", "message": str(e)}
+
         self._mock_settings.update(settings_data)
         return {"status": "mock_success", "data": self._mock_settings}
 
     # =========================================================================
-    # Phase 1: Audit Logging Vault
+    # Audit Logging Vault
     # =========================================================================
     def insert_audit_log(self, actor_type: str, actor_id: str, action: str, entity_type: str, entity_id: str, before_state: Dict[str, Any] = None, after_state: Dict[str, Any] = None, justification: str = None, ip_address: str = None) -> Dict[str, Any]:
         payload = {
@@ -194,6 +284,27 @@ class SupabaseHelper:
                 return {"status": "success", "data": res.data}
             except Exception as e:
                 print(f"Error persisting audit log to Supabase: {e}")
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        INSERT INTO audit_logs (actor_type, actor_id, action, entity_type, entity_id, before_state, after_state, justification_rationale, ip_address)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING *;
+                    """, (
+                        actor_type, actor_id, action, entity_type, str(entity_id),
+                        json.dumps(before_state or {}), json.dumps(after_state or {}),
+                        justification or "", ip_address or "127.0.0.1"
+                    ))
+                    row = cur.fetchone()
+                    return {"status": "success", "data": dict(row) if row else payload}
+            except Exception as e:
+                print(f"PostgreSQL audit log insert error: {e}")
+            finally:
+                pg_conn.close()
+
         self._mock_audit_logs.insert(0, payload)
         return {"status": "mock_success", "data": payload}
 
@@ -204,10 +315,23 @@ class SupabaseHelper:
                 return res.data
             except Exception as e:
                 print(f"Error fetching audit logs: {e}")
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT %s;", (limit,))
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
+            except Exception as e:
+                print(f"PostgreSQL audit logs query error: {e}")
+            finally:
+                pg_conn.close()
+
         return self._mock_audit_logs[:limit]
 
     # =========================================================================
-    # Core Portfolio & Contacts (Existing)
+    # Portfolio & Contacts
     # =========================================================================
     def insert_contact(self, name: str, email: str, message: str, company: str = "", budget: str = "", purpose: str = "") -> Dict[str, Any]:
         payload = {
@@ -224,7 +348,23 @@ class SupabaseHelper:
                 return {"status": "success", "data": res.data}
             except Exception as e:
                 print(f"Error inserting contact into Supabase: {e}")
-                return {"status": "error", "message": str(e), "data": payload}
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        INSERT INTO contacts (name, email, message, company, budget, purpose)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                        RETURNING *;
+                    """, (name, email, message, company, budget, purpose))
+                    row = cur.fetchone()
+                    return {"status": "success", "data": dict(row) if row else payload}
+            except Exception as e:
+                print(f"PostgreSQL insert contact error: {e}")
+            finally:
+                pg_conn.close()
+
         return {"status": "mock_success", "message": "Saved locally in offline mode", "data": payload}
 
     def insert_visitor_event(self, session_id: str, event_type: str, details: Dict[str, Any] = None, country: str = None, city: str = None, browser: str = None, os_name: str = None) -> Dict[str, Any]:
@@ -243,7 +383,23 @@ class SupabaseHelper:
                 return {"status": "success", "data": res.data}
             except Exception as e:
                 print(f"Error inserting visitor event: {e}")
-                return {"status": "error", "message": str(e), "data": payload}
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        INSERT INTO visitor_events (session_id, event_type, event_details, country, city, browser, os)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        RETURNING *;
+                    """, (session_id, event_type, json.dumps(details or {}), country or "Unknown", city or "Unknown", browser or "Unknown", os_name or "Unknown"))
+                    row = cur.fetchone()
+                    return {"status": "success", "data": dict(row) if row else payload}
+            except Exception as e:
+                print(f"PostgreSQL insert visitor event error: {e}")
+            finally:
+                pg_conn.close()
+
         return {"status": "mock_success", "message": "Saved event locally in offline mode", "data": payload}
 
     def upsert_chat_session(self, session_id: str, status: str = "ai_twin", visitor_info: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -255,44 +411,42 @@ class SupabaseHelper:
             "updated_at": now_str
         }
 
-        # Keep in-memory mock store updated
-        if session_id not in self._mock_chat_sessions:
-            payload["created_at"] = now_str
-            payload["visitor_id"] = (visitor_info or {}).get("name") or f"Visitor ({session_id[:8]})"
-            payload["last_message"] = "Session initiated"
-            self._mock_chat_sessions[session_id] = payload
-        else:
-            self._mock_chat_sessions[session_id].update(payload)
-
         if self.client:
             try:
                 res = self.client.table("chat_sessions").upsert(payload).execute()
                 return {"status": "success", "data": res.data}
             except Exception as e:
                 print(f"Error upserting chat session: {e}")
-                return {"status": "error", "message": str(e), "data": payload}
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        INSERT INTO chat_sessions (id, status, visitor_info)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            status = EXCLUDED.status,
+                            visitor_info = EXCLUDED.visitor_info
+                        RETURNING *;
+                    """, (session_id, status, json.dumps(visitor_info or {})))
+                    row = cur.fetchone()
+                    return {"status": "success", "data": dict(row) if row else payload}
+            except Exception as e:
+                print(f"PostgreSQL upsert chat session error: {e}")
+            finally:
+                pg_conn.close()
+
         return {"status": "mock_success", "message": "Saved session locally in offline mode", "data": payload}
 
     def insert_chat_message(self, session_id: str, role: str, content: str) -> Dict[str, Any]:
         now_str = datetime.utcnow().isoformat()
         payload = {
-            "id": f"msg-{datetime.utcnow().timestamp()}",
             "session_id": session_id,
             "role": role,
             "content": content,
             "timestamp": now_str
         }
-
-        # Keep in-memory message store updated
-        if session_id not in self._mock_chat_messages:
-            self._mock_chat_messages[session_id] = []
-        self._mock_chat_messages[session_id].append(payload)
-
-        # Update parent chat session
-        self.upsert_chat_session(session_id)
-        if session_id in self._mock_chat_sessions:
-            self._mock_chat_sessions[session_id]["last_message"] = content
-            self._mock_chat_sessions[session_id]["updated_at"] = now_str
 
         if self.client:
             try:
@@ -300,135 +454,185 @@ class SupabaseHelper:
                 return {"status": "success", "data": res.data}
             except Exception as e:
                 print(f"Error inserting chat message: {e}")
-                return {"status": "error", "message": str(e), "data": payload}
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                self.upsert_chat_session(session_id)
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        INSERT INTO chat_messages (session_id, role, content)
+                        VALUES (%s, %s, %s)
+                        RETURNING *;
+                    """, (session_id, role, content))
+                    row = cur.fetchone()
+                    return {"status": "success", "data": dict(row) if row else payload}
+            except Exception as e:
+                print(f"PostgreSQL insert chat message error: {e}")
+            finally:
+                pg_conn.close()
+
         return {"status": "mock_success", "message": "Saved message locally in offline mode", "data": payload}
 
     def get_portfolio_content(self, table_name: str) -> List[Dict[str, Any]]:
+        allowed = {"skills", "experience", "projects", "education", "certificates", "profiles"}
+        if table_name not in allowed:
+            return []
+
         if self.client:
             try:
-                res = self.client.table(table_name).select("*").order("display_order").execute()
+                res = self.client.table(table_name).select("*").execute()
                 return res.data
             except Exception as e:
                 print(f"Error reading {table_name} from Supabase: {e}")
-                return []
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    order_clause = " ORDER BY display_order ASC" if table_name in {"projects", "experience", "skills", "education", "certificates"} else ""
+                    cur.execute(f"SELECT * FROM {table_name}{order_clause};")
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
+            except Exception as e:
+                print(f"PostgreSQL query error for {table_name}: {e}")
+            finally:
+                pg_conn.close()
+
         return []
 
     def get_analytics_summary(self) -> Dict[str, Any]:
-        if not self.client:
-            return {
-                "total_page_views": 128,
-                "total_resume_downloads": 42,
-                "total_contacts": 12,
-                "total_chat_sessions": len(self._mock_chat_sessions) or 24,
-                "recent_views_chart": [
-                    {"date": "Mon", "views": 25},
-                    {"date": "Tue", "views": 32},
-                    {"date": "Wed", "views": 21},
-                    {"date": "Thu", "views": 45},
-                    {"date": "Fri", "views": 30},
-                    {"date": "Sat", "views": 15},
-                    {"date": "Sun", "views": 18}
-                ]
-            }
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) FROM visitor_events WHERE event_type = 'page_view';")
+                    views = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*) FROM visitor_events WHERE event_type = 'resume_download';")
+                    downloads = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*) FROM contacts;")
+                    contacts = cur.fetchone()[0]
+                    cur.execute("SELECT COUNT(*) FROM chat_sessions;")
+                    chats = cur.fetchone()[0]
+                    return {
+                        "total_page_views": views or 0,
+                        "total_resume_downloads": downloads or 0,
+                        "total_contacts": contacts or 0,
+                        "total_chat_sessions": chats or 0,
+                        "recent_views_chart": [{"date": "Today", "views": views or 0}]
+                    }
+            except Exception as e:
+                print(f"PostgreSQL analytics summary error: {e}")
+            finally:
+                pg_conn.close()
 
-        try:
-            views_res = self.client.table("visitor_events").select("id", count="exact").eq("event_type", "page_view").execute()
-            downloads_res = self.client.table("visitor_events").select("id", count="exact").eq("event_type", "resume_download").execute()
-            contacts_res = self.client.table("contacts").select("id", count="exact").execute()
-            chats_res = self.client.table("chat_sessions").select("id", count="exact").execute()
-
-            events = self.client.table("visitor_events").select("created_at").order("created_at", desc=True).limit(50).execute().data
-            chart_data = [{"date": "Today", "views": len(events)}]
-
-            return {
-                "total_page_views": views_res.count or 0,
-                "total_resume_downloads": downloads_res.count or 0,
-                "total_contacts": contacts_res.count or 0,
-                "total_chat_sessions": chats_res.count or len(self._mock_chat_sessions),
-                "recent_views_chart": chart_data
-            }
-        except Exception as e:
-            print(f"Error fetching analytics summary: {e}")
-            return {
-                "total_page_views": 0,
-                "total_resume_downloads": 0,
-                "total_contacts": 0,
-                "total_chat_sessions": len(self._mock_chat_sessions),
-                "recent_views_chart": []
-            }
+        return {
+            "total_page_views": 0,
+            "total_resume_downloads": 0,
+            "total_contacts": 0,
+            "total_chat_sessions": 0,
+            "recent_views_chart": []
+        }
 
     def get_contacts(self) -> List[Dict[str, Any]]:
-        if self.client:
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
             try:
-                res = self.client.table("contacts").select("*").order("created_at", desc=True).execute()
-                return res.data
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM contacts ORDER BY created_at DESC;")
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
             except Exception as e:
-                print(f"Error fetching contacts: {e}")
-                return []
+                print(f"PostgreSQL get contacts error: {e}")
+            finally:
+                pg_conn.close()
         return []
 
     def get_chat_sessions(self) -> List[Dict[str, Any]]:
-        if self.client:
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
             try:
-                res = self.client.table("chat_sessions").select("*").order("updated_at", desc=True).execute()
-                if res.data and len(res.data) > 0:
-                    return res.data
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM chat_sessions ORDER BY created_at DESC;")
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
             except Exception as e:
-                print(f"Error fetching chat sessions: {e}")
-        sessions_list = list(self._mock_chat_sessions.values())
-        sessions_list.sort(key=lambda s: s.get("updated_at", ""), reverse=True)
-        return sessions_list
+                print(f"PostgreSQL get chat sessions error: {e}")
+            finally:
+                pg_conn.close()
+        return []
 
     def get_chat_messages(self, session_id: str) -> List[Dict[str, Any]]:
-        if self.client:
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
             try:
-                res = self.client.table("chat_messages").select("*").eq("session_id", session_id).order("timestamp", desc=False).execute()
-                if res.data and len(res.data) > 0:
-                    return res.data
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM chat_messages WHERE session_id = %s ORDER BY timestamp ASC;", (session_id,))
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
             except Exception as e:
-                print(f"Error fetching chat messages: {e}")
-        return self._mock_chat_messages.get(session_id, [])
+                print(f"PostgreSQL get chat messages error: {e}")
+            finally:
+                pg_conn.close()
+        return []
 
-    def upsert_portfolio_item(self, table_name: str, item: Dict[str, Any]) -> Dict[str, Any]:
-        allowed = {"skills", "experience", "projects", "education", "certificates"}
-        if table_name not in allowed:
-            return {"status": "error", "message": f"Table '{table_name}' not allowed"}
+    def write_audit_log(self, actor_type: str, actor_id: str, action: str, entity_type: str, entity_id: str, before_state: Any = None, after_state: Any = None, justification: str = None) -> Dict[str, Any]:
+        def safe_json(obj):
+            if obj is None:
+                return None
+            try:
+                if hasattr(obj, '__dict__'):
+                    obj = dict(obj)
+                return json.dumps(obj, default=str)
+            except Exception:
+                return json.dumps({"raw_repr": str(obj)})
 
+        before_json = safe_json(before_state)
+        after_json = safe_json(after_state)
+
+        payload = {
+            "actor_type": actor_type,
+            "actor_id": actor_id,
+            "action": action,
+            "entity_type": entity_type,
+            "entity_id": str(entity_id) if entity_id is not None else None,
+            "before_state": before_json,
+            "after_state": after_json,
+            "justification_rationale": justification or f"Data lifecycle operation: {action}"
+        }
         if self.client:
             try:
-                res = self.client.table(table_name).upsert(item).execute()
+                res = self.client.table("audit_logs").insert(payload).execute()
                 return {"status": "success", "data": res.data}
             except Exception as e:
-                print(f"Error upserting portfolio item into {table_name}: {e}")
-                return {"status": "error", "message": str(e)}
-        return {"status": "mock_success", "message": "CMS update mocked", "data": item}
+                print(f"[AUDIT_LOG] Supabase insert error: {e}")
 
-    def delete_portfolio_item(self, table_name: str, item_id: int) -> Dict[str, Any]:
-        allowed = {"skills", "experience", "projects", "education", "certificates"}
-        if table_name not in allowed:
-            return {"status": "error", "message": f"Table '{table_name}' not allowed"}
-
-        if self.client:
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
             try:
-                res = self.client.table(table_name).delete().eq("id", item_id).execute()
-                return {"status": "success", "data": res.data}
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        INSERT INTO audit_logs (actor_type, actor_id, action, entity_type, entity_id, before_state, after_state, justification_rationale)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING *;
+                    """, (
+                        actor_type,
+                        actor_id,
+                        action,
+                        entity_type,
+                        str(entity_id) if entity_id is not None else None,
+                        before_json,
+                        after_json,
+                        justification or f"Data lifecycle operation: {action}"
+                    ))
+                    row = cur.fetchone()
+                    return {"status": "success", "data": dict(row) if row else payload}
             except Exception as e:
-                print(f"Error deleting from {table_name}: {e}")
-                return {"status": "error", "message": str(e)}
-        return {"status": "mock_success", "message": "CMS delete mocked"}
+                print(f"[AUDIT_LOG] PG insert error: {e}")
+            finally:
+                pg_conn.close()
 
-    def delete_chat_session(self, session_id: Optional[str] = None) -> Dict[str, Any]:
-        if self.client:
-            try:
-                if session_id:
-                    res = self.client.table("chat_sessions").delete().eq("id", session_id).execute()
-                    return {"status": "success", "message": f"Deleted session {session_id}"}
-                else:
-                    res = self.client.table("chat_sessions").delete().neq("id", "keep_all").execute()
-                    return {"status": "success", "message": "Cleared all chat sessions"}
-            except Exception as e:
-                print(f"Error deleting chat session(s): {e}")
-                return {"status": "error", "message": str(e)}
-        return {"status": "mock_success", "message": "Mock session deleted"}
+        self._mock_audit_logs.append(payload)
+        return {"status": "mock_success", "data": payload}
 
 db_helper = SupabaseHelper()
