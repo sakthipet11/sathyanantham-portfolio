@@ -7,7 +7,7 @@ console.log('Running parseMarkdown security tests...');
 {
   const input = '**Bold text** and [Link](https://example.com)';
   const output = parseMarkdown(input);
-  assert(output.includes('<strong class="font-bold text-cyan-300">Bold text</strong>'), 'Bold formatting should work');
+  assert(output.includes('<strong class="font-bold text-primary">Bold text</strong>'), 'Bold formatting should work');
   assert(output.includes('href="https://example.com"'), 'Links should be preserved');
   assert(output.includes('target="_blank"'), 'Target attribute on links should be preserved');
 }
@@ -36,4 +36,14 @@ console.log('Running parseMarkdown security tests...');
   assert(output.includes('&lt;iframe'), 'HTML tags should be escaped');
 }
 
-console.log('All parseMarkdown security tests passed successfully!');
+// Test 5: Markdown table rendering
+{
+  const tableInput = '| Company | Role |\n|---|---|\n| Nextuple | Lead Software Engineer |';
+  const output = parseMarkdown(tableInput);
+  assert(output.includes('<table'), 'Should render HTML <table> tag');
+  assert(output.includes('<th'), 'Should render HTML <th> tag');
+  assert(output.includes('<td'), 'Should render HTML <td> tag');
+  assert(output.includes('Nextuple'), 'Should contain table text');
+}
+
+console.log('All parseMarkdown security and table rendering tests passed successfully!');

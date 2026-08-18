@@ -31,8 +31,8 @@ class ReferralMessagingService:
         job_title = job.get("title") or "Engineering Role"
         connection_type = contact.get("connection_type") or "PUBLIC_DIRECTORY"
 
-        portfolio_url = "https://sathyanantham.dev"
-        twin_url = "https://sathyanantham.dev?openTwin=true"
+        portfolio_url = "https://sathyanantham-portfolio-tv.vercel.app"
+        twin_url = "https://sathyanantham-portfolio-tv.vercel.app?openTwin=true"
 
         first_name = person_name.split()[0] if person_name else "there"
 
@@ -106,8 +106,8 @@ class ReferralMessagingService:
         job_title = job.get("title") or "Engineering Role"
         connection_type = contact.get("connection_type") or "PUBLIC_DIRECTORY"
 
-        portfolio_url = "https://sathyanantham.dev"
-        twin_url = "https://sathyanantham.dev?openTwin=true"
+        portfolio_url = candidate_profile.get("portfolio_url") if candidate_profile else "https://sathyanantham-portfolio-tv.vercel.app"
+        twin_url = f"{portfolio_url}?openTwin=true"
 
         if connection_type == "1ST_DEGREE_LINKEDIN":
             greeting = f"Hi {first_name},\n\nHope you're having a great week!"

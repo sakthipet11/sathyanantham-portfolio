@@ -30,7 +30,7 @@ export function ThemeToggle() {
       size="icon"
       onClick={toggleTheme}
       title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-      className="relative rounded-xl border-border/60 bg-background/60 backdrop-blur-md hover:border-cyan-400/60 transition-colors"
+      className="relative rounded-xl border-border/60 bg-background/60 backdrop-blur-md hover:border-primary/60 transition-colors"
     >
       <motion.div
         initial={false}
@@ -39,9 +39,9 @@ export function ThemeToggle() {
         className="flex items-center justify-center"
       >
         {theme === 'dark' ? (
-          <Sun className="h-4 w-4 text-amber-400" />
+          <Sun className="h-4 w-4 text-primary" />
         ) : (
-          <Moon className="h-4 w-4 text-slate-700" />
+          <Moon className="h-4 w-4 text-primary" />
         )}
       </motion.div>
       <span className="sr-only">Toggle theme</span>
@@ -93,7 +93,7 @@ export function TripleDTopBar() {
         title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
         className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
       >
-        {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-slate-700" />}
+        {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-primary" /> : <Moon className="w-3.5 h-3.5 text-primary" />}
       </button>
 
       {/* Reset Scroll */}

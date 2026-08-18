@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
 
 const TECH_ITEMS = [
   'NEXT.JS 15',
@@ -38,29 +39,19 @@ function MarqueeRow({ items, direction = 'left' }: { items: string[]; direction?
   return (
     <div className="relative overflow-hidden py-4">
       <motion.div
-        className={`flex gap-8 ${direction === 'left' ? 'animate-marquee-left' : 'animate-marquee-right'}`}
+        className={`flex items-center gap-6 ${direction === 'left' ? 'animate-marquee-left' : 'animate-marquee-right'}`}
         style={{ width: 'fit-content' }}
       >
         {duplicatedItems.map((item, index) => (
-          <span
-            key={index}
-            className="group font-mono text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight whitespace-nowrap cursor-default transition-all duration-300"
-            style={{
-              WebkitTextStroke: '1px rgba(255,255,255,0.25)',
-              color: 'transparent'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#38bdf8';
-              (e.currentTarget.style as any).WebkitTextStroke = 'none';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'transparent';
-              (e.currentTarget.style as any).WebkitTextStroke = '1px rgba(255,255,255,0.25)';
-            }}
-          >
-            {item}
-            <span className="mx-8 text-cyan-500/30">•</span>
-          </span>
+          <div key={index} className="flex items-center gap-6 shrink-0">
+            <Badge
+              variant="outline"
+              className="px-5 py-2.5 text-xs sm:text-sm font-mono tracking-wider font-semibold rounded-2xl bg-card/60 border-border/80 text-foreground shadow-xs backdrop-blur-md hover:border-primary hover:text-primary transition-all duration-200 cursor-default"
+            >
+              {item}
+            </Badge>
+            <span className="text-primary/40 font-mono text-sm">•</span>
+          </div>
         ))}
       </motion.div>
     </div>
@@ -69,25 +60,25 @@ function MarqueeRow({ items, direction = 'left' }: { items: string[]; direction?
 
 export function TechMarquee() {
   return (
-    <section className="relative py-24 overflow-hidden md:py-32 bg-slate-950/60 border-y border-slate-800/80 z-10">
+    <section className="relative py-14 md:py-20 overflow-hidden bg-card/40 border-y border-border/70 backdrop-blur-xl z-10">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.8 }}
+        transition={{ duration: 0.6 }}
         className="px-6 md:px-12 mb-8 max-w-7xl mx-auto"
       >
-        <p className="font-mono text-xs tracking-[0.3em] text-cyan-400 mb-2 uppercase">
-          // 05. TECHNICAL ARSENAL & CONCEPTS
-        </p>
-        <h2 className="font-sans text-3xl md:text-5xl font-black text-white uppercase tracking-tight">
+        <Badge variant="default" className="font-mono text-xs tracking-wider uppercase mb-2 bg-primary/10 text-primary border-primary/20">
+          TECHNICAL ARSENAL & CONCEPTS
+        </Badge>
+        <h2 className="font-sans text-3xl md:text-5xl font-black text-foreground uppercase tracking-tight">
           Engineering Matrix & Core Competencies
         </h2>
       </motion.div>
 
       {/* Marquee Rows */}
-      <div className="space-y-2">
+      <div className="space-y-4">
         <MarqueeRow items={TECH_ITEMS} direction="left" />
         <MarqueeRow items={CONCEPT_ITEMS} direction="right" />
       </div>

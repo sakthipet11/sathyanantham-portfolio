@@ -1,81 +1,87 @@
 @import "tailwindcss";
 
 @theme {
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-terracotta: oklch(0.70 0.14 45);
 
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-display: var(--font-space-grotesk), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), monospace;
+  --font-serif: var(--font-newsreader), Georgia, serif;
 }
 
-/* Light Theme Variables (shadcn standard specifications) */
+/* Light Theme Variables - Anthropic/Claude Monochrome + Terracotta */
 :root {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 188 94% 38%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 188 94% 38%;
-  --radius: 0.75rem;
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(0.97 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(0.99 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.70 0.14 45);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.95 0 0);
+  --secondary-foreground: oklch(0.15 0 0);
+  --muted: oklch(0.95 0 0);
+  --muted-foreground: oklch(0.48 0 0);
+  --accent: oklch(0.70 0.14 45);
+  --accent-foreground: oklch(0.99 0 0);
+  --destructive: oklch(0.55 0.15 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: rgba(0, 0, 0, 0.1);
+  --input: rgba(0, 0, 0, 0.1);
+  --ring: oklch(0.70 0.14 45);
+  --radius: 1rem;
 
   --grid-line-color: rgba(0, 0, 0, 0.04);
 }
 
-/* Dark Theme Variables (shadcn standard specifications) */
+/* Dark Theme Variables - Claude Black Base + Terracotta Warmth */
 .dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 10% 5%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 188 94% 43%;
-  --primary-foreground: 240 10% 3.9%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
-  --accent: 240 3.7% 15.9%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 18%;
-  --input: 240 3.7% 18%;
-  --ring: 188 94% 43%;
+  --background: oklch(0.09 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.13 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.09 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.70 0.14 45);
+  --primary-foreground: oklch(0.09 0 0);
+  --secondary: oklch(0.18 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.18 0 0);
+  --muted-foreground: oklch(0.62 0 0);
+  --accent: oklch(0.70 0.14 45);
+  --accent-foreground: oklch(0.09 0 0);
+  --destructive: oklch(0.45 0.15 25);
+  --destructive-foreground: oklch(0.95 0 0);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: oklch(0.70 0.14 45);
 
   --grid-line-color: rgba(255, 255, 255, 0.04);
 }
 
 body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background-color: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
@@ -86,7 +92,13 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Grid Background pattern inspired by TripleD Hero Block */
+/* Standard Section Spacing Token Contract:
+ * - Primary Portfolio Sections: py-16 md:py-24 (64px mobile, 96px desktop)
+ * - Compact Banner Sections: py-14 md:py-20 (56px mobile, 80px desktop)
+ * - Inner Block Separation: mb-12 md:mb-16 (48px mobile, 64px desktop)
+ */
+
+/* Grid Background pattern */
 .bg-grid-pattern {
   background-size: 40px 40px;
   background-image: 
@@ -94,21 +106,35 @@ html {
     linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
 }
 
-/* Glassmorphism custom classes with Dark/Light theme adaptability */
+/* Glassmorphism utility classes */
 .glass-card {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.05);
+  background: rgba(0, 0, 0, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
 }
 
 .dark .glass-card {
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+}
+
+.glass-panel {
+  background: rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark .glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Marquee Animations */
@@ -138,9 +164,9 @@ html {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.3);
+  background: rgba(160, 160, 160, 0.3);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8;
+  background: oklch(0.70 0.14 45);
 }

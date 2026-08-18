@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   Briefcase,
   Search,
@@ -26,7 +27,7 @@ import {
   Target,
   BarChart3
 } from 'lucide-react';
-import { getApiHost } from '@/lib/utils';
+import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 
 export default function AdminJobsPage() {
   const apiHost = getApiHost();
@@ -60,8 +61,8 @@ export default function AdminJobsPage() {
     try {
       setLoading(true);
       const [jobsRes, metricsRes] = await Promise.all([
-        fetch(`${apiHost}/api/v2/jobs?limit=100`),
-        fetch(`${apiHost}/api/v2/jobs/metrics`)
+        fetchWithTimeout(`${apiHost}/api/v2/jobs?limit=100`, {}, 1500),
+        fetchWithTimeout(`${apiHost}/api/v2/jobs/metrics`, {}, 1500)
       ]);
 
       if (jobsRes.ok) {
@@ -255,70 +256,68 @@ export default function AdminJobsPage() {
   });
 
   const getMatchLevelColor = (level: string = '', score: number = 0) => {
-    if (score >= 90 || level === 'EXCELLENT') return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30';
-    if (score >= 85 || level === 'STRONG') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
-    if (score >= 75 || level === 'POTENTIAL') return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
-    return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
+    if (score >= 90 || level === 'EXCELLENT') return 'bg-primary/10 text-primary border-primary/20 font-bold';
+    if (score >= 85 || level === 'STRONG') return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-bold';
+    if (score >= 75 || level === 'POTENTIAL') return 'bg-amber-500/10 text-amber-500 border-amber-500/30 font-bold';
+    return 'bg-muted text-muted-foreground border-border/60';
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'QUALIFIED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">QUALIFIED</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-bold">QUALIFIED</span>;
       case 'READY_FOR_REVIEW':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-bold animate-pulse">READY_FOR_REVIEW</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 font-bold">READY_FOR_REVIEW</span>;
       case 'APPROVED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/30 font-bold">APPROVED</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-bold">APPROVED</span>;
       case 'MANUAL_REQUIRED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold flex items-center gap-1"><AlertTriangle className="w-2.5 h-2.5" /> MANUAL_REQUIRED</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-amber-500/10 text-amber-500 border border-amber-500/30 font-bold flex items-center gap-1"><AlertTriangle className="w-2.5 h-2.5" /> MANUAL_REQUIRED</span>;
       case 'APPLIED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold">APPLIED</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 font-bold">APPLIED</span>;
       case 'REJECTED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20">REJECTED</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-destructive/10 text-destructive border border-destructive/30">REJECTED</span>;
       default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">{status}</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-muted text-muted-foreground border border-border/60">{status}</span>;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-10 font-sans">
+    <div className="min-h-screen bg-background text-foreground p-6 md:p-10 font-sans transition-colors duration-300">
       {/* Toast Notification */}
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-900 border border-cyan-500/40 text-cyan-300 text-xs shadow-2xl animate-fade-in font-mono">
-          <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-card border border-primary/40 text-primary text-xs shadow-2xl animate-fade-in font-mono backdrop-blur-xl">
+          <CheckCircle2 className="w-4 h-4 text-primary" />
           {toastMsg}
         </div>
       )}
 
       {/* Top Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 pb-6">
         <div className="flex items-center gap-3">
-          <Link href="/admin/dashboard" className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
           <div>
-            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-cyan-400" /> Job Discovery & Gemini ATS Matching Engine
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-primary" /> Job Discovery & Gemini ATS Matching Engine
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground font-mono">
               Autonomous multi-source scanner, deduplication filter & structured candidate scoring
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <button
             onClick={fetchJobsAndMetrics}
             disabled={loading}
-            className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-2 rounded-xl bg-card/60 border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
             title="Refresh List"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-primary' : ''}`} />
           </button>
           <button
             onClick={handleTriggerDiscovery}
             disabled={scanning}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-semibold shadow-lg shadow-cyan-900/30 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
           >
             <Sparkles className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
             {scanning ? 'Scanning & Scoring Portals...' : 'Trigger Daily Job Discovery'}
@@ -328,46 +327,46 @@ export default function AdminJobsPage() {
 
       {/* Metrics HUD (7 Key Indicators) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
-          <span className="text-[10px] text-slate-400 font-mono uppercase block">Discovered Today</span>
-          <span className="text-xl font-bold text-slate-100 mt-1 block">{metrics.jobs_discovered_today}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Discovered Today</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.jobs_discovered_today}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
-          <span className="text-[10px] text-emerald-400 font-mono uppercase block">Qualified Jobs</span>
-          <span className="text-xl font-bold text-emerald-400 mt-1 block">{metrics.qualified_jobs}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-emerald-500 font-mono uppercase block">Qualified Jobs</span>
+          <span className="text-xl font-bold text-emerald-500 mt-1 block font-mono">{metrics.qualified_jobs}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
-          <span className="text-[10px] text-cyan-400 font-mono uppercase block">Avg ATS Score</span>
-          <span className="text-xl font-bold text-cyan-300 mt-1 block">{metrics.average_ats_score}%</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-primary font-mono uppercase block">Avg ATS Score</span>
+          <span className="text-xl font-bold text-primary mt-1 block font-mono">{metrics.average_ats_score}%</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
-          <span className="text-[10px] text-blue-400 font-mono uppercase block">Excellent (90%+)</span>
-          <span className="text-xl font-bold text-blue-400 mt-1 block">{metrics.excellent_matches}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Excellent (90%+)</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.excellent_matches}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
-          <span className="text-[10px] text-emerald-400 font-mono uppercase block">Strong (85-89%)</span>
-          <span className="text-xl font-bold text-emerald-300 mt-1 block">{metrics.strong_matches}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-emerald-500 font-mono uppercase block">Strong (85-89%)</span>
+          <span className="text-xl font-bold text-emerald-500 mt-1 block font-mono">{metrics.strong_matches}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-amber-500/20 bg-amber-500/5">
-          <span className="text-[10px] text-amber-400 font-mono uppercase block">Pending Approval</span>
-          <span className="text-xl font-bold text-amber-300 mt-1 block">{metrics.applications_pending_approval}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Pending Approval</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.applications_pending_approval}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-purple-500/20 bg-purple-500/5">
-          <span className="text-[10px] text-purple-400 font-mono uppercase block">Submitted</span>
-          <span className="text-xl font-bold text-purple-300 mt-1 block">{metrics.applications_submitted}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Submitted</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.applications_submitted}</span>
         </div>
       </div>
 
       {/* Search & Filter Controls */}
       <div className="flex flex-col lg:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search by role, company, location, or tech requirement (React, Micro Frontends)..."
+            placeholder="Search by role, company, location, or tech requirement..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-card/60 border border-border/80 rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
           />
         </div>
 
@@ -376,7 +375,7 @@ export default function AdminJobsPage() {
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+            className="px-3 py-2.5 bg-card/60 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
           >
             <option value="ALL">All Statuses</option>
             <option value="QUALIFIED">Qualified</option>
@@ -391,7 +390,7 @@ export default function AdminJobsPage() {
           <select
             value={selectedSource}
             onChange={(e) => setSelectedSource(e.target.value)}
-            className="px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+            className="px-3 py-2.5 bg-card/60 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
           >
             <option value="ALL">All Sources</option>
             <option value="greenhouse">Greenhouse</option>
@@ -404,7 +403,7 @@ export default function AdminJobsPage() {
           <select
             value={minScoreFilter}
             onChange={(e) => setMinScoreFilter(Number(e.target.value))}
-            className="px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+            className="px-3 py-2.5 bg-card/60 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary"
           >
             <option value={0}>Any Match Score</option>
             <option value={80}>Min 80% (Qualified)</option>
@@ -415,10 +414,10 @@ export default function AdminJobsPage() {
       </div>
 
       {/* Main Job Discovery Table */}
-      <div className="rounded-2xl bg-slate-900/80 border border-slate-800 overflow-hidden shadow-xl">
+      <div className="rounded-2xl bg-card/60 border border-border/80 overflow-hidden shadow-xl backdrop-blur-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-mono text-slate-400 uppercase">
+          <table className="w-full text-left text-xs text-foreground">
+            <thead className="bg-muted/50 border-b border-border/80 text-[11px] font-mono text-muted-foreground uppercase">
               <tr>
                 <th className="px-5 py-3.5">Company & Role</th>
                 <th className="px-4 py-3.5">Location</th>
@@ -429,10 +428,10 @@ export default function AdminJobsPage() {
                 <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-border/60">
               {filteredJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
                     No jobs match your filter criteria. Try changing filters or trigger a fresh job scan.
                   </td>
                 </tr>
@@ -444,37 +443,37 @@ export default function AdminJobsPage() {
                   return (
                     <tr
                       key={job.id}
-                      className="hover:bg-slate-800/40 transition-colors group cursor-pointer"
+                      className="hover:bg-muted/50 transition-colors group cursor-pointer"
                       onClick={() => setSelectedJob(job)}
                     >
                       <td className="px-5 py-4">
-                        <div className="font-semibold text-slate-100 text-sm flex items-center gap-2">
+                        <div className="font-semibold text-foreground text-sm flex items-center gap-2">
                           {job.title}
                           {job.salary_min && (
-                            <span className="text-[10px] font-normal px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                            <span className="text-[10px] font-normal px-2 py-0.5 rounded bg-muted text-muted-foreground font-mono">
                               ${(job.salary_min / 1000).toFixed(0)}k - ${(job.salary_max / 1000).toFixed(0)}k
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
-                          <span className="text-cyan-400 font-medium">{job.company}</span>
+                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                          <span className="text-primary font-medium">{job.company}</span>
                           <span>•</span>
                           <span>Posted: {job.posted_date || 'Today'}</span>
                         </div>
                       </td>
 
                       <td className="px-4 py-4">
-                        <span className="text-slate-300">{job.location || 'Remote'}</span>
-                        <span className="block text-[10px] text-slate-500 font-mono uppercase">{job.location_type || 'Remote'}</span>
+                        <span className="text-foreground">{job.location || 'Remote'}</span>
+                        <span className="block text-[10px] text-muted-foreground font-mono uppercase">{job.location_type || 'Remote'}</span>
                       </td>
 
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-sm text-slate-100">{score}%</span>
+                          <span className="font-mono font-bold text-sm text-foreground">{score}%</span>
                         </div>
-                        <div className="w-16 h-1.5 bg-slate-800 rounded-full mt-1 overflow-hidden">
+                        <div className="w-16 h-1.5 bg-muted rounded-full mt-1 overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${score >= 90 ? 'bg-cyan-400' : score >= 85 ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                            className={`h-full rounded-full ${score >= 90 ? 'bg-primary' : score >= 85 ? 'bg-emerald-500' : 'bg-amber-500'}`}
                             style={{ width: `${score}%` }}
                           />
                         </div>
@@ -486,7 +485,7 @@ export default function AdminJobsPage() {
                         </span>
                       </td>
 
-                      <td className="px-4 py-4 font-mono text-[11px] text-slate-400">
+                      <td className="px-4 py-4 font-mono text-[11px] text-muted-foreground">
                         <span className="capitalize">{job.portal_type || job.source || 'Direct'}</span>
                       </td>
 
@@ -498,17 +497,17 @@ export default function AdminJobsPage() {
                         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => setSelectedJob(job)}
-                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors flex items-center gap-1"
+                            className="px-2.5 py-1.5 rounded-lg bg-card border border-border/80 hover:bg-muted text-foreground text-xs transition-colors flex items-center gap-1"
                             title="View Score Breakdown"
                           >
-                            <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                            <Eye className="w-3.5 h-3.5 text-primary" />
                             <span>Details</span>
                           </button>
 
                           {job.status !== 'APPROVED' && job.status !== 'APPLIED' && (
                             <button
                               onClick={() => handleUpdateStatus(job.id, 'APPROVED')}
-                              className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-colors"
+                              className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 transition-colors"
                               title="Approve Application"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -518,7 +517,7 @@ export default function AdminJobsPage() {
                           {job.status !== 'REJECTED' && (
                             <button
                               onClick={() => handleUpdateStatus(job.id, 'REJECTED')}
-                              className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors"
+                              className="p-1.5 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 transition-colors"
                               title="Reject"
                             >
                               <XCircle className="w-3.5 h-3.5" />
@@ -529,7 +528,7 @@ export default function AdminJobsPage() {
                             href={job.apply_url || job.job_url || '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+                            className="p-1.5 rounded-lg bg-card border border-border/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                             title="Open Job Link"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
@@ -547,26 +546,26 @@ export default function AdminJobsPage() {
 
       {/* Side Details Drawer / Inspection Modal */}
       {selectedJob && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-2xl bg-slate-900 border-l border-slate-800 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex justify-end bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-2xl bg-card border-l border-border/80 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl">
             {/* Drawer Header */}
-            <div className="flex items-start justify-between border-b border-slate-800 pb-5">
+            <div className="flex items-start justify-between border-b border-border/80 pb-5">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                     {selectedJob.company}
                   </span>
                   {getStatusBadge(selectedJob.status)}
                 </div>
-                <h2 className="text-lg font-bold text-slate-100 mt-1">{selectedJob.title}</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {selectedJob.location} • Portal: <span className="font-mono text-cyan-300 capitalize">{selectedJob.portal_type || selectedJob.source}</span>
+                <h2 className="text-lg font-bold text-foreground mt-1">{selectedJob.title}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {selectedJob.location} • Portal: <span className="font-mono text-primary capitalize">{selectedJob.portal_type || selectedJob.source}</span>
                 </p>
               </div>
 
               <button
                 onClick={() => setSelectedJob(null)}
-                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+                className="p-2 rounded-lg bg-muted border border-border/80 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -574,72 +573,72 @@ export default function AdminJobsPage() {
 
             {/* ATS Score Overview Card */}
             {selectedJob.score_details && (
-              <div className="p-5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-4">
+              <div className="p-5 rounded-2xl bg-card border border-border/80 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center font-mono text-xl font-bold text-cyan-300">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center font-mono text-xl font-bold text-primary">
                       {selectedJob.score_details.overall_score}%
                     </div>
                     <div>
-                      <span className="text-xs font-mono text-slate-400 uppercase block">ATS Compatibility Score</span>
+                      <span className="text-xs font-mono text-muted-foreground uppercase block">ATS Compatibility Score</span>
                       <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded-full inline-block mt-0.5 border ${getMatchLevelColor(selectedJob.score_details.match_level, selectedJob.score_details.overall_score)}`}>
                         {selectedJob.score_details.match_level || 'EXCELLENT'} MATCH
                       </span>
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-mono text-slate-500">
+                  <span className="text-[10px] font-mono text-muted-foreground">
                     Model: {selectedJob.score_details.llm_model_used || 'Configured LLM'}
                   </span>
                 </div>
 
                 {/* Score Breakdown Bars */}
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/80 font-mono">
                   <div>
-                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
                       <span>Skills Match</span>
-                      <span className="font-mono text-slate-200">{selectedJob.score_details.skills_match || 95}%</span>
+                      <span className="font-mono text-foreground font-bold">{selectedJob.score_details.skills_match || 95}%</span>
                     </div>
-                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-cyan-400 rounded-full" style={{ width: `${selectedJob.score_details.skills_match || 95}%` }} />
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${selectedJob.score_details.skills_match || 95}%` }} />
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
                       <span>Experience Match</span>
-                      <span className="font-mono text-slate-200">{selectedJob.score_details.experience_match || 95}%</span>
+                      <span className="font-mono text-foreground font-bold">{selectedJob.score_details.experience_match || 95}%</span>
                     </div>
-                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${selectedJob.score_details.experience_match || 95}%` }} />
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${selectedJob.score_details.experience_match || 95}%` }} />
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
                       <span>Title Fit</span>
-                      <span className="font-mono text-slate-200">{selectedJob.score_details.title_match || 92}%</span>
+                      <span className="font-mono text-foreground font-bold">{selectedJob.score_details.title_match || 92}%</span>
                     </div>
-                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-blue-400 rounded-full" style={{ width: `${selectedJob.score_details.title_match || 92}%` }} />
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary rounded-full" style={{ width: `${selectedJob.score_details.title_match || 92}%` }} />
                     </div>
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
                       <span>Seniority Fit</span>
-                      <span className="font-mono text-slate-200">{selectedJob.score_details.seniority_match || 96}%</span>
+                      <span className="font-mono text-foreground font-bold">{selectedJob.score_details.seniority_match || 96}%</span>
                     </div>
-                    <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-400 rounded-full" style={{ width: `${selectedJob.score_details.seniority_match || 96}%` }} />
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${selectedJob.score_details.seniority_match || 96}%` }} />
                     </div>
                   </div>
                 </div>
 
                 {/* AI Recommendation */}
                 {selectedJob.score_details.recommendation && (
-                  <div className="p-3 rounded-xl bg-cyan-500/5 border border-cyan-500/20 text-xs text-cyan-200">
-                    <span className="font-semibold block mb-0.5 text-cyan-400">Strategic Recommendation:</span>
+                  <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-foreground font-sans">
+                    <span className="font-semibold block mb-0.5 text-primary font-mono">// STRATEGIC RECOMMENDATION:</span>
                     {selectedJob.score_details.recommendation}
                   </div>
                 )}
@@ -648,16 +647,16 @@ export default function AdminJobsPage() {
 
             {/* Keyword Analysis */}
             {selectedJob.score_details && (
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">
+              <div className="space-y-3 font-sans">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider font-mono">
                   ATS Keyword Matching Analysis
                 </h3>
 
                 <div>
-                  <span className="text-[11px] text-emerald-400 block mb-1.5 font-medium">Matching Candidate Keywords:</span>
+                  <span className="text-[11px] text-emerald-500 block mb-1.5 font-semibold font-mono">Matching Candidate Keywords:</span>
                   <div className="flex flex-wrap gap-1.5">
                     {(selectedJob.score_details.matching_keywords || ["React", "TypeScript", "Micro Frontends", "Module Federation"]).map((kw: string) => (
-                      <span key={kw} className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[11px] font-mono">
+                      <span key={kw} className="px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[11px] font-mono font-semibold">
                         ✓ {kw}
                       </span>
                     ))}
@@ -666,10 +665,10 @@ export default function AdminJobsPage() {
 
                 {(selectedJob.score_details.missing_keywords || []).length > 0 && (
                   <div>
-                    <span className="text-[11px] text-amber-400 block mb-1.5 font-medium">Missing Keywords (For Tailoring):</span>
+                    <span className="text-[11px] text-amber-500 block mb-1.5 font-semibold font-mono">Missing Keywords (For Tailoring):</span>
                     <div className="flex flex-wrap gap-1.5">
                       {(selectedJob.score_details.missing_keywords || []).map((kw: string) => (
-                        <span key={kw} className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[11px] font-mono">
+                        <span key={kw} className="px-2.5 py-0.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[11px] font-mono font-semibold">
                           ✗ {kw}
                         </span>
                       ))}
@@ -680,46 +679,46 @@ export default function AdminJobsPage() {
             )}
 
             {/* Job Description & Requirements */}
-            <div className="space-y-3 pt-2">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono">
+            <div className="space-y-3 pt-2 font-sans">
+              <h3 className="text-xs font-bold text-foreground uppercase tracking-wider font-mono">
                 Job Overview & Requirements
               </h3>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-3 max-h-60 overflow-y-auto leading-relaxed">
+              <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 text-xs text-foreground space-y-3 max-h-60 overflow-y-auto leading-relaxed">
                 <div>
-                  <span className="font-semibold text-slate-100 block mb-1">Description:</span>
-                  <p>{selectedJob.description_raw}</p>
+                  <span className="font-semibold text-foreground block mb-1 font-mono">// DESCRIPTION</span>
+                  <p className="text-muted-foreground">{selectedJob.description_raw}</p>
                 </div>
                 {selectedJob.requirements_clean && (
                   <div>
-                    <span className="font-semibold text-slate-100 block mb-1">Requirements:</span>
-                    <p>{selectedJob.requirements_clean}</p>
+                    <span className="font-semibold text-foreground block mb-1 font-mono">// REQUIREMENTS</span>
+                    <p className="text-muted-foreground">{selectedJob.requirements_clean}</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Quick Actions Footer */}
-            <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-between gap-3 pt-4 border-t border-border/80 font-sans">
               <a
                 href={selectedJob.apply_url || selectedJob.job_url || '#'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-card border border-border/80 hover:bg-muted text-foreground text-xs font-medium transition-colors"
               >
-                <ExternalLink className="w-3.5 h-3.5" /> Open Application Portal
+                <ExternalLink className="w-3.5 h-3.5 text-primary" /> Open Application Portal
               </a>
 
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleUpdateStatus(selectedJob.id, 'MANUAL_REQUIRED')}
-                  className="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-medium transition-colors"
+                  className="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 text-xs font-medium transition-colors cursor-pointer"
                 >
                   Mark Manual Required
                 </button>
                 <button
                   onClick={() => handleUpdateStatus(selectedJob.id, 'APPROVED')}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-900/30 transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Approve for Apply
                 </button>

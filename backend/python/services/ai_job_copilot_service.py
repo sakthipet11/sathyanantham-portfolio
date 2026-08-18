@@ -169,7 +169,7 @@ class AIJobCopilotService:
                 "tailoring_highlights": [
                     "Highlighted WebGL sentient sphere and canvas architecture",
                     "Elevated enterprise micro-frontend orchestration experience",
-                    "Embedded AI Twin demo link (https://sathyanantham.dev?openTwin=true)"
+                    "Embedded AI Twin demo link (https://sathyanantham-portfolio-tv.vercel.app?openTwin=true)"
                 ],
                 "requires_approval": True
             },
@@ -243,7 +243,7 @@ class AIJobCopilotService:
                 "connection_degree": "1ST_DEGREE_LINKEDIN",
                 "relationship_note": "Former colleague at TechCorp (2022-2024)",
                 "recommended_action": "SEND_MESSAGE",
-                "draft_message": "Hi Alex! Hope you're doing great. I saw Figma is expanding its UI Platform Architect team. Given my background scaling enterprise micro-frontends and agentic systems, I'd love your perspective on the role. You can also explore my live interactive portfolio and AI Twin at https://sathyanantham.dev?openTwin=true."
+                "draft_message": "Hi Alex! Hope you're doing great. I saw Figma is expanding its UI Platform Architect team. Given my background scaling enterprise micro-frontends and agentic systems, I'd love your perspective on the role. You can also explore my live interactive portfolio and AI Twin at https://sathyanantham-portfolio-tv.vercel.app?openTwin=true."
             },
             {
                 "contact_id": "ref-02",
@@ -253,7 +253,7 @@ class AIJobCopilotService:
                 "connection_degree": "1ST_DEGREE_LINKEDIN",
                 "relationship_note": "Co-speaker at React Summit 2023",
                 "recommended_action": "SEND_MESSAGE",
-                "draft_message": "Hi Sarah! Really enjoyed your recent post on frontend reliability. I noticed Stripe is hiring a Principal Frontend Engineer for Micro-Frontends. I've tailored a dedicated showcase of my work with live autonomous agents here: https://sathyanantham.dev?openTwin=true. Would love to connect briefly!"
+                "draft_message": "Hi Sarah! Really enjoyed your recent post on frontend reliability. I noticed Stripe is hiring a Principal Frontend Engineer for Micro-Frontends. I've tailored a dedicated showcase of my work with live autonomous agents here: https://sathyanantham-portfolio-tv.vercel.app?openTwin=true. Would love to connect briefly!"
             }
         ]
 

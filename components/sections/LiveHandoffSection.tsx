@@ -9,6 +9,9 @@ import { useAnalytics } from '@/components/providers';
 import { Radio, Mail, Phone, MapPin, Send, CheckCircle2, MessageSquare, Terminal } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 import { getApiHost } from '@/lib/utils';
 
@@ -64,92 +67,92 @@ export function LiveHandoffSection() {
   };
 
   return (
-    <section id="contact" className="py-24 px-4 sm:px-6 relative z-10 max-w-6xl mx-auto">
-      
-      {/* Header */}
-      <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-primary pl-4">
-        <Badge variant="outline" className="font-mono text-xs tracking-widest uppercase text-primary border-primary/30 bg-primary/10">
-          // 05. CONTACT & LIVE HANDOFF
-        </Badge>
-        <h2 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight">
-          Initiate Direct Collaboration
+    <section id="contact" className="py-8 md:py-16 px-4 sm:px-6 relative z-10 max-w-6xl mx-auto">
+
+      {/* Editorial Header */}
+      <div className="flex flex-col items-start gap-4 mb-16 border-l-2 border-primary/40 pl-5">
+        <span className="font-serif italic text-base text-primary tracking-wide block">
+          Contact & Direct Engagement
+        </span>
+        <h2 className="text-3xl sm:text-5xl font-serif font-normal text-foreground tracking-tight leading-tight max-w-3xl">
+          Building high-availability platforms requires <span className="text-primary italic font-serif">clear intent</span> and direct collaboration.
         </h2>
-        <p className="text-muted-foreground text-sm sm:text-base max-w-xl">
+        <p className="text-muted-foreground text-sm sm:text-base max-w-xl font-sans leading-relaxed pt-1">
           Connect directly for Lead Software Engineering, Frontend Architecture, or AI System design opportunities.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-stretch">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+
         {/* Left Info */}
         <div className="space-y-6 flex flex-col justify-between">
-          
+
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card/80 border border-border/80 text-xs font-mono text-primary backdrop-blur-md">
-              <Radio className={`w-3.5 h-3.5 ${isSathyananthamOnline ? 'text-emerald-500 animate-pulse' : 'text-primary'}`} />
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card/80 border border-border/80 text-xs font-mono text-primary backdrop-blur-md shadow-xs">
+              <Radio className={`w-3.5 h-3.5 ${isSathyananthamOnline ? 'text-primary animate-pulse' : 'text-primary'}`} />
               <span>{isSathyananthamOnline ? 'STATUS :: SATHYANANTHAM_ONLINE' : 'STATUS :: AI_TWIN_READY_24_7'}</span>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-              Ready to Engineer Scalable Systems
+            <h3 className="text-2xl sm:text-3xl font-serif font-normal text-foreground tracking-tight">
+              Ready to engineer scalable enterprise systems
             </h3>
-            <p className="text-foreground/80 text-sm leading-relaxed">
+            <p className="text-muted-foreground text-sm leading-relaxed font-sans">
               Reach out for full-stack architecture consulting, lead engineering roles, or custom RAG AI agent integrations.
             </p>
           </div>
 
-          {/* Contact Details */}
+          {/* Contact Details Cards */}
           <div className="space-y-3 font-mono">
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl hover:border-primary/40 transition-colors">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/80 text-primary">
-                <Mail className="w-5 h-5 shrink-0" />
+            <Card className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/70 backdrop-blur-xl hover:border-primary/40 transition-colors shadow-xs">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/60 text-primary shrink-0">
+                <Mail className="w-5 h-5" />
               </span>
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">// DIRECT EMAIL</span>
-                <p className="text-xs sm:text-sm font-bold text-foreground">v.sathyanantham@gmail.com</p>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">v.sathyanantham@gmail.com</p>
               </div>
-            </div>
+            </Card>
 
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl hover:border-indigo-500/40 transition-colors">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/80 text-indigo-500">
-                <Phone className="w-5 h-5 shrink-0" />
+            <Card className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/70 backdrop-blur-xl hover:border-primary/40 transition-colors shadow-xs">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/60 text-primary shrink-0">
+                <Phone className="w-5 h-5" />
               </span>
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">// PHONE</span>
-                <p className="text-xs sm:text-sm font-bold text-foreground">+91 8870956756</p>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">+91 8870956756</p>
               </div>
-            </div>
+            </Card>
 
-            <div className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl hover:border-purple-500/40 transition-colors">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/80 text-purple-500">
-                <MapPin className="w-5 h-5 shrink-0" />
+            <Card className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/70 backdrop-blur-xl hover:border-primary/40 transition-colors shadow-xs">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/60 text-primary shrink-0">
+                <MapPin className="w-5 h-5" />
               </span>
               <div>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">// LOCATION</span>
-                <p className="text-xs sm:text-sm font-bold text-foreground">Coimbatore / Bangalore, TN, India</p>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">Coimbatore, Tamil Nadu, India</p>
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Live Takeover Card */}
-          <div className="p-6 rounded-2xl bg-card/80 border border-primary/40 backdrop-blur-xl flex items-center justify-between gap-4 shadow-lg">
+          <Card className="p-6 rounded-2xl bg-card/80 border border-primary/30 backdrop-blur-xl flex items-center justify-between gap-4 shadow-sm">
             <div>
-              <h4 className="text-xs font-mono font-bold text-foreground">// PREFER LIVE CHAT?</h4>
+              <h4 className="text-xs font-mono font-semibold text-foreground">// PREFER LIVE CHAT?</h4>
               <p className="text-xs text-muted-foreground mt-0.5">Request seamless takeover to speak with Sathyanantham in real-time.</p>
             </div>
             <Button
               onClick={handleInitiateHandoff}
               size="sm"
-              className="gap-1.5 font-mono text-xs font-bold rounded-xl shrink-0"
+              className="gap-1.5 font-mono text-xs font-semibold rounded-xl shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>Live Handoff</span>
             </Button>
-          </div>
+          </Card>
 
         </div>
 
-        {/* Right Form */}
-        <div className="p-8 sm:p-10 rounded-3xl bg-card/60 border border-border/80 shadow-2xl backdrop-blur-2xl relative overflow-hidden">
+        {/* Right Form Card */}
+        <Card className="p-8 sm:p-10 rounded-3xl bg-card/60 border border-border/80 shadow-xl backdrop-blur-2xl relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
 
           <div className="relative">
@@ -160,59 +163,56 @@ export function LiveHandoffSection() {
             <h3 className="text-2xl font-bold text-foreground tracking-tight mb-6">Send Direct Message</h3>
 
             {isSubmitted ? (
-              <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-4 font-mono backdrop-blur-md">
-                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
+              <div className="p-8 rounded-2xl bg-primary/10 border border-primary/20 text-center space-y-4 font-mono backdrop-blur-md">
+                <CheckCircle2 className="w-12 h-12 text-primary mx-auto" />
                 <h4 className="text-base font-bold text-foreground">TRANSMISSION RECEIVED</h4>
-                <p className="text-xs text-emerald-600 dark:text-emerald-300">
+                <p className="text-xs text-muted-foreground">
                   Sathyanantham V has received your message and will respond shortly.
                 </p>
                 <button
                   onClick={() => setIsSubmitted(false)}
-                  className="mt-4 text-xs font-semibold text-primary underline hover:opacity-80"
+                  className="mt-4 text-xs font-semibold text-primary underline hover:opacity-80 cursor-pointer"
                 >
                   Send another message
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 font-mono">
-                
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">// YOUR NAME</label>
-                  <input
+                  <label className="block text-xs font-mono font-semibold text-muted-foreground mb-1.5">// YOUR NAME</label>
+                  <Input
                     {...register('name')}
                     type="text"
                     placeholder="e.g. Alex Morgan"
-                    className="w-full bg-muted/60 border border-border/80 rounded-xl px-4 py-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors backdrop-blur-sm"
                   />
-                  {errors.name && <p className="text-[11px] text-rose-500 mt-1">{errors.name.message}</p>}
+                  {errors.name && <p className="text-[11px] text-destructive font-mono mt-1">{errors.name.message}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">// EMAIL ADDRESS</label>
-                  <input
+                  <label className="block text-xs font-mono font-semibold text-muted-foreground mb-1.5">// EMAIL ADDRESS</label>
+                  <Input
                     {...register('email')}
                     type="email"
                     placeholder="alex@company.com"
-                    className="w-full bg-muted/60 border border-border/80 rounded-xl px-4 py-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors backdrop-blur-sm"
                   />
-                  {errors.email && <p className="text-[11px] text-rose-500 mt-1">{errors.email.message}</p>}
+                  {errors.email && <p className="text-[11px] text-destructive font-mono mt-1">{errors.email.message}</p>}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">// PROJECT SCOPE / INQUIRY</label>
-                  <textarea
+                  <label className="block text-xs font-mono font-semibold text-muted-foreground mb-1.5">// PROJECT SCOPE / INQUIRY</label>
+                  <Textarea
                     {...register('notes')}
                     rows={4}
                     placeholder="Details regarding your project, role, or collaboration..."
-                    className="w-full bg-muted/60 border border-border/80 rounded-xl p-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors backdrop-blur-sm"
                   />
-                  {errors.notes && <p className="text-[11px] text-rose-500 mt-1">{errors.notes.message}</p>}
+                  {errors.notes && <p className="text-[11px] text-destructive font-mono mt-1">{errors.notes.message}</p>}
                 </div>
 
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-3.5 px-6 rounded-xl font-bold text-xs flex items-center justify-center gap-2 uppercase tracking-wider"
+                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   <Send className="w-4 h-4" />
                   <span>{isSubmitting ? 'TRANSMITTING...' : 'TRANSMIT MESSAGE'}</span>
@@ -222,7 +222,7 @@ export function LiveHandoffSection() {
             )}
           </div>
 
-        </div>
+        </Card>
 
       </div>
 

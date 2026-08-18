@@ -56,7 +56,7 @@ export const useAppStore = create<AppState>((set) => ({
       id: 'welcome-1',
       role: 'assistant',
       senderName: 'Sathyanantham AI Twin',
-      content: "Hello! 👋 I'm Sathyanantham V's AI Digital Twin. I can share details about my 13+ years of experience as a Lead Software Engineer, Frontend Architect, and AI Integrator. Ask me anything about my work on Order Management Systems, React/Next.js architectures, or how to get in touch with me directly!",
+      content: "Hello! 👋 I'm Sathyanantham V's AI Digital Twin. I am based in Coimbatore, Tamil Nadu, India. I can share details about my 13+ years of experience as a Lead Software Engineer, Frontend Architect, and AI Integrator. Ask me anything about my work at Nextuple on Order Management Systems, React/Next.js architectures, Claude Skills, or how to get in touch with me directly!",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ],

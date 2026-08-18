@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   Inbox,
   Search,
@@ -29,7 +30,7 @@ import {
   Paperclip,
   Check
 } from 'lucide-react';
-import { getApiHost } from '@/lib/utils';
+import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 
 export default function AdminRecruiterInboxPage() {
   const apiHost = getApiHost();
@@ -62,8 +63,8 @@ export default function AdminRecruiterInboxPage() {
     try {
       setLoading(true);
       const [emailsRes, metricsRes] = await Promise.all([
-        fetch(`${apiHost}/api/v2/recruiter-inbox?limit=100`),
-        fetch(`${apiHost}/api/v2/recruiter-inbox/metrics`)
+        fetchWithTimeout(`${apiHost}/api/v2/recruiter-inbox?limit=100`, {}, 1500),
+        fetchWithTimeout(`${apiHost}/api/v2/recruiter-inbox/metrics`, {}, 1500)
       ]);
 
       if (emailsRes.ok) {
@@ -229,10 +230,7 @@ export default function AdminRecruiterInboxPage() {
   };
 
   const filteredEmails = emails.filter((em) => {
-    const matchesSearch =
-      (em.sender || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (em.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (em.subject || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (em.sender || '').toLowerCase().includes(searchTerm.toLowerCase()) || (em.company || '').toLowerCase().includes(searchTerm.toLowerCase()) || (em.subject || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesClass = selectedClassification === 'ALL' || em.classification === selectedClassification;
     const matchesStat = selectedStatus === 'ALL' || em.status === selectedStatus;
     return matchesSearch && matchesClass && matchesStat;
@@ -241,127 +239,111 @@ export default function AdminRecruiterInboxPage() {
   const getClassificationBadge = (classification: string) => {
     switch (classification) {
       case 'INTERVIEW_REQUEST':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 font-bold">INTERVIEW_REQUEST</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 font-semibold">INTERVIEW_REQUEST</span>;
       case 'RESUME_REQUEST':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/10 text-purple-300 border border-purple-500/30 font-bold flex items-center gap-1"><Paperclip className="w-2.5 h-2.5" /> RESUME_REQUEST</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-muted/80 text-foreground border border-border/60 font-semibold flex items-center gap-1"><Paperclip className="w-2.5 h-2.5 text-primary" /> RESUME_REQUEST</span>;
       case 'OFFER':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 font-bold">OFFER</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-semibold">OFFER</span>;
       case 'REJECTION':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/10 text-rose-300 border border-rose-500/20">REJECTION</span>;
-      case 'RECRUITER_CONTACT':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-300 border border-blue-500/30">RECRUITER_CONTACT</span>;
-      case 'ADDITIONAL_INFORMATION_REQUEST':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/30">INFO_REQUEST</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-destructive/10 text-destructive border border-destructive/30">REJECTION</span>;
       default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">{classification}</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-muted/80 text-muted-foreground border border-border/60">{classification}</span>;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'DRAFT_READY':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-bold animate-pulse">DRAFT_READY</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 font-semibold">DRAFT_READY</span>;
       case 'SENT':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5" /> SENT</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-semibold flex items-center gap-1"><CheckCircle2 className="w-2.5 h-2.5 text-emerald-500" /> SENT</span>;
       case 'REJECTED':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20">DECLINED</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-destructive/10 text-destructive border border-destructive/30">DECLINED</span>;
       default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">{status}</span>;
+        return <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-mono bg-muted/80 text-muted-foreground border border-border/60">{status}</span>;
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-10 font-sans">
-      {/* Toast */}
+    <div className="min-h-screen bg-background text-foreground p-6 md:p-10 font-sans transition-colors duration-300">
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-900 border border-cyan-500/40 text-cyan-300 text-xs shadow-2xl animate-fade-in font-mono">
-          <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-card/90 border border-primary/40 text-primary text-xs shadow-2xl animate-fade-in font-mono backdrop-blur-xl">
+          <CheckCircle2 className="w-4 h-4 text-primary" />
           {toastMsg}
         </div>
       )}
 
-      {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 pb-6">
         <div className="flex items-center gap-3">
-          <Link href="/admin/dashboard" className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+          <Link href="/admin/dashboard" className="p-2 rounded-xl bg-card/60 border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <Inbox className="w-5 h-5 text-cyan-400" /> Recruiter Inbox & Gmail Automation Center
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <Inbox className="w-5 h-5 text-primary" /> Recruiter Inbox & Gmail Automation Center
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-foreground font-mono">
               Intelligent email classification, risk evaluation, auto-drafting & approval gateway
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <button
             onClick={fetchInboxData}
             disabled={loading}
-            className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            className="p-2 rounded-xl bg-card/60 border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
             title="Refresh Inbound Feed"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-cyan-400' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-primary' : ''}`} />
           </button>
-          <a
-            href="https://mail.google.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-200 text-xs font-semibold transition-all"
-          >
-            <ExternalLink className="w-4 h-4 text-cyan-400" />
-            Open Gmail Client
-          </a>
         </div>
       </div>
 
-      {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800">
-          <span className="text-[10px] text-slate-400 font-mono uppercase block">Total Inbound</span>
-          <span className="text-xl font-bold text-slate-100 mt-1 block">{metrics.total_emails}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Total Inbound</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.total_emails}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-cyan-500/20 bg-cyan-500/5">
-          <span className="text-[10px] text-cyan-400 font-mono uppercase block">Interview Requests</span>
-          <span className="text-xl font-bold text-cyan-300 mt-1 block">{metrics.interview_requests}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Interview Requests</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.interview_requests}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-purple-500/20 bg-purple-500/5">
-          <span className="text-[10px] text-purple-400 font-mono uppercase block">Resume Requests</span>
-          <span className="text-xl font-bold text-purple-300 mt-1 block">{metrics.resume_requests}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Resume Requests</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.resume_requests}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-amber-500/20 bg-amber-500/5">
-          <span className="text-[10px] text-amber-400 font-mono uppercase block">Requires Review</span>
-          <span className="text-xl font-bold text-amber-300 mt-1 block">{metrics.pending_review}</span>
+        <div className="p-4 rounded-2xl bg-primary/5 border border-primary/40 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-primary font-mono uppercase block font-semibold">Requires Review</span>
+          <span className="text-xl font-bold text-primary mt-1 block font-mono">{metrics.pending_review}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-emerald-500/20 bg-emerald-500/5">
-          <span className="text-[10px] text-emerald-400 font-mono uppercase block">Job Offers</span>
-          <span className="text-xl font-bold text-emerald-300 mt-1 block">{metrics.offers}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Job Offers</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.offers}</span>
         </div>
-        <div className="p-3.5 rounded-xl bg-slate-900/90 border border-blue-500/20 bg-blue-500/5">
-          <span className="text-[10px] text-blue-400 font-mono uppercase block">Replies Sent</span>
-          <span className="text-xl font-bold text-blue-300 mt-1 block">{metrics.replies_sent}</span>
+        <div className="p-4 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl shadow-xs">
+          <span className="text-[10px] text-muted-foreground font-mono uppercase block">Replies Sent</span>
+          <span className="text-xl font-bold text-foreground mt-1 block font-mono">{metrics.replies_sent}</span>
         </div>
       </div>
 
-      {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by sender, company, or subject..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+            className="w-full pl-10 pr-4 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:border-primary/80"
           />
         </div>
 
         <select
           value={selectedClassification}
           onChange={(e) => setSelectedClassification(e.target.value)}
-          className="px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+          className="px-3 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80"
         >
           <option value="ALL">All Classifications</option>
           <option value="INTERVIEW_REQUEST">Interview Request</option>
@@ -375,7 +357,7 @@ export default function AdminRecruiterInboxPage() {
         <select
           value={selectedStatus}
           onChange={(e) => setSelectedStatus(e.target.value)}
-          className="px-3 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
+          className="px-3 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80"
         >
           <option value="ALL">All Statuses</option>
           <option value="DRAFT_READY">Draft Ready</option>
@@ -385,10 +367,10 @@ export default function AdminRecruiterInboxPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-2xl bg-slate-900/80 border border-slate-800 overflow-hidden shadow-xl">
+      <div className="rounded-2xl bg-card/60 border border-border/80 overflow-hidden shadow-xl backdrop-blur-xl">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-slate-950/80 border-b border-slate-800 text-[11px] font-mono text-slate-400 uppercase">
+          <table className="w-full text-left text-xs text-foreground">
+            <thead className="bg-muted/50 border-b border-border/80 text-[11px] font-mono text-muted-foreground uppercase">
               <tr>
                 <th className="px-5 py-3.5">Sender & Company</th>
                 <th className="px-4 py-3.5">Subject</th>
@@ -399,10 +381,10 @@ export default function AdminRecruiterInboxPage() {
                 <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-border/60">
               {filteredEmails.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
                     No recruiter messages found in this view.
                   </td>
                 </tr>
@@ -410,27 +392,27 @@ export default function AdminRecruiterInboxPage() {
                 filteredEmails.map((em) => (
                   <tr
                     key={em.id}
-                    className="hover:bg-slate-800/40 transition-colors group cursor-pointer"
+                    className="hover:bg-muted/30 transition-colors group cursor-pointer"
                     onClick={() => handleSelectEmail(em)}
                   >
                     <td className="px-5 py-4">
-                      <div className="font-semibold text-slate-100 text-sm">{em.company || "Enterprise Recruiter"}</div>
-                      <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-                        <User className="w-3 h-3 text-cyan-400" />
+                      <div className="font-semibold text-foreground text-sm font-sans">{em.company || "Enterprise Recruiter"}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 font-sans">
+                        <User className="w-3 h-3 text-primary" />
                         <span>{em.sender_name || em.sender}</span>
                       </div>
                     </td>
 
                     <td className="px-4 py-4 max-w-xs truncate">
-                      <span className="text-slate-200 font-medium">{em.subject}</span>
-                      <span className="block text-[11px] text-slate-400 truncate mt-0.5">{em.body_summary}</span>
+                      <span className="text-foreground font-medium font-sans">{em.subject}</span>
+                      <span className="block text-[11px] text-muted-foreground truncate mt-0.5 font-sans">{em.body_summary}</span>
                     </td>
 
                     <td className="px-4 py-4">
                       {getClassificationBadge(em.classification)}
                     </td>
 
-                    <td className="px-4 py-4 font-mono font-bold text-xs text-slate-200">
+                    <td className="px-4 py-4 font-mono font-bold text-xs text-foreground">
                       {(em.confidence * 100).toFixed(0)}%
                     </td>
 
@@ -438,7 +420,7 @@ export default function AdminRecruiterInboxPage() {
                       {getStatusBadge(em.status)}
                     </td>
 
-                    <td className="px-4 py-4 text-slate-400">
+                    <td className="px-4 py-4 text-muted-foreground font-mono">
                       {new Date(em.received_at).toLocaleDateString()}
                     </td>
 
@@ -446,9 +428,9 @@ export default function AdminRecruiterInboxPage() {
                       <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => handleSelectEmail(em)}
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-xl bg-card border border-border/80 hover:border-primary/50 text-foreground text-xs transition-colors flex items-center gap-1 cursor-pointer"
                         >
-                          <Eye className="w-3.5 h-3.5 text-cyan-400" /> Details
+                          <Eye className="w-3.5 h-3.5 text-primary" /> Details
                         </button>
 
                         {em.status === 'DRAFT_READY' && (
@@ -458,7 +440,7 @@ export default function AdminRecruiterInboxPage() {
                               setDraftBody(em.draft_reply_body || '');
                               handleApproveReply(em.id);
                             }}
-                            className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-colors flex items-center gap-1 shadow-md shadow-cyan-900/30"
+                            className="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
                             title="Approve Draft & Send"
                           >
                             <Send className="w-3.5 h-3.5" /> Send
@@ -476,79 +458,72 @@ export default function AdminRecruiterInboxPage() {
 
       {/* Drawer */}
       {selectedEmail && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-2xl bg-slate-900 border-l border-slate-800 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-2xl bg-card/95 border-l border-border/80 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl backdrop-blur-2xl">
             {/* Header */}
-            <div className="flex items-start justify-between border-b border-slate-800 pb-5">
+            <div className="flex items-start justify-between border-b border-border/80 pb-5">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <span className="text-xs font-mono px-2.5 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
                     {selectedEmail.company}
                   </span>
                   {getClassificationBadge(selectedEmail.classification)}
                   {getStatusBadge(selectedEmail.status)}
                 </div>
-                <h2 className="text-lg font-bold text-slate-100 mt-2">{selectedEmail.subject}</h2>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  From: <span className="text-slate-200 font-mono">{selectedEmail.sender}</span>
+                <h2 className="text-lg font-bold text-foreground mt-2 font-sans">{selectedEmail.subject}</h2>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  From: <span className="text-foreground font-mono">{selectedEmail.sender}</span>
                 </p>
               </div>
 
               <button
                 onClick={() => setSelectedEmail(null)}
-                className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+                className="p-2 rounded-xl bg-muted border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Risk / Safety Assessment Banner */}
             {selectedEmail.requires_human_review && (
-              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-1.5">
-                <span className="font-bold flex items-center gap-1.5 text-amber-400">
-                  <ShieldCheck className="w-4 h-4" /> Safety Guardrail: Human Review Gate Active
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs space-y-1.5">
+                <span className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-amber-500" /> Safety Guardrail: Human Review Gate Active
                 </span>
-                <p>Outbound email will NOT be dispatched without explicit human administrator approval.</p>
-                {selectedEmail.risk_reasons && selectedEmail.risk_reasons.length > 0 && (
-                  <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-200/90 pt-1">
-                    {selectedEmail.risk_reasons.map((r: string, idx: number) => (
-                      <li key={idx}>{r}</li>
-                    ))}
-                  </ul>
-                )}
+                <p className="font-sans">Outbound email will NOT be dispatched without explicit human administrator approval.</p>
               </div>
             )}
 
             {/* Original Inbound Body */}
             <div className="space-y-2">
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono flex items-center gap-2">
-                <Mail className="w-4 h-4 text-cyan-400" /> Inbound Message Content
+              <h3 className="text-xs font-mono font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
+                <Mail className="w-4 h-4 text-primary" /> Inbound Message Content
               </h3>
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+              <div className="p-4 rounded-2xl bg-muted/40 border border-border/80 text-xs text-foreground font-sans leading-relaxed max-h-48 overflow-y-auto">
                 {selectedEmail.body_raw}
               </div>
             </div>
 
             {/* Attached Resume Notification if RESUME_REQUEST */}
             {selectedEmail.attached_resume_id && (
-              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 flex items-center justify-between">
-                <span className="flex items-center gap-2 font-mono">
-                  <Paperclip className="w-4 h-4 text-purple-400" />
-                  Attached Resume: <strong className="text-purple-200">{selectedEmail.attached_resume_id}</strong>
+              <div className="p-3.5 rounded-xl bg-card border border-border/80 text-xs text-foreground flex items-center justify-between font-mono shadow-xs">
+                <span className="flex items-center gap-2">
+                  <Paperclip className="w-4 h-4 text-primary" />
+                  Attached Resume: <strong className="text-primary">{selectedEmail.attached_resume_id}</strong>
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
                   PDF Ready
                 </span>
               </div>
             )}
 
             {/* Draft Reply Editor */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider font-mono flex items-center gap-2">
-                  <Edit3 className="w-4 h-4 text-cyan-400" /> Contextual Draft Reply (Gemini 2.0)
+            <div className="space-y-3 font-sans">
+              <div className="flex items-center justify-between font-mono">
+                <h3 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-primary" /> Contextual Draft Reply (Gemini 2.0)
                 </h3>
-                <span className="text-[10px] font-mono text-cyan-400">Editable</span>
+                <span className="text-[10px] font-mono text-primary font-semibold">Editable</span>
               </div>
 
               <div className="space-y-2">
@@ -556,23 +531,23 @@ export default function AdminRecruiterInboxPage() {
                   type="text"
                   value={selectedEmail.draft_reply_subject || `Re: ${selectedEmail.subject}`}
                   readOnly
-                  className="w-full px-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-200 font-mono"
+                  className="w-full px-3.5 py-2 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground font-mono"
                 />
                 <textarea
                   rows={8}
                   value={draftBody}
                   onChange={(e) => setDraftBody(e.target.value)}
                   placeholder="Type draft reply..."
-                  className="w-full p-4 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 leading-relaxed font-sans focus:outline-none focus:border-cyan-500 resize-none"
+                  className="w-full p-4 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground leading-relaxed font-sans focus:outline-none focus:border-primary/80 resize-none"
                 />
               </div>
             </div>
 
             {/* Action Footer */}
-            <div className="flex items-center justify-between gap-3 pt-4 border-t border-slate-800">
+            <div className="flex items-center justify-between gap-3 pt-4 border-t border-border/80 font-sans">
               <button
                 onClick={() => handleSaveDraft(selectedEmail.id)}
-                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors"
+                className="px-3.5 py-2 rounded-xl bg-card border border-border/80 hover:bg-muted text-foreground text-xs font-medium transition-colors cursor-pointer"
               >
                 Save Draft Changes
               </button>
@@ -580,16 +555,16 @@ export default function AdminRecruiterInboxPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleReject(selectedEmail.id)}
-                  className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs font-medium transition-colors"
+                  className="px-3 py-2 rounded-xl bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 text-xs font-medium transition-colors cursor-pointer"
                 >
                   Decline / Archive
                 </button>
                 {selectedEmail.status !== 'SENT' && (
                   <button
                     onClick={() => handleApproveReply(selectedEmail.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-900/30 transition-all"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
                   >
-                    <Send className="w-4 h-4" /> Approve & Send via Gmail
+                    <Send className="w-4 h-4" /> Approve & Send Email
                   </button>
                 )}
               </div>

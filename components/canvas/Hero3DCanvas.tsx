@@ -30,18 +30,18 @@ export function Hero3DCanvas() {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.5);
+    const dirLight = new THREE.DirectionalLight(0xc86432, 1.2);
     dirLight.position.set(10, 10, 5);
     scene.add(dirLight);
 
-    const pointLight = new THREE.PointLight(0xa855f7, 2, 20);
+    const pointLight = new THREE.PointLight(0xc86432, 1.5, 20);
     pointLight.position.set(-5, -5, -2);
     scene.add(pointLight);
 
-    // 4. Floating 3D Polyhedron (Cyan Glass Aesthetic)
+    // 4. Floating 3D Polyhedron (Terracotta Glass Aesthetic)
     const polyGeo = new THREE.IcosahedronGeometry(1.4, 0);
     const polyMat = new THREE.MeshPhysicalMaterial({
-      color: 0x38bdf8,
+      color: 0xc86432,
       metalness: 0.1,
       roughness: 0.15,
       transmission: 0.9,
@@ -54,10 +54,10 @@ export function Hero3DCanvas() {
     polyhedron.position.set(2.5, 0.5, -1);
     scene.add(polyhedron);
 
-    // 5. Floating Torus Knot (Indigo/Purple Glass Aesthetic)
+    // 5. Floating Torus Knot (Monochrome Warm Glass Aesthetic)
     const torusGeo = new THREE.TorusKnotGeometry(0.9, 0.28, 128, 32);
     const torusMat = new THREE.MeshPhysicalMaterial({
-      color: 0x818cf8,
+      color: 0x94a3b8,
       metalness: 0.2,
       roughness: 0.1,
       transmission: 0.8,
@@ -79,10 +79,10 @@ export function Hero3DCanvas() {
     particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
     const particleMat = new THREE.PointsMaterial({
-      color: 0x38bdf8,
+      color: 0xc86432,
       size: 0.04,
       transparent: true,
-      opacity: 0.6
+      opacity: 0.5
     });
     const particleField = new THREE.Points(particleGeo, particleMat);
     scene.add(particleField);

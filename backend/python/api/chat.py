@@ -25,12 +25,20 @@ def search_knowledge(q: str = Query(..., description="Query query string")):
 @router.post("/api/chat/stream")
 async def chat_stream(req: ChatRequest):
     provider = GenericLLMProvider(model=req.model) if req.model else llm_provider
-    messages_payload = [{"role": m.role, "content": m.content} for m in req.messages]
     
+    last_user_query = ""
     if req.messages:
         last_msg = req.messages[-1]
         if last_msg.role == "user":
             db_helper.insert_chat_message(req.session_id, "user", last_msg.content)
+            
+    for m in reversed(req.messages):
+        if m.role == "user":
+            last_user_query = m.content
+            break
+
+    system_prompt = kb.build_system_prompt(last_user_query)
+    messages_payload = [{"role": "system", "content": system_prompt}] + [{"role": m.role, "content": m.content} for m in req.messages]
 
     async def event_generator():
         full_reply = ""

@@ -10,8 +10,8 @@ VALUES (
     'Frontend Architect | Lead Software Engineer | Micro Frontends & AI-Assisted Engineering (13+ Yrs)',
     'v.sathyanantham@gmail.com',
     '+91 8870956756',
-    'Coimbatore / Bangalore, India',
-    'https://linkedin.com/in/sathyanantham-v-646b911b',
+    'Coimbatore, Tamil Nadu, India',
+    'https://www.linkedin.com/in/sathyanantham-v-646b911b',
     'https://github.com/sakthipet11',
     'Frontend Architect and Lead Software Engineer with 13+ years designing and scaling enterprise UI platforms, Micro Frontend ecosystems, and AI-assisted engineering workflows across Retail, Digital Commerce, Banking, and Order Management.'
 ) ON CONFLICT (id) DO NOTHING;

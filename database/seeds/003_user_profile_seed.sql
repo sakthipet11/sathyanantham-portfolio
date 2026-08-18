@@ -24,58 +24,72 @@ INSERT INTO user_profile (
 ) VALUES (
     '00000000-0000-0000-0000-000000000001',
     'Sathyanantham V',
-    'sakthipet111@gmail.com',
-    '+91-XXXXXXXXXX',
-    'Bangalore, India (Open to Remote / Relocation)',
-    'Authorized to work in India, open to US/Global Sponsorship & Remote contracts',
-    13.5,
+    'v.sathyanantham@gmail.com',
+    '+91 8870956756',
+    'Coimbatore, Tamil Nadu, India (Open to Remote / Relocation)',
+    'Authorized to work in India, open to Global Sponsorship & Remote contracts',
+    13.0,
     30,
     0.00,
     140000.00,
-    ARRAY['React', 'TypeScript', 'Micro Frontends', 'Next.js', 'System Architecture', 'Module Federation', 'State Management', 'Web Performance Optimization'],
-    ARRAY['Node.js', 'Python', 'FastAPI', 'Tailwind CSS', 'Docker', 'GraphQL', 'Supabase', 'AWS', 'GCP'],
+    ARRAY['React', 'TypeScript', 'Micro Frontends', 'Next.js', 'System Architecture', 'Module Federation', 'Claude Skills', 'IBM AI'],
+    ARRAY['Node.js', 'Python', 'FastAPI', 'Spring Boot', 'Tailwind CSS', 'Docker', 'GraphQL', 'Supabase', 'AWS', 'GCP'],
     '[
         {
-            "company": "Enterprise Tech Solutions",
-            "role": "Lead Frontend Architect",
-            "period": "2021 - Present",
+            "company": "Nextuple Inc.",
+            "role": "Lead Software Engineer",
+            "period": "Aug 2023 - Present",
             "highlights": [
-                "Architected large-scale Micro Frontend platform serving 5M+ monthly active users with Module Federation and Webpack 5.",
-                "Spearheaded UI design system adoption across 14 cross-functional engineering pods, reducing feature delivery time by 35%.",
-                "Optimized Core Web Vitals resulting in 42% improvement in Largest Contentful Paint (LCP) and 99.8% crash-free sessions."
+                "Leading an engineering team of 8 developers across frontend and backend, establishing engineering standards and architecture.",
+                "Delivered Micro Frontend Architecture with Module Federation across 15+ enterprise modules and OMS platforms.",
+                "Pioneered Claude Skills Initiative, reducing common engineering effort from ~20 days to 5 days."
             ]
         },
         {
-            "company": "Digital Innovations Corp",
-            "role": "Senior UI Platform Engineer",
-            "period": "2016 - 2021",
+            "company": "Cognizant Technology Solutions",
+            "role": "Senior Associate",
+            "period": "Nov 2018 - Aug 2022",
             "highlights": [
-                "Engineered responsive high-throughput dashboards and real-time visualization suites with React, TypeScript, and D3.",
-                "Standardized frontend CI/CD automation pipelines and automated end-to-end Cypress/Playwright regression testing."
+                "Architected 30+ global multi-localized responsive digital platforms for Bayer and US Bank authentication portal."
+            ]
+        },
+        {
+            "company": "Skava Systems (Infosys)",
+            "role": "Dev Lead",
+            "period": "July 2012 - Nov 2018",
+            "highlights": [
+                "Led Kohl''s Omnichannel Mobile & Tablet platforms (m.kohls.com), Toys''R''Us, Adidas, Reebok, and Kraft Foods."
             ]
         }
     ]'::jsonb,
     '[
         {
-            "degree": "Bachelor of Engineering in Computer Science & Engineering",
-            "institution": "Anna University",
-            "period": "2007 - 2011"
+            "degree": "Master of Computer Applications (MCA)",
+            "institution": "Dr. Mahalingam College of Engineering and Technology, Pollachi",
+            "period": "2009 - 2012",
+            "score": "8.28 CGPA / 82.8%"
+        },
+        {
+            "degree": "Bachelor of Science in Computer Science (B.Sc CS)",
+            "institution": "Nallamuthu Gounder Mahalingam College, Pollachi",
+            "period": "2006 - 2009",
+            "score": "78.51%"
         }
     ]'::jsonb,
     '[
         {
-            "name": "AWS Certified Solutions Architect - Associate",
-            "issuer": "Amazon Web Services",
-            "year": "2023"
+            "name": "Introduction to Agent Skills (Claude Certificate)",
+            "issuer": "Anthropic / Claude",
+            "year": "2024"
         }
     ]'::jsonb,
     '{
         "github": "https://github.com/sakthipet11",
-        "linkedin": "https://linkedin.com/in/sathyanantham",
-        "portfolio": "https://sathya-ai.studio"
+        "linkedin": "https://www.linkedin.com/in/sathyanantham-v-646b911b",
+        "portfolio": "https://sathyanantham-portfolio-tv.vercel.app"
     }'::jsonb,
     '{
-        "require_sponsorship": "No / Yes depending on jurisdiction",
+        "require_sponsorship": "No / Open depending on location",
         "willing_to_relocate": "Yes",
         "preferred_work_type": "Full-Time / Contract Remote",
         "eeo_gender": "Decline to specify",
@@ -107,8 +121,8 @@ INSERT INTO automation_settings (
     false,
     true,
     true,
-    ARRAY['Lead Frontend Architect', 'Principal UI Platform Engineer', 'Staff Micro Frontend Architect', 'Senior UI Platform Lead'],
-    ARRAY['Remote', 'Hybrid', 'Bangalore', 'US Remote'],
+    ARRAY['Lead Software Engineer', 'Frontend Architect', 'Lead Full Stack Engineer', 'Principal UI Engineer'],
+    ARRAY['Remote', 'Coimbatore', 'Bangalore', 'Hybrid', 'US Remote'],
     ARRAY['Revature', 'CyberCoders'],
     ARRAY['Unpaid', 'Volunteer', 'Junior Intern']
 ) ON CONFLICT (id) DO NOTHING;

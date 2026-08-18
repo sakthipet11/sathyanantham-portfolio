@@ -3,26 +3,27 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer active:scale-[0.98]",
   {
     variants: {
       variant: {
         default:
-          "bg-cyan-400 text-slate-950 shadow-md hover:bg-cyan-300 shadow-[0_0_20px_rgba(56,189,248,0.3)]",
+          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-md transition-all duration-200",
         destructive:
-          "bg-rose-600 text-white shadow-sm hover:bg-rose-500",
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
-          "border border-slate-700/80 bg-slate-950/80 text-slate-200 hover:border-cyan-400 hover:text-cyan-300 shadow-sm",
+          "border border-border/80 bg-card/60 text-foreground hover:bg-muted/80 hover:border-primary/50 shadow-sm backdrop-blur-md",
         secondary:
-          "bg-slate-800 text-slate-100 shadow-sm hover:bg-slate-700",
-        ghost: "hover:bg-slate-800/60 hover:text-slate-100",
-        link: "text-cyan-400 underline-offset-4 hover:underline",
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        ghost: "hover:bg-muted/70 hover:text-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+        glass: "bg-background/50 border border-border/60 text-foreground hover:bg-background/80 hover:border-primary/40 backdrop-blur-md shadow-sm",
       },
       size: {
         default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-12 rounded-full px-8 text-sm uppercase tracking-[0.25em]",
-        icon: "h-9 w-9",
+        sm: "h-8 rounded-lg px-3 text-[11px]",
+        lg: "h-11 rounded-xl px-7 text-xs font-semibold tracking-wide",
+        icon: "h-9 w-9 rounded-xl",
       },
     },
     defaultVariants: {

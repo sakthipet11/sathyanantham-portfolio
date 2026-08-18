@@ -12,6 +12,7 @@ from backend.python.services.websocket_service import ws_manager
 from backend.python.repositories.supabase_repo import db_helper
 from backend.python.services.notifications import notify_handoff_requested
 from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
+from backend.python.services.rag_service import kb
 
 app = FastAPI(
     title="Sathyanantham V Enterprise AI Twin & Multi-Agent API",
@@ -81,12 +82,14 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str = "visit
                         "sender": "Sathyanantham V (Live)",
                         "content": content
                     })
+                    await ws_manager.broadcast_sessions_update()
         except WebSocketDisconnect:
             ws_manager.disconnect_sathyanantham(websocket)
     else:
         visitor_info = {}
         await ws_manager.connect_visitor(session_id, websocket, visitor_info)
         db_helper.insert_chat_message(session_id, "system", "Visitor initiated chat session.")
+        await ws_manager.broadcast_sessions_update()
         
         try:
             while True:
@@ -95,12 +98,14 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str = "visit
                 
                 if msg_type == "request_handoff":
                     reason = data.get("notes", "Visitor requested live handoff")
+                    db_helper.upsert_chat_session(session_id, status="live_human")
                     await notify_handoff_requested(session_id, reason)
                     await ws_manager.broadcast_to_sathyanantham({
                         "type": "handoff_alert",
                         "session_id": session_id,
                         "notes": reason
                     })
+                    await ws_manager.broadcast_sessions_update()
                     await websocket.send_json({
                         "type": "system",
                         "content": "Paging Sathyanantham... If he is currently active, he will take over this chat shortly."
@@ -113,18 +118,21 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str = "visit
                     
                     db_helper.insert_chat_message(session_id, "user", user_text)
 
-                    if ws_manager.is_sathyanantham_online:
-                        await ws_manager.broadcast_to_sathyanantham({
-                            "type": "visitor_message",
-                            "session_id": session_id,
-                            "content": user_text
-                        })
-                    else:
+                    await ws_manager.broadcast_to_sathyanantham({
+                        "type": "visitor_message",
+                        "session_id": session_id,
+                        "content": user_text
+                    })
+                    await ws_manager.broadcast_sessions_update()
+
+                    if not ws_manager.is_sathyanantham_online:
                         provider = llm_provider
                         history = data.get("history", [{"role": "user", "content": user_text}])
+                        system_prompt = kb.build_system_prompt(user_text)
+                        full_payload = [{"role": "system", "content": system_prompt}] + history
                         
                         full_reply = ""
-                        async for chunk in provider.chat_completion(history, stream=True):
+                        async for chunk in provider.chat_completion(full_payload, stream=True):
                             full_reply += chunk
                             await websocket.send_json({
                                 "type": "ai_stream_chunk",
@@ -137,6 +145,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str = "visit
                             "type": "ai_stream_end",
                             "full_reply": full_reply
                         })
+                        await ws_manager.broadcast_sessions_update()
 
         except WebSocketDisconnect:
             ws_manager.disconnect_visitor(session_id)

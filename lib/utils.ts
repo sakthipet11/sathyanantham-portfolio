@@ -170,3 +170,21 @@ export function getApiHost(): string {
   
   return 'http://localhost:8000';
 }
+
+export async function fetchWithTimeout(
+  resource: string | Request | URL,
+  options: RequestInit = {},
+  timeoutMs: number = 1500
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(resource, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
+}

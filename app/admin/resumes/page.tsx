@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { FileText, ArrowLeft, Download, RefreshCw, FileCode } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function AdminResumesPage() {
   const resumeVersions = [
@@ -11,36 +12,40 @@ export default function AdminResumesPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 md:p-10 font-sans">
+    <div className="min-h-screen bg-background text-foreground p-6 md:p-10 font-sans transition-colors duration-300">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/admin/dashboard" className="p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200">
+          <Link href="/admin/dashboard" className="p-2 rounded-xl bg-card/60 border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-cyan-400" /> Resume & Cover Letter Generator
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" /> Resume & Cover Letter Generator
             </h1>
-            <p className="text-xs text-slate-400">Driven by resume_agent & Google Drive MCP</p>
+            <p className="text-xs text-muted-foreground font-mono">Driven by resume_agent & Google Drive MCP</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition-colors">
-          <RefreshCw className="w-3.5 h-3.5" /> Re-Tailor Resume
-        </button>
+
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors cursor-pointer">
+            <RefreshCw className="w-3.5 h-3.5" /> Re-Tailor Resume
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">
         {resumeVersions.map((item) => (
-          <div key={item.id} className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+          <div key={item.id} className="p-5 rounded-2xl bg-card/60 border border-border/80 backdrop-blur-xl flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-3">
-              <FileCode className="w-6 h-6 text-cyan-400" />
+              <FileCode className="w-6 h-6 text-primary" />
               <div>
-                <div className="font-semibold text-slate-100 text-sm">{item.name}</div>
-                <div className="text-xs text-slate-400">Target Role: {item.role} • Score: <span className="text-emerald-400">{item.score}</span></div>
+                <div className="font-semibold text-foreground text-sm">{item.name}</div>
+                <div className="text-xs text-muted-foreground font-mono">Target Role: {item.role} • Score: <span className="text-primary font-semibold">{item.score}</span></div>
               </div>
             </div>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition-colors">
-              <Download className="w-3.5 h-3.5" /> Download PDF
+            <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-card border border-border/80 hover:border-primary/50 text-foreground text-xs font-medium transition-colors cursor-pointer">
+              <Download className="w-3.5 h-3.5 text-primary" /> Download PDF
             </button>
           </div>
         ))}

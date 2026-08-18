@@ -106,7 +106,7 @@ class EmailClassificationService:
                 f"Thank you for connecting regarding the architecture opportunities at {company}. "
                 f"I have attached my tailored resume highlighting my 13.5+ years of experience leading Micro Frontend transformations, Module Federation, and Enterprise React platforms.\n\n"
                 f"I look forward to discussing how my background aligns with your engineering goals.\n\n"
-                f"Best regards,\nSathyanantham V\nLead Frontend Architect\nhttps://sathyanantham.dev"
+                f"Best regards,\nSathyanantham V\nLead Frontend Architect\nhttps://sathyanantham-portfolio-tv.vercel.app"
             )
         elif classification == "INTERVIEW_REQUEST":
             draft_body = (

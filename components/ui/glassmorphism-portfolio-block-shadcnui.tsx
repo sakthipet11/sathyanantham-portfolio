@@ -268,7 +268,7 @@ export function GlassmorphismPortfolioBlock() {
                             </p>
                           </div>
                         </div>
-                        <ArrowUpRight className="h-4 w-4 text-foreground/40 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground/70" />
+                        <ArrowUpRight className="h-4 w-4 text-primary transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                       </motion.a>
                     );
                   })}

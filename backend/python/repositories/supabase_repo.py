@@ -17,7 +17,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SECRET_KEY", os.getenv("SUPABASE_KEY", os.get
 class SupabaseHelper:
     def __init__(self):
         self.client: Optional[Client] = None
-        if SUPABASE_URL and SUPABASE_KEY:
+        if SUPABASE_URL and SUPABASE_KEY and callable(create_client):
             try:
                 import re
                 is_jwt = re.match(r"^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$", SUPABASE_KEY)
@@ -39,37 +39,61 @@ class SupabaseHelper:
         self._mock_profile = {
             "id": "00000000-0000-0000-0000-000000000001",
             "full_name": "Sathyanantham V",
-            "email": "sakthipet111@gmail.com",
-            "phone": "+91-XXXXXXXXXX",
-            "location": "Bangalore, India (Open to Remote / Relocation)",
+            "email": "v.sathyanantham@gmail.com",
+            "phone": "+91 8870956756",
+            "location": "Coimbatore, Tamil Nadu, India (Open to Remote / Relocation)",
             "work_authorization": "Authorized in India; Open to Global Sponsorship & Remote",
-            "years_of_experience": 13.5,
+            "years_of_experience": 13.0,
             "notice_period_days": 30,
             "current_salary": 0.0,
             "expected_salary_min": 140000.0,
-            "primary_skills": ["React", "TypeScript", "Micro Frontends", "Next.js", "System Architecture", "Module Federation"],
-            "secondary_skills": ["Node.js", "Python", "FastAPI", "Tailwind CSS", "Docker", "Supabase", "AWS", "GCP"],
+            "primary_skills": ["React", "TypeScript", "Micro Frontends", "Next.js", "Module Federation", "Claude Skills", "IBM AI"],
+            "secondary_skills": ["Node.js", "Python", "FastAPI", "Spring Boot", "Tailwind CSS", "Docker", "Supabase", "PostgreSQL", "MongoDB"],
             "experience_history": [
                 {
-                    "company": "Enterprise Tech Solutions",
-                    "role": "Lead Frontend Architect",
-                    "period": "2021 - Present",
+                    "company": "Nextuple Inc.",
+                    "role": "Lead Software Engineer",
+                    "period": "Aug 2023 - Present",
                     "highlights": [
-                        "Architected large-scale Micro Frontend platform serving 5M+ monthly active users with Module Federation.",
-                        "Spearheaded UI design system adoption across 14 engineering pods, cutting time-to-market by 35%."
+                        "Leading 8 engineers across frontend and backend, establishing engineering standards and architecture.",
+                        "Delivered Micro Frontend Architecture with Module Federation across 15+ modules and OMS platforms.",
+                        "Pioneered Claude Skills Initiative, reducing common engineering effort from ~20 days to 5 days."
+                    ]
+                },
+                {
+                    "company": "Cognizant Technology Solutions",
+                    "role": "Senior Associate",
+                    "period": "Nov 2018 - Aug 2022",
+                    "highlights": [
+                        "Architected 30+ global responsive digital platforms for Bayer and US Bank authentication portal."
+                    ]
+                },
+                {
+                    "company": "Skava Systems (Infosys)",
+                    "role": "Dev Lead",
+                    "period": "July 2012 - Nov 2018",
+                    "highlights": [
+                        "Led Kohl's Omnichannel Mobile & Tablet platforms (m.kohls.com), Toys'R'Us, Adidas, Reebok, and Kraft Foods."
                     ]
                 }
             ],
             "education_history": [
                 {
-                    "degree": "Bachelor of Engineering in Computer Science & Engineering",
-                    "institution": "Anna University",
-                    "period": "2007 - 2011"
+                    "degree": "Master of Computer Applications (MCA)",
+                    "institution": "Dr. Mahalingam College of Engineering and Technology, Pollachi",
+                    "period": "2009 - 2012",
+                    "score": "8.28 CGPA / 82.8%"
+                },
+                {
+                    "degree": "Bachelor of Science in Computer Science (B.Sc CS)",
+                    "institution": "Nallamuthu Gounder Mahalingam College, Pollachi",
+                    "period": "2006 - 2009",
+                    "score": "78.51%"
                 }
             ],
-            "certifications": [{"name": "AWS Certified Solutions Architect", "year": "2023"}],
-            "portfolio_urls": {"github": "https://github.com/sakthipet11", "portfolio": "https://sathya-ai.studio"},
-            "answers_to_common_questions": {"require_sponsorship": "No / Yes depending on location", "willing_to_relocate": "Yes"}
+            "certifications": [{"name": "Introduction to Agent Skills (Claude Certificate)", "year": "2024"}],
+            "portfolio_urls": {"github": "https://github.com/sakthipet11", "linkedin": "https://www.linkedin.com/in/sathyanantham-v-646b911b"},
+            "answers_to_common_questions": {"require_sponsorship": "No / Open depending on location", "willing_to_relocate": "Yes"}
         }
 
         self._mock_settings = {
@@ -80,14 +104,16 @@ class SupabaseHelper:
             "auto_apply_enabled": False,
             "require_human_review_for_apply": True,
             "require_human_review_for_email": True,
-            "target_titles": ["Lead Frontend Architect", "Principal UI Platform Engineer", "Staff Micro Frontend Architect"],
-            "target_locations": ["Remote", "Hybrid", "Bangalore", "US Remote"],
+            "target_titles": ["Lead Software Engineer", "Frontend Architect", "Lead Full Stack Engineer", "Principal UI Engineer"],
+            "target_locations": ["Remote", "Coimbatore", "Bangalore", "Hybrid", "US Remote"],
             "blacklisted_companies": ["Revature", "CyberCoders"],
             "blacklisted_keywords": ["Unpaid", "Volunteer", "Junior Intern"],
             "is_active": True
         }
 
         self._mock_audit_logs: List[Dict[str, Any]] = []
+        self._mock_chat_sessions: Dict[str, Dict[str, Any]] = {}
+        self._mock_chat_messages: Dict[str, List[Dict[str, Any]]] = {}
 
     def is_configured(self) -> bool:
         return self.client is not None
@@ -221,11 +247,23 @@ class SupabaseHelper:
         return {"status": "mock_success", "message": "Saved event locally in offline mode", "data": payload}
 
     def upsert_chat_session(self, session_id: str, status: str = "ai_twin", visitor_info: Dict[str, Any] = None) -> Dict[str, Any]:
+        now_str = datetime.utcnow().isoformat()
         payload = {
             "id": session_id,
             "status": status,
-            "visitor_info": visitor_info or {}
+            "visitor_info": visitor_info or {},
+            "updated_at": now_str
         }
+
+        # Keep in-memory mock store updated
+        if session_id not in self._mock_chat_sessions:
+            payload["created_at"] = now_str
+            payload["visitor_id"] = (visitor_info or {}).get("name") or f"Visitor ({session_id[:8]})"
+            payload["last_message"] = "Session initiated"
+            self._mock_chat_sessions[session_id] = payload
+        else:
+            self._mock_chat_sessions[session_id].update(payload)
+
         if self.client:
             try:
                 res = self.client.table("chat_sessions").upsert(payload).execute()
@@ -236,14 +274,28 @@ class SupabaseHelper:
         return {"status": "mock_success", "message": "Saved session locally in offline mode", "data": payload}
 
     def insert_chat_message(self, session_id: str, role: str, content: str) -> Dict[str, Any]:
+        now_str = datetime.utcnow().isoformat()
         payload = {
+            "id": f"msg-{datetime.utcnow().timestamp()}",
             "session_id": session_id,
             "role": role,
-            "content": content
+            "content": content,
+            "timestamp": now_str
         }
+
+        # Keep in-memory message store updated
+        if session_id not in self._mock_chat_messages:
+            self._mock_chat_messages[session_id] = []
+        self._mock_chat_messages[session_id].append(payload)
+
+        # Update parent chat session
+        self.upsert_chat_session(session_id)
+        if session_id in self._mock_chat_sessions:
+            self._mock_chat_sessions[session_id]["last_message"] = content
+            self._mock_chat_sessions[session_id]["updated_at"] = now_str
+
         if self.client:
             try:
-                self.upsert_chat_session(session_id)
                 res = self.client.table("chat_messages").insert(payload).execute()
                 return {"status": "success", "data": res.data}
             except Exception as e:
@@ -267,7 +319,7 @@ class SupabaseHelper:
                 "total_page_views": 128,
                 "total_resume_downloads": 42,
                 "total_contacts": 12,
-                "total_chat_sessions": 24,
+                "total_chat_sessions": len(self._mock_chat_sessions) or 24,
                 "recent_views_chart": [
                     {"date": "Mon", "views": 25},
                     {"date": "Tue", "views": 32},
@@ -292,7 +344,7 @@ class SupabaseHelper:
                 "total_page_views": views_res.count or 0,
                 "total_resume_downloads": downloads_res.count or 0,
                 "total_contacts": contacts_res.count or 0,
-                "total_chat_sessions": chats_res.count or 0,
+                "total_chat_sessions": chats_res.count or len(self._mock_chat_sessions),
                 "recent_views_chart": chart_data
             }
         except Exception as e:
@@ -301,7 +353,7 @@ class SupabaseHelper:
                 "total_page_views": 0,
                 "total_resume_downloads": 0,
                 "total_contacts": 0,
-                "total_chat_sessions": 0,
+                "total_chat_sessions": len(self._mock_chat_sessions),
                 "recent_views_chart": []
             }
 
@@ -318,22 +370,24 @@ class SupabaseHelper:
     def get_chat_sessions(self) -> List[Dict[str, Any]]:
         if self.client:
             try:
-                res = self.client.table("chat_sessions").select("*").order("created_at", desc=True).execute()
-                return res.data
+                res = self.client.table("chat_sessions").select("*").order("updated_at", desc=True).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data
             except Exception as e:
                 print(f"Error fetching chat sessions: {e}")
-                return []
-        return []
+        sessions_list = list(self._mock_chat_sessions.values())
+        sessions_list.sort(key=lambda s: s.get("updated_at", ""), reverse=True)
+        return sessions_list
 
     def get_chat_messages(self, session_id: str) -> List[Dict[str, Any]]:
         if self.client:
             try:
                 res = self.client.table("chat_messages").select("*").eq("session_id", session_id).order("timestamp", desc=False).execute()
-                return res.data
+                if res.data and len(res.data) > 0:
+                    return res.data
             except Exception as e:
                 print(f"Error fetching chat messages: {e}")
-                return []
-        return []
+        return self._mock_chat_messages.get(session_id, [])
 
     def upsert_portfolio_item(self, table_name: str, item: Dict[str, Any]) -> Dict[str, Any]:
         allowed = {"skills", "experience", "projects", "education", "certificates"}
