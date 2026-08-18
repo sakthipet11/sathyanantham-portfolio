@@ -1,6 +1,6 @@
 from typing import Dict, Any, Optional
 import json
-from backend.python.services.ai_providers import OpenRouterAIProvider
+from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
 
 class ReferralMessagingService:
     """
@@ -13,8 +13,8 @@ class ReferralMessagingService:
     - Portfolio link and optional AI Twin interactive chatbot link
     """
 
-    def __init__(self):
-        self.ai_provider = OpenRouterAIProvider()
+    def __init__(self, ai_provider: Optional[GenericLLMProvider] = None):
+        self.ai_provider = ai_provider or llm_provider
 
     async def generate_message(
         self,
@@ -36,7 +36,7 @@ class ReferralMessagingService:
 
         first_name = person_name.split()[0] if person_name else "there"
 
-        # System prompt for Gemini
+        # System prompt for LLM
         system_prompt = (
             "You are a Senior Networking & Referral Strategist. Draft a concise, highly professional referral request message.\n"
             "CRITICAL RULES:\n"

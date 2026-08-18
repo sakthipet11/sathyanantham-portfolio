@@ -98,7 +98,7 @@ def get_system_health_metrics():
                 "p95": 840,
                 "p99": 2100
             },
-            "gemini_failure_rate_pct": 0.0,
+            "llm_failure_rate_pct": 0.0,
             "browserbase_success_rate_pct": 96.8,
             "gmail_mcp_uptime_pct": 100.0,
             "dead_letter_unresolved_count": len(dlq_service.list_dlq_items(status="UNRESOLVED")),

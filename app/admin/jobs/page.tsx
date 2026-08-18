@@ -589,7 +589,7 @@ export default function AdminJobsPage() {
                   </div>
 
                   <span className="text-[10px] font-mono text-slate-500">
-                    Model: {selectedJob.score_details.llm_model_used || 'Gemini 2.0'}
+                    Model: {selectedJob.score_details.llm_model_used || 'Configured LLM'}
                   </span>
                 </div>
 

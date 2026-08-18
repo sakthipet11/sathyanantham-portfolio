@@ -355,7 +355,7 @@ export default function AdminSettingsPage() {
 
           <div className="space-y-1.5 text-[11px] pt-1">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Gemini LLM Reliability</span>
+              <span className="text-slate-400">Configured LLM Reliability</span>
               <strong className="text-emerald-400">100.0%</strong>
             </div>
             <div className="flex items-center justify-between">

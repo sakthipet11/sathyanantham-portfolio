@@ -131,7 +131,7 @@ class TestPhase7Hardening(unittest.TestCase):
 
         # 3. Cost ledger
         audit_governance_service.record_cost_usage(
-            service="Gemini Test",
+            service="LLM Test",
             input_tokens=1000,
             output_tokens=500,
             cost_usd=0.001

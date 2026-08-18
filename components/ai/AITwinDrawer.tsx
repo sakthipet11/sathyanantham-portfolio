@@ -23,7 +23,7 @@ const SUGGESTED_PROMPTS = [
   "Can I schedule a live chat handoff or leave my contact details?"
 ];
 
-const DEFAULT_MODEL_ID = process.env.NEXT_PUBLIC_OPENROUTER_API_MODEL || 'anthropic/claude-3.5-sonnet';
+const DEFAULT_MODEL_ID = process.env.NEXT_PUBLIC_LLM_MODEL || process.env.NEXT_PUBLIC_OPENROUTER_API_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free';
 
 const formatModelName = (id: string) => {
   const parts = id.split('/');

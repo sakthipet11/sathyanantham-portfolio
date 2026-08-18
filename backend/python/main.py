@@ -11,11 +11,11 @@ from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications
 from backend.python.services.websocket_service import ws_manager
 from backend.python.repositories.supabase_repo import db_helper
 from backend.python.services.notifications import notify_handoff_requested
-from backend.python.services.ai_providers import OpenRouterAIProvider
+from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
 
 app = FastAPI(
     title="Sathyanantham V Enterprise AI Twin & Multi-Agent API",
-    description="FastAPI Backend for Multi-Agent Workflows, MCP Integration, RAG Ingestion, OpenRouter AI streaming, and live visitor handoff.",
+    description="FastAPI Backend for Multi-Agent Workflows, MCP Integration, RAG Ingestion, centralized generic LLM streaming, and live visitor handoff.",
     version="2.0.0"
 )
 
@@ -44,7 +44,8 @@ def read_root():
     return {
         "name": "Sathyanantham V Enterprise AI Twin & Multi-Agent API",
         "status": "online",
-        "model_configured": os.getenv("OPENROUTER_API_MODEL", "anthropic/claude-3.5-sonnet"),
+        "model_configured": llm_provider.model,
+        "llm_base_url": llm_provider.base_url,
         "sathyanantham_online": ws_manager.is_sathyanantham_online,
         "database_connected": db_helper.is_configured(),
         "active_agents": [
@@ -119,7 +120,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str = "visit
                             "content": user_text
                         })
                     else:
-                        provider = OpenRouterAIProvider()
+                        provider = llm_provider
                         history = data.get("history", [{"role": "user", "content": user_text}])
                         
                         full_reply = ""

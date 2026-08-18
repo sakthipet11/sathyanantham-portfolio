@@ -2,7 +2,7 @@ import re
 import json
 from typing import Dict, Any, List, Optional
 from backend.python.repositories.supabase_repo import db_helper
-from backend.python.services.ai_providers import OpenRouterAIProvider
+from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
 
 class EmailClassificationService:
     """
@@ -30,8 +30,8 @@ class EmailClassificationService:
         (r"cryptocurrency|telegram|whatsapp|wire.*transfer", "Suspicious communication channel detected")
     ]
 
-    def __init__(self):
-        self.ai_provider = OpenRouterAIProvider()
+    def __init__(self, ai_provider: Optional[GenericLLMProvider] = None):
+        self.ai_provider = ai_provider or llm_provider
 
     def evaluate_risk(self, subject: str, body: str) -> List[str]:
         text = f"{subject} {body}".lower()

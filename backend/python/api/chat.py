@@ -3,7 +3,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from fastapi.responses import StreamingResponse
 from backend.python.models.pydantic_models import ChatRequest
 from backend.python.services.rag_service import kb
-from backend.python.services.ai_providers import OpenRouterAIProvider
+from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
 from backend.python.services.websocket_service import ws_manager
 from backend.python.services.notifications import notify_handoff_requested
 from backend.python.repositories.supabase_repo import db_helper
@@ -24,7 +24,7 @@ def search_knowledge(q: str = Query(..., description="Query query string")):
 
 @router.post("/api/chat/stream")
 async def chat_stream(req: ChatRequest):
-    provider = OpenRouterAIProvider(model=req.model)
+    provider = GenericLLMProvider(model=req.model) if req.model else llm_provider
     messages_payload = [{"role": m.role, "content": m.content} for m in req.messages]
     
     if req.messages:

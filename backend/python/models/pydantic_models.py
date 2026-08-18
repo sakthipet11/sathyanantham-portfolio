@@ -161,7 +161,7 @@ class JobScoreModel(BaseModel):
     matching_skills: List[str] = []
     evaluation_summary: str
     score_breakdown: Dict[str, Any] = {}
-    llm_model_used: str = "gemini-2.0-flash"
+    llm_model_used: str = "configured-llm"
     evaluated_at: Optional[str] = None
 
 class TailorResumeRequest(BaseModel):

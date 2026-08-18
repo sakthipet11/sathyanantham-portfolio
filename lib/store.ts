@@ -39,7 +39,7 @@ export const useAppStore = create<AppState>((set) => ({
   setAIDrawerOpen: (open: boolean) => set({ isAIDrawerOpen: open }),
   toggleAIDrawer: () => set((state: AppState) => ({ isAIDrawerOpen: !state.isAIDrawerOpen })),
   
-  selectedModel: process.env.NEXT_PUBLIC_OPENROUTER_API_MODEL || 'anthropic/claude-3.5-sonnet',
+  selectedModel: process.env.NEXT_PUBLIC_LLM_MODEL || process.env.NEXT_PUBLIC_OPENROUTER_API_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b:free',
   setSelectedModel: (model: string) => set({ selectedModel: model }),
   
   isSathyananthamOnline: false,

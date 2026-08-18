@@ -2,7 +2,7 @@ import json
 import re
 from typing import Dict, Any, List, Optional
 from backend.python.repositories.supabase_repo import db_helper
-from backend.python.services.ai_providers import OpenRouterAIProvider
+from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
 
 class JobScoringService:
     """
@@ -10,8 +10,8 @@ class JobScoringService:
     the verified Candidate Truth Store.
     """
 
-    def __init__(self):
-        self.ai_provider = OpenRouterAIProvider()
+    def __init__(self, ai_provider: Optional[GenericLLMProvider] = None):
+        self.ai_provider = ai_provider or llm_provider
 
     @staticmethod
     def classify_match_level(score: float, thresholds: Dict[str, float] = None) -> str:
