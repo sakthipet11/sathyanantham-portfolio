@@ -67,14 +67,14 @@ export function ExperienceSection() {
     <section id="experience" className="py-24 px-4 sm:px-6 relative z-10 max-w-6xl mx-auto">
       
       {/* Section Header */}
-      <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-cyan-400 pl-4">
-        <Badge variant="outline" className="font-mono text-xs tracking-widest uppercase text-cyan-400 border-cyan-500/30 bg-cyan-950/40">
+      <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-primary pl-4">
+        <Badge variant="outline" className="font-mono text-xs tracking-widest uppercase text-primary border-primary/30 bg-primary/10">
           // 02. CAREER MILESTONES
         </Badge>
-        <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
+        <h2 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight">
           13+ Years of Lead Engineering
         </h2>
-        <p className="text-slate-400 text-sm sm:text-base max-w-xl">
+        <p className="text-muted-foreground text-sm sm:text-base max-w-xl">
           Track record leading frontend architecture and high-impact engineering teams.
         </p>
       </div>
@@ -88,42 +88,42 @@ export function ExperienceSection() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: idx * 0.15 }}
-            className="p-6 sm:p-10 rounded-3xl bg-slate-950/50 border border-slate-800/80 backdrop-blur-2xl hover:border-cyan-500/50 transition-all duration-300 relative group shadow-2xl overflow-hidden"
+            className="p-6 sm:p-10 rounded-3xl bg-card/60 border border-border/80 backdrop-blur-2xl hover:border-primary/50 transition-all duration-300 relative group shadow-2xl overflow-hidden"
           >
             {/* Glass Overlay Glow */}
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-indigo-500/5 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-indigo-500/5 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             {/* Header info */}
-            <div className="relative flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 pb-6 mb-6">
+            <div className="relative flex flex-wrap items-center justify-between gap-4 border-b border-border/80 pb-6 mb-6">
               <div>
-                <span className="text-[11px] font-mono text-cyan-400 tracking-widest block font-semibold">{exp.tag}</span>
-                <h3 className="text-2xl font-bold text-white tracking-tight mt-1">{exp.company}</h3>
-                <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                <span className="text-[11px] font-mono text-primary tracking-widest block font-semibold">{exp.tag}</span>
+                <h3 className="text-2xl font-bold text-foreground tracking-tight mt-1">{exp.company}</h3>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                  <MapPin className="w-3.5 h-3.5 opacity-60" />
                   <span>{exp.location}</span>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 text-xs font-mono text-cyan-300 bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800 shadow-inner backdrop-blur-md">
-                <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="flex items-center gap-2 text-xs font-mono text-primary bg-muted/60 px-4 py-2 rounded-xl border border-border/60 shadow-inner backdrop-blur-md">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
                 <span>{exp.period}</span>
               </div>
             </div>
 
             {/* Roles */}
-            <div className="relative space-y-2 mb-6 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60 backdrop-blur-sm">
+            <div className="relative space-y-2 mb-6 bg-muted/40 p-4 rounded-2xl border border-border/60 backdrop-blur-sm">
               {exp.roles.map((r, rIdx) => (
                 <div key={rIdx} className="flex items-center justify-between text-xs sm:text-sm font-mono">
-                  <span className="font-bold text-slate-100">{r.title}</span>
-                  <span className="text-slate-400 text-xs">{r.duration}</span>
+                  <span className="font-bold text-foreground">{r.title}</span>
+                  <span className="text-muted-foreground text-xs">{r.duration}</span>
                 </div>
               ))}
             </div>
 
             {/* Award Banner */}
             {exp.award && (
-              <div className="relative flex items-center gap-3 p-4 mb-6 rounded-2xl bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs font-mono backdrop-blur-md shadow-md">
-                <Award className="w-4 h-4 text-amber-400 shrink-0" />
+              <div className="relative flex items-center gap-3 p-4 mb-6 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-mono backdrop-blur-md shadow-sm">
+                <Award className="w-4 h-4 text-amber-500 shrink-0" />
                 <span>{exp.award}</span>
               </div>
             )}
@@ -131,19 +131,19 @@ export function ExperienceSection() {
             {/* Bullet Highlights */}
             <ul className="relative space-y-3 mb-8">
               {exp.highlights.map((h, hIdx) => (
-                <li key={hIdx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  <CheckCircle2 className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                <li key={hIdx} className="flex items-start gap-3 text-xs sm:text-sm text-foreground/80 leading-relaxed">
+                  <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <span>{h}</span>
                 </li>
               ))}
             </ul>
 
             {/* Tech Stack Bracket Tags */}
-            <div className="relative flex flex-wrap gap-2 pt-6 border-t border-slate-800/80">
+            <div className="relative flex flex-wrap gap-2 pt-6 border-t border-border/80">
               {exp.tech.map((t, tIdx) => (
                 <span
                   key={tIdx}
-                  className="text-[11px] font-mono px-3 py-1 rounded-xl bg-slate-900/80 text-cyan-300 border border-slate-800 shadow-sm"
+                  className="text-[11px] font-mono px-3 py-1 rounded-xl bg-muted/80 text-primary border border-border/60 shadow-sm"
                 >
                   [{t}]
                 </span>

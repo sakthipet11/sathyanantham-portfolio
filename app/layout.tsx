@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Space_Grotesk, JetBrains_Mono } from 'next/font/google';
-import { AnalyticsProvider } from '@/components/providers';
+import { AnalyticsProvider, ThemeProvider } from '@/components/providers';
 import './globals.css';
 
 const inter = Inter({
@@ -37,11 +37,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
-      <body className="bg-[#050505] text-slate-100 font-sans antialiased selection:bg-cyan-400 selection:text-slate-950">
-        <AnalyticsProvider>
-          {children}
-        </AnalyticsProvider>
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <body className="bg-background text-foreground font-sans antialiased selection:bg-cyan-400 selection:text-slate-950">
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <AnalyticsProvider>
+            {children}
+          </AnalyticsProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

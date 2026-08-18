@@ -134,14 +134,14 @@ export function ProjectsSection() {
     <section id="projects" className="py-24 px-4 sm:px-8 relative z-10 max-w-7xl mx-auto">
 
       {/* Section Header */}
-      <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-cyan-400 pl-4">
-        <Badge variant="outline" className="font-mono text-xs tracking-widest uppercase text-cyan-400 border-cyan-500/30 bg-cyan-950/40">
+      <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-primary pl-4">
+        <Badge variant="outline" className="font-mono text-xs tracking-widest uppercase text-primary border-primary/30 bg-primary/10">
           // 03. FEATURED WORKS & ARCHITECTURE GALLERY
         </Badge>
-        <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
+        <h2 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight">
           Selected Enterprise Platforms
         </h2>
-        <p className="text-slate-400 text-sm max-w-xl">
+        <p className="text-muted-foreground text-sm max-w-xl">
           High-availability Order Management Systems, Global Digital Ecosystems, and Omnichannel E-commerce Solutions.
         </p>
       </div>
@@ -158,21 +158,21 @@ export function ProjectsSection() {
             onMouseEnter={() => setHoveredIndex(index)}
             onMouseLeave={() => setHoveredIndex(null)}
             onClick={() => setSelectedProject(proj)}
-            className="group relative rounded-2xl border border-slate-800/80 bg-slate-950/45 p-6 md:p-8 cursor-pointer transition-all hover:border-cyan-500/50 hover:bg-slate-900/60 backdrop-blur-xl shadow-lg overflow-hidden"
+            className="group relative rounded-2xl border border-border/80 bg-card/50 p-6 md:p-8 cursor-pointer transition-all hover:border-primary/50 hover:bg-card/80 backdrop-blur-xl shadow-md overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none" />
 
             <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
 
               {/* Index & Year */}
-              <div className="flex items-center gap-4 shrink-0 font-mono text-xs text-slate-400">
-                <span className="text-cyan-400 font-bold text-sm">// {proj.num}</span>
+              <div className="flex items-center gap-4 shrink-0 font-mono text-xs text-muted-foreground">
+                <span className="text-primary font-bold text-sm">// {proj.num}</span>
                 <span className="tracking-widest">{proj.year}</span>
               </div>
 
               {/* Title */}
               <motion.h3
-                className="font-sans text-xl sm:text-3xl md:text-4xl font-bold tracking-tight text-white group-hover:text-cyan-300 transition-colors flex-1"
+                className="font-sans text-xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors flex-1"
                 animate={{
                   x: hoveredIndex === index ? 10 : 0,
                 }}
@@ -183,10 +183,10 @@ export function ProjectsSection() {
 
               {/* Category Tag & Icon */}
               <div className="flex items-center gap-3 shrink-0 flex-wrap">
-                <span className="text-[11px] font-mono text-cyan-300 px-3 py-1 rounded-xl bg-slate-900/90 border border-slate-700/60 shadow-sm">
+                <span className="text-[11px] font-mono text-primary px-3 py-1 rounded-xl bg-muted/80 border border-border/60 shadow-sm">
                   {proj.category}
                 </span>
-                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700/60 bg-slate-900/60 text-slate-300 group-hover:border-cyan-400 group-hover:text-cyan-300 transition-colors">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-muted/60 text-muted-foreground group-hover:border-primary group-hover:text-primary transition-colors">
                   <ArrowUpRight className="w-5 h-5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </span>
               </div>
@@ -197,7 +197,7 @@ export function ProjectsSection() {
 
         {/* Floating Glass Preview Card on Hover */}
         <motion.div
-          className="absolute pointer-events-none z-50 w-80 h-48 bg-slate-950/90 border border-cyan-500/50 rounded-2xl overflow-hidden shadow-2xl p-5 flex flex-col justify-between hidden md:flex backdrop-blur-2xl"
+          className="absolute pointer-events-none z-50 w-80 h-48 bg-card/90 border border-primary/50 rounded-2xl overflow-hidden shadow-2xl p-5 flex flex-col justify-between hidden md:flex backdrop-blur-2xl"
           style={{
             x: springX,
             y: springY,
@@ -213,20 +213,20 @@ export function ProjectsSection() {
           {hoveredIndex !== null && (
             <>
               <div>
-                <span className="text-[10px] font-mono text-cyan-400 font-bold block mb-1">
+                <span className="text-[10px] font-mono text-primary font-bold block mb-1">
                   {PROJECTS[hoveredIndex].num} // {PROJECTS[hoveredIndex].client}
                 </span>
-                <h4 className="text-sm font-bold text-white tracking-tight line-clamp-2">
+                <h4 className="text-sm font-bold text-foreground tracking-tight line-clamp-2">
                   {PROJECTS[hoveredIndex].title}
                 </h4>
-                <p className="text-[11px] text-slate-300 mt-1 line-clamp-2 leading-relaxed">
+                <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
                   {PROJECTS[hoveredIndex].description}
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-800">
+              <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/60">
                 {PROJECTS[hoveredIndex].tech.slice(0, 3).map((t, idx) => (
-                  <span key={idx} className="text-[9px] font-mono text-cyan-300 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800">
+                  <span key={idx} className="text-[9px] font-mono text-primary px-2 py-0.5 rounded-lg bg-muted border border-border/60">
                     [{t}]
                   </span>
                 ))}
@@ -239,54 +239,54 @@ export function ProjectsSection() {
 
       {/* Deep-Dive Glass Modal */}
       {selectedProject && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-2xl animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl bg-slate-950/90 border border-slate-800/90 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto backdrop-blur-2xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-2xl animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl bg-card/95 border border-border/90 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto backdrop-blur-2xl">
 
             <button
               onClick={() => setSelectedProject(null)}
-              className="absolute top-4 right-4 p-2.5 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors z-10 sm:top-6 sm:right-6"
+              className="absolute top-4 right-4 p-2.5 rounded-full bg-muted border border-border/60 text-muted-foreground hover:text-foreground transition-colors z-10 sm:top-6 sm:right-6"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4 pr-10">
+            <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-4 pr-10">
               <div>
-                <span className="text-xs font-mono text-cyan-400 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-800/80">
+                <span className="text-xs font-mono text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/30">
                   {selectedProject.num} // {selectedProject.category}
                 </span>
-                <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight mt-3">{selectedProject.title}</h3>
-                <p className="text-xs text-slate-400 font-mono mt-1">Client: {selectedProject.client}</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight mt-3">{selectedProject.title}</h3>
+                <p className="text-xs text-muted-foreground font-mono mt-1">Client: {selectedProject.client}</p>
               </div>
             </div>
 
             <div>
-              <h4 className="text-xs font-mono font-bold uppercase text-slate-400 mb-2">// OVERVIEW</h4>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{selectedProject.description}</p>
+              <h4 className="text-xs font-mono font-bold uppercase text-muted-foreground mb-2">// OVERVIEW</h4>
+              <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">{selectedProject.description}</p>
             </div>
 
             <div>
-              <h4 className="text-xs font-mono font-bold uppercase text-slate-400 mb-2">// ARCHITECTURE & STACK</h4>
-              <p className="text-xs text-cyan-300 font-mono bg-slate-900/80 p-4 rounded-2xl border border-slate-800 leading-relaxed shadow-inner">
+              <h4 className="text-xs font-mono font-bold uppercase text-muted-foreground mb-2">// ARCHITECTURE & STACK</h4>
+              <p className="text-xs text-primary font-mono bg-muted/60 p-4 rounded-2xl border border-border/60 leading-relaxed shadow-inner">
                 {selectedProject.architecture}
               </p>
             </div>
 
             <div>
-              <h4 className="text-xs font-mono font-bold uppercase text-slate-400 mb-2">// ENGINEERING ACCOMPLISHMENTS</h4>
+              <h4 className="text-xs font-mono font-bold uppercase text-muted-foreground mb-2">// ENGINEERING ACCOMPLISHMENTS</h4>
               <ul className="space-y-2">
                 {selectedProject.highlights.map((h, hIdx) => (
-                  <li key={hIdx} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-300">
-                    <CheckCircle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                  <li key={hIdx} className="flex items-start gap-2.5 text-xs sm:text-sm text-foreground/80">
+                    <CheckCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <span>{h}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4">
+            <div className="pt-4 border-t border-border/60 flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap gap-1.5">
                 {selectedProject.tech.map((t, idx) => (
-                  <span key={idx} className="text-[10px] font-mono px-2.5 py-1 rounded-xl bg-slate-900 text-cyan-300 border border-slate-800">
+                  <span key={idx} className="text-[10px] font-mono px-2.5 py-1 rounded-xl bg-muted text-primary border border-border/60">
                     [{t}]
                   </span>
                 ))}

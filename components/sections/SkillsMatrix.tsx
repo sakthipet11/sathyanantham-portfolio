@@ -9,7 +9,7 @@ const SKILL_CATEGORIES = [
     tag: '// STACK_01',
     title: 'Frontend Architecture',
     icon: Code2,
-    color: 'text-cyan-400',
+    color: 'text-primary',
     skills: [
       'React 19 & Next.js 15 (App Router)',
       'TypeScript & Modern JavaScript ES6+',
@@ -25,7 +25,7 @@ const SKILL_CATEGORIES = [
     tag: '// STACK_02',
     title: 'AI & RAG Engineering',
     icon: Cpu,
-    color: 'text-indigo-400',
+    color: 'text-indigo-500',
     skills: [
       'OpenRouter API Provider Layer',
       'Retrieval-Augmented Generation (RAG)',
@@ -41,7 +41,7 @@ const SKILL_CATEGORIES = [
     tag: '// STACK_03',
     title: 'Backend & Cloud Microservices',
     icon: Database,
-    color: 'text-purple-400',
+    color: 'text-purple-500',
     skills: [
       'Python 3.12+ (FastAPI, AsyncIO, Uvicorn)',
       'Node.js & Express.js REST APIs',
@@ -57,7 +57,7 @@ const SKILL_CATEGORIES = [
     tag: '// STACK_04',
     title: 'Leadership & Domain',
     icon: Users,
-    color: 'text-emerald-400',
+    color: 'text-emerald-500',
     skills: [
       'Technical Architecture & System Design',
       'Order Management Systems (OMS & SKU Ranking)',
@@ -76,14 +76,14 @@ export function SkillsMatrix() {
     <section id="skills" className="py-24 px-4 sm:px-6 relative z-10 max-w-7xl mx-auto">
       
       {/* Header */}
-      <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-cyan-400 pl-4">
-        <Badge variant="outline" className="font-mono text-xs tracking-widest uppercase text-cyan-400 border-cyan-500/30 bg-cyan-950/40">
+      <div className="flex flex-col items-start gap-3 mb-16 border-l-2 border-primary pl-4">
+        <Badge variant="outline" className="font-mono text-xs tracking-widest uppercase text-primary border-primary/30 bg-primary/10">
           // 04. TECH CONSTELLATION
         </Badge>
-        <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
+        <h2 className="text-3xl sm:text-5xl font-black text-foreground uppercase tracking-tight">
           Technical Stack & Engineering Mastery
         </h2>
-        <p className="text-slate-400 text-sm sm:text-base max-w-xl">
+        <p className="text-muted-foreground text-sm sm:text-base max-w-xl">
           Core capabilities across Modern Web Architecture, AI RAG Pipelines, Cloud Backend Services, and Technical Leadership.
         </p>
       </div>
@@ -97,18 +97,18 @@ export function SkillsMatrix() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: idx * 0.1 }}
-            className="p-6 sm:p-8 rounded-3xl bg-slate-950/50 border border-slate-800/80 hover:border-cyan-500/50 transition-all duration-300 backdrop-blur-2xl relative group shadow-2xl overflow-hidden"
+            className="p-6 sm:p-8 rounded-3xl bg-card/60 border border-border/80 hover:border-primary/50 transition-all duration-300 backdrop-blur-2xl relative group shadow-2xl overflow-hidden"
           >
             <div className="space-y-6">
               
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+              <div className="flex items-center justify-between border-b border-border/80 pb-4">
                 <div className="flex items-center gap-3.5">
-                  <div className={`p-3 rounded-2xl bg-slate-900/80 border border-slate-800/80 ${cat.color} shadow-sm backdrop-blur-md`}>
+                  <div className={`p-3 rounded-2xl bg-muted/80 border border-border/80 ${cat.color} shadow-sm backdrop-blur-md`}>
                     <cat.icon className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-mono text-slate-400 tracking-widest block font-semibold">{cat.tag}</span>
-                    <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">{cat.title}</h3>
+                    <span className="text-[10px] font-mono text-muted-foreground tracking-widest block font-semibold">{cat.tag}</span>
+                    <h3 className="text-lg sm:text-xl font-bold text-foreground tracking-tight">{cat.title}</h3>
                   </div>
                 </div>
               </div>
@@ -117,10 +117,10 @@ export function SkillsMatrix() {
                 {cat.skills.map((skill, sIdx) => (
                   <div
                     key={sIdx}
-                    className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900/40 border border-slate-800/60 hover:border-slate-700 transition-colors backdrop-blur-sm"
+                    className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/40 border border-border/60 hover:border-border transition-colors backdrop-blur-sm"
                   >
                     <CheckCircle2 className={`w-3.5 h-3.5 ${cat.color} shrink-0`} />
-                    <span className="text-xs text-slate-300 font-mono">[{skill}]</span>
+                    <span className="text-xs text-foreground/80 font-mono">[{skill}]</span>
                   </div>
                 ))}
               </div>
