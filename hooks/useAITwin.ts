@@ -115,29 +115,41 @@ export function useAITwin() {
       const query = text.toLowerCase();
       let reply = '';
 
-      if (query.includes('cover') || query.includes('letter') || query.includes('application') || query.includes('statement')) {
+      if (query.includes('location') || query.includes('where') || query.includes('city') || query.includes('address') || query.includes('based')) {
+        reply = `Sathyanantham V is based in **Coimbatore, Tamil Nadu, India**.\n\n` +
+          `• **Location**: Coimbatore, Tamil Nadu, India (Open to Remote / Relocation for strategic lead roles).\n` +
+          `• **Contact Email**: v.sathyanantham@gmail.com\n` +
+          `• **Contact Phone**: +91 8870956756\n` +
+          `• **LinkedIn**: [linkedin.com/in/sathyanantham-v-646b911b](https://www.linkedin.com/in/sathyanantham-v-646b911b)\n` +
+          `• **GitHub**: [github.com/sakthipet11](https://github.com/sakthipet11)`;
+      } else if (query.includes('cover') || query.includes('letter') || query.includes('application') || query.includes('statement')) {
         reply = `**Executive Cover Letter Statement:**\n\n` +
-          `I am applying for Lead Software Engineer, Frontend Architect, or AI-Enabled Full Stack Engineer positions.\n\n` +
-          `Over my **13+ years of enterprise experience**, I have led engineering teams (currently managing 8 developers at Nextuple) delivering scalable React.js applications, Micro Frontend ecosystems, and Order Management solutions.\n\n` +
-          `• **AI Innovation**: Built reusable **Claude Skills** for engineering teams and integrated IBM AI chatbots into Call Center & OMS systems.\n` +
-          `• **Full-Stack & OMS**: Spearheaded Nextuple OMS, Bayer's 30+ global digital platforms, and Kohl's omnichannel e-commerce.\n\n` +
+          `I am applying for Lead Software Engineer, Frontend Architect, or AI-Enabled Full Stack Lead positions.\n\n` +
+          `Over my **13+ years of enterprise experience**, I currently lead an engineering team of 8 developers at Nextuple Inc., architecting Micro Frontend ecosystems, Nextuple Enterprise Order Management Systems (SKU Ranking, Promise Engine, Staging), and AI automation.\n\n` +
+          `• **Claude Skills & AI Innovation**: Designed and deployed reusable **Claude Skills** for frontend & backend teams (automating UI Schema Gen, Design Docs, Unit Test Gen, API Docs)—reducing engineering effort from ~20 days to 5 days! Integrated IBM AI-powered chatbots into Call Center & OMS platforms.\n` +
+          `• **Enterprise Platforms**: Architected Bayer's 30+ global digital sites & US Bank portal at Cognizant, and Kohl's Omnichannel Mobile & Tablet (m.kohls.com), Adidas, Reebok, and Kraft platforms at Skava/Infosys.\n\n` +
           `You can [Download my Full Resume PDF](/resume.pdf) directly from the header or hero buttons!`;
       } else if (query.includes('experience') || query.includes('work') || query.includes('background') || query.includes('career')) {
         reply = `Sathyanantham V has **13+ years of lead software engineering experience**:\n\n` +
-          `• **Nextuple Private Ltd (2022 - Present)**: Senior Software Engineer & Lead UI Engineer (Leading 8 engineers). Built Nextuple Enterprise OMS, Micro-frontends, SKU Ranking, and AI UI automation. **Top Performer of 2023**.\n` +
-          `• **Cognizant (2018 - 2022)**: Senior Associate. Architected Bayer's 30+ global sites & US Bank portal. **Best Performer Award 2019 & 2020**.\n` +
-          `• **Skava Systems / Infosys (2012 - 2018)**: Dev Lead / Senior Software Engineer. Led Kohls Mobile & Tablet, ToysRUs, Kraft, Adidas & Reebok platforms. **Skava Star Performer 2013 & 2015**.`;
+          `• **Nextuple Inc. (Aug 2022 – Present)**: Lead Software Engineer (Leading 8 engineers across frontend & backend). Architected Micro Frontends with Module Federation across 15+ modules, Nextuple Enterprise OMS, Claude Skills Initiative (20 days -> 5 days), and IBM Sterling OMS customizations. **Top Performer of 2023 & Monthly Spot Award**.\n` +
+          `• **Cognizant Technology Solutions (Nov 2018 – Aug 2022)**: Senior Associate. Architected Bayer's 30+ global sites & US Bank authentication portal. **Best Performer Award 2019 & 2020**.\n` +
+          `• **Skava Systems / Infosys (July 2012 – Nov 2018)**: Dev Lead / Senior Software Engineer / Software Engineer. Led Kohl's Mobile & Tablet (m.kohls.com), Toys"R"Us, Kraft Foods, Adidas & Reebok platforms. **Skava Star Performer 2013 & 2015**.`;
+      } else if (query.includes('education') || query.includes('college') || query.includes('degree') || query.includes('university')) {
+        reply = `Sathyanantham V's educational qualifications include:\n\n` +
+          `• **Master of Computer Applications (MCA)**: Dr. Mahalingam College of Engineering and Technology, Pollachi, Tamil Nadu, India (2009 – 2012) — **8.28 CGPA / 82.8%**.\n` +
+          `• **Bachelor of Science in Computer Science (B.Sc CS)**: Nallamuthu Gounder Mahalingam College, Pollachi, Tamil Nadu, India (2006 – 2009) — **78.51%**.\n` +
+          `• **Certifications**: Introduction to Agent Skills (Claude Certificate), React Testing Library with Jest/Vitest, Principles of Secure Coding, Docker for Absolute Beginner, Azure Serverless, Generative AI.`;
       } else if (query.includes('resume') || query.includes('pdf') || query.includes('download')) {
         reply = `You can download Sathyanantham V's official **Lead Software Engineer Resume PDF** directly here:\n\n` +
           `📄 [Download Sathyanantham V Resume PDF](/resume.pdf)\n\n` +
-          `The document details his 13+ years in Frontend Architecture, Micro Frontends, IBM Sterling OMS, and AI engineering accomplishments.`;
+          `The document details his 13+ years in Frontend Architecture, Micro Frontends (Module Federation), IBM Sterling OMS, Claude Skills Initiative, and AI engineering accomplishments.`;
       } else if (query.includes('skill') || query.includes('tech') || query.includes('stack') || query.includes('ai') || query.includes('claude')) {
         reply = `Sathyanantham's technical core includes:\n\n` +
-          `• **Frontend Architecture**: React 19, Next.js 15, TypeScript, Micro Frontend Architecture, Tailwind CSS v4, Redux, Zustand, Three.js.\n` +
-          `• **AI Engineering**: OpenRouter API RAG, Claude AI, Claude Skills creation, IBM watsonx.ai, Prompt Engineering, Agentic Workflows.\n` +
-          `• **Backend & Cloud**: Python FastAPI, Node.js, Spring Boot, PostgreSQL, MongoDB, Docker, AWS, IBM Sterling OMS.`;
+          `• **Frontend Architecture**: React 19, Next.js 15, TypeScript, Micro Frontend Architecture, Module Federation, Tailwind CSS, Redux Toolkit, Vite.\n` +
+          `• **AI Engineering**: Claude AI, Claude Skills Initiative (automated UI Schema & Test Gen), IBM AI Chatbot Integration, IBM watsonx.ai, RAG, Prompt Engineering, Agentic Workflows.\n` +
+          `• **Backend & Cloud**: Python (FastAPI), Node.js, Spring Boot, PostgreSQL, MongoDB, Docker, AWS, GCP, IBM Sterling OMS.`;
       } else {
-        reply = `As Sathyanantham V's AI Digital Twin, I can share detailed insights regarding his 13+ years in Lead Software Engineering, Executive Cover Letter, Nextuple Order Management Architecture, Cognizant Bayer platforms, or AI Claude Skills.\n\n` +
+        reply = `As Sathyanantham V's AI Digital Twin, I can share detailed insights regarding his 13+ years in Lead Software Engineering, Location (Coimbatore, Tamil Nadu, India), Executive Cover Letter, Nextuple Order Management Architecture, Cognizant Bayer platforms, MCA Degree from Dr. Mahalingam College, or AI Claude Skills.\n\n` +
           `*Retrieved Source*: **Sathyanantham V Resume & Cover Letter Docs**\n\n` +
           `You can also [Download the Resume PDF](/resume.pdf) at any time!`;
       }

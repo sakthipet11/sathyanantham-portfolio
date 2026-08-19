@@ -7,6 +7,11 @@ import { z } from 'zod';
 import { useAppStore } from '@/lib/store';
 import { useAnalytics } from '@/components/providers';
 import { Radio, Mail, Phone, MapPin, Send, CheckCircle2, MessageSquare, Terminal } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 import { getApiHost } from '@/lib/utils';
 
@@ -62,155 +67,162 @@ export function LiveHandoffSection() {
   };
 
   return (
-    <section id="contact" className="py-24 px-4 sm:px-6 relative z-10 max-w-6xl mx-auto">
-      
-      {/* Header */}
-      <div className="flex flex-col items-start gap-2 mb-16 border-l-2 border-cyan-400 pl-4">
-        <span className="text-xs font-mono text-cyan-400 tracking-widest uppercase">
-          // 04. CONTACT & LIVE HANDOFF
+    <section id="contact" className="py-8 md:py-16 px-4 sm:px-6 relative z-10 max-w-6xl mx-auto">
+
+      {/* Editorial Header */}
+      <div className="flex flex-col items-start gap-4 mb-16 border-l-2 border-primary/40 pl-5">
+        <span className="font-serif italic text-base text-primary tracking-wide block">
+          Contact & Direct Engagement
         </span>
-        <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
-          Initiate Direct Collaboration
+        <h2 className="text-3xl sm:text-5xl font-serif font-normal text-foreground tracking-tight leading-tight max-w-3xl">
+          Building high-availability platforms requires <span className="text-primary italic font-serif">clear intent</span> and direct collaboration.
         </h2>
-        <p className="text-slate-400 text-sm max-w-xl">
+        <p className="text-muted-foreground text-sm sm:text-base max-w-xl font-sans leading-relaxed pt-1">
           Connect directly for Lead Software Engineering, Frontend Architecture, or AI System design opportunities.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+
         {/* Left Info */}
-        <div className="space-y-8">
-          
+        <div className="space-y-6 flex flex-col justify-between">
+
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-slate-900 border border-slate-800 text-xs font-mono text-cyan-400">
-              <Radio className={`w-3.5 h-3.5 ${isSathyananthamOnline ? 'text-emerald-400 animate-pulse' : 'text-cyan-400'}`} />
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card/80 border border-border/80 text-xs font-mono text-primary backdrop-blur-md shadow-xs">
+              <Radio className={`w-3.5 h-3.5 ${isSathyananthamOnline ? 'text-primary animate-pulse' : 'text-primary'}`} />
               <span>{isSathyananthamOnline ? 'STATUS :: SATHYANANTHAM_ONLINE' : 'STATUS :: AI_TWIN_READY_24_7'}</span>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Ready to Engineer Scalable Systems
+            <h3 className="text-2xl sm:text-3xl font-serif font-normal text-foreground tracking-tight">
+              Ready to engineer scalable enterprise systems
             </h3>
-            <p className="text-slate-400 text-sm leading-relaxed">
+            <p className="text-muted-foreground text-sm leading-relaxed font-sans">
               Reach out for full-stack architecture consulting, lead engineering roles, or custom RAG AI agent integrations.
             </p>
           </div>
 
-          {/* Contact Details */}
+          {/* Contact Details Cards */}
           <div className="space-y-3 font-mono">
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-950/90 border border-slate-800">
-              <Mail className="w-5 h-5 text-cyan-400 shrink-0" />
+            <Card className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/70 backdrop-blur-xl hover:border-primary/40 transition-colors shadow-xs">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/60 text-primary shrink-0">
+                <Mail className="w-5 h-5" />
+              </span>
               <div>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">// DIRECT EMAIL</span>
-                <p className="text-xs sm:text-sm font-bold text-white">v.sathyanantham@gmail.com</p>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">// DIRECT EMAIL</span>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">v.sathyanantham@gmail.com</p>
               </div>
-            </div>
+            </Card>
 
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-950/90 border border-slate-800">
-              <Phone className="w-5 h-5 text-indigo-400 shrink-0" />
+            <Card className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/70 backdrop-blur-xl hover:border-primary/40 transition-colors shadow-xs">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/60 text-primary shrink-0">
+                <Phone className="w-5 h-5" />
+              </span>
               <div>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">// PHONE</span>
-                <p className="text-xs sm:text-sm font-bold text-white">+91 8870956756</p>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">// PHONE</span>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">+91 8870956756</p>
               </div>
-            </div>
+            </Card>
 
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-950/90 border border-slate-800">
-              <MapPin className="w-5 h-5 text-purple-400 shrink-0" />
+            <Card className="flex items-center gap-4 p-4 rounded-2xl bg-card/60 border border-border/70 backdrop-blur-xl hover:border-primary/40 transition-colors shadow-xs">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-border/60 bg-muted/60 text-primary shrink-0">
+                <MapPin className="w-5 h-5" />
+              </span>
               <div>
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">// LOCATION</span>
-                <p className="text-xs sm:text-sm font-bold text-white">Coimbatore / Bangalore, TN, India</p>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">// LOCATION</span>
+                <p className="text-xs sm:text-sm font-semibold text-foreground">Coimbatore, Tamil Nadu, India</p>
               </div>
-            </div>
+            </Card>
           </div>
 
-          {/* Live Takeover Button */}
-          <div className="p-5 rounded-xl bg-slate-950 border border-cyan-500/40 flex items-center justify-between gap-4">
+          {/* Live Takeover Card */}
+          <Card className="p-6 rounded-2xl bg-card/80 border border-primary/30 backdrop-blur-xl flex items-center justify-between gap-4 shadow-sm">
             <div>
-              <h4 className="text-xs font-mono font-bold text-white">// PREFER LIVE CHAT?</h4>
-              <p className="text-xs text-slate-400">Request seamless takeover to speak with Sathyanantham in real-time.</p>
+              <h4 className="text-xs font-mono font-semibold text-foreground">// PREFER LIVE CHAT?</h4>
+              <p className="text-xs text-muted-foreground mt-0.5">Request seamless takeover to speak with Sathyanantham in real-time.</p>
             </div>
-            <button
+            <Button
               onClick={handleInitiateHandoff}
-              className="px-4 py-2.5 rounded-lg bg-cyan-400 text-slate-950 font-mono font-bold text-xs hover:bg-cyan-300 transition-colors shrink-0 flex items-center gap-1.5"
+              size="sm"
+              className="gap-1.5 font-mono text-xs font-semibold rounded-xl shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>Live Handoff</span>
-            </button>
-          </div>
+            </Button>
+          </Card>
 
         </div>
 
-        {/* Right Form */}
-        <div className="p-6 sm:p-8 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-2xl backdrop-blur-xl">
-          
-          <div className="flex items-center gap-2 mb-2 font-mono text-xs text-cyan-400">
-            <Terminal className="w-4 h-4" />
-            <span>// TRANSMIT_INQUIRY</span>
-          </div>
-          <h3 className="text-xl font-bold text-white tracking-tight mb-6">Send Direct Message</h3>
+        {/* Right Form Card */}
+        <Card className="p-8 sm:p-10 rounded-3xl bg-card/60 border border-border/80 shadow-xl backdrop-blur-2xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent pointer-events-none" />
 
-          {isSubmitted ? (
-            <div className="p-6 rounded-xl bg-emerald-950/60 border border-emerald-800 text-center space-y-3 font-mono">
-              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-              <h4 className="text-base font-bold text-white">TRANSMISSION RECEIVED</h4>
-              <p className="text-xs text-emerald-300">
-                Sathyanantham V has received your message and will respond shortly.
-              </p>
-              <button
-                onClick={() => setIsSubmitted(false)}
-                className="mt-4 text-xs font-semibold text-cyan-400 underline hover:text-cyan-300"
-              >
-                Send another message
-              </button>
+          <div className="relative">
+            <div className="flex items-center gap-2 mb-2 font-mono text-xs text-primary">
+              <Terminal className="w-4 h-4" />
+              <span>// TRANSMIT_INQUIRY</span>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 font-mono">
-              
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">// YOUR NAME</label>
-                <input
-                  {...register('name')}
-                  type="text"
-                  placeholder="e.g. Alex Morgan"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-400 transition-colors"
-                />
-                {errors.name && <p className="text-[11px] text-red-400 mt-1">{errors.name.message}</p>}
+            <h3 className="text-2xl font-bold text-foreground tracking-tight mb-6">Send Direct Message</h3>
+
+            {isSubmitted ? (
+              <div className="p-8 rounded-2xl bg-primary/10 border border-primary/20 text-center space-y-4 font-mono backdrop-blur-md">
+                <CheckCircle2 className="w-12 h-12 text-primary mx-auto" />
+                <h4 className="text-base font-bold text-foreground">TRANSMISSION RECEIVED</h4>
+                <p className="text-xs text-muted-foreground">
+                  Sathyanantham V has received your message and will respond shortly.
+                </p>
+                <button
+                  onClick={() => setIsSubmitted(false)}
+                  className="mt-4 text-xs font-semibold text-primary underline hover:opacity-80 cursor-pointer"
+                >
+                  Send another message
+                </button>
               </div>
+            ) : (
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">// EMAIL ADDRESS</label>
-                <input
-                  {...register('email')}
-                  type="email"
-                  placeholder="alex@company.com"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-400 transition-colors"
-                />
-                {errors.email && <p className="text-[11px] text-red-400 mt-1">{errors.email.message}</p>}
-              </div>
+                <div>
+                  <label className="block text-xs font-mono font-semibold text-muted-foreground mb-1.5">// YOUR NAME</label>
+                  <Input
+                    {...register('name')}
+                    type="text"
+                    placeholder="e.g. Alex Morgan"
+                  />
+                  {errors.name && <p className="text-[11px] text-destructive font-mono mt-1">{errors.name.message}</p>}
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">// PROJECT SCOPE / INQUIRY</label>
-                <textarea
-                  {...register('notes')}
-                  rows={4}
-                  placeholder="Details regarding your project, role, or collaboration..."
-                  className="w-full bg-slate-900 border border-slate-800 rounded-lg p-4 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-400 transition-colors"
-                />
-                {errors.notes && <p className="text-[11px] text-red-400 mt-1">{errors.notes.message}</p>}
-              </div>
+                <div>
+                  <label className="block text-xs font-mono font-semibold text-muted-foreground mb-1.5">// EMAIL ADDRESS</label>
+                  <Input
+                    {...register('email')}
+                    type="email"
+                    placeholder="alex@company.com"
+                  />
+                  {errors.email && <p className="text-[11px] text-destructive font-mono mt-1">{errors.email.message}</p>}
+                </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3 px-6 rounded-lg bg-cyan-400 text-slate-950 font-bold text-xs hover:bg-cyan-300 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                <span>{isSubmitting ? 'TRANSMITTING...' : 'TRANSMIT MESSAGE'}</span>
-              </button>
+                <div>
+                  <label className="block text-xs font-mono font-semibold text-muted-foreground mb-1.5">// PROJECT SCOPE / INQUIRY</label>
+                  <Textarea
+                    {...register('notes')}
+                    rows={4}
+                    placeholder="Details regarding your project, role, or collaboration..."
+                  />
+                  {errors.notes && <p className="text-[11px] text-destructive font-mono mt-1">{errors.notes.message}</p>}
+                </div>
 
-            </form>
-          )}
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 px-6 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{isSubmitting ? 'TRANSMITTING...' : 'TRANSMIT MESSAGE'}</span>
+                </Button>
 
-        </div>
+              </form>
+            )}
+          </div>
+
+        </Card>
 
       </div>
 

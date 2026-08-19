@@ -14,16 +14,16 @@ import { AITwinDrawer } from '@/components/ai/AITwinDrawer';
 export default function Home() {
   return (
     <SmoothScroll>
-      <div className="relative min-h-screen bg-[#050505] text-slate-100 font-sans selection:bg-cyan-400 selection:text-slate-950 overflow-x-hidden">
+      <div className="relative min-h-screen bg-background text-foreground font-sans selection:bg-primary selection:text-primary-foreground overflow-x-hidden transition-colors duration-300">
         
-        {/* Custom Glowing Cursor matching reference template */}
+        {/* Custom Glowing Cursor */}
         <CustomCursor />
 
-        {/* Global Navigation Header */}
+        {/* Global Glass Navigation Header */}
         <Navbar />
 
-        {/* Main Content Sections */}
-        <main className="relative z-10">
+        {/* Main Portfolio Sections */}
+        <main className="relative z-10 space-y-4">
           <HeroSection />
           <CoverLetterSection />
           <ExperienceSection />
@@ -33,7 +33,7 @@ export default function Home() {
           <LiveHandoffSection />
         </main>
 
-        {/* Global Footer */}
+        {/* Global Glass Footer */}
         <Footer />
 
         {/* AI Digital Twin Slide-Over Drawer */}

@@ -1,0 +1,13 @@
+# Pub/Sub Topic Definitions for Async Agent Pipelines
+version: "1.0"
+topics:
+  - name: job-discovered
+    description: "Emitted when job_discovery_agent finds a target job matching criteria."
+  - name: score-evaluated
+    description: "Emitted when job_scoring_agent computes a candidate match score > 90%."
+  - name: resume-tailored
+    description: "Emitted when resume_agent completes PDF/LaTeX customization."
+  - name: application-queued
+    description: "Emitted to trigger Browserbase MCP auto-fill application."
+  - name: recruiter-email-dispatch
+    description: "Emitted to trigger Gmail MCP recruiter outreach."

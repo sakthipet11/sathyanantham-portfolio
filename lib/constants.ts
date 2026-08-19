@@ -13,10 +13,10 @@ export const siteConfig = {
   },
   author: {
     name: 'Sathyanantham V',
-    role: 'Lead Software Engineer & AI Architect',
+    role: 'Lead Software Engineer & Frontend Architect',
     experience: '13+ years',
-    location: 'Chennai, India',
-    bio: 'Building AI-enabled systems that scale. Former Lead Engineer at Nextuple. Passionate about clean architecture, developer experience, and the intersection of AI and software engineering.',
+    location: 'Coimbatore, Tamil Nadu, India',
+    bio: 'Building AI-enabled systems that scale. Lead Software Engineer & Frontend Architect with 13+ years experience. Team Lead at Nextuple managing 8 engineers across frontend and backend. Specializing in Enterprise UI Platforms, Micro Frontends, Claude Skills, and Generative AI.',
   },
   navigation: [
     { name: 'Home', href: '/' },
