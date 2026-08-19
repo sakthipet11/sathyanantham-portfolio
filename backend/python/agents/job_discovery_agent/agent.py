@@ -1,29 +1,27 @@
+import asyncio
 from typing import Dict, Any, List
+from backend.python.services.job_discovery_service import job_discovery_service
+
 
 class JobDiscoveryAgent:
     def __init__(self):
         self.name = "job_discovery_agent"
-        self.description = "Autonomous job discovery agent that scans tech career portals for Lead Frontend Architect & Micro Frontend roles."
+        self.description = "Autonomous job discovery agent that queries live MCP job providers (Remotive, Himalayas, Adzuna, Greenhouse, Lever) for real career postings."
 
-    def discover_jobs(self, query: str = "Lead Frontend Architect", location: str = "Remote") -> List[Dict[str, Any]]:
-        print(f"[SEARCH] [{self.name}] Searching for roles matching '{query}' in {location}...")
-        return [
-            {
-                "job_id": "JOB-101",
-                "title": "Lead Frontend Architect",
-                "company": "TechCorp Enterprise",
-                "location": location,
-                "tech_stack": ["React", "TypeScript", "Module Federation", "Next.js"],
-                "source": "LinkedIn API / Scraper"
-            },
-            {
-                "job_id": "JOB-102",
-                "title": "Principal UI Platform Engineer",
-                "company": "CloudCommerce Inc",
-                "location": "Hybrid",
-                "tech_stack": ["React", "Design Systems", "FastAPI", "AI Agents"],
-                "source": "Indeed"
-            }
-        ]
+    async def discover_jobs(self, query: str = "Lead Frontend Architect", location: str = "Remote", limit: int = 20) -> List[Dict[str, Any]]:
+        print(f"[SEARCH] [{self.name}] Initiating live multi-provider discovery for '{query}' in '{location}'...")
+        raw_candidates = await job_discovery_service.discover_jobs(target_role=query, limit=limit)
+        return [job_dict for source_name, job_dict in raw_candidates]
+
+    def discover_jobs_sync(self, query: str = "Lead Frontend Architect", location: str = "Remote", limit: int = 20) -> List[Dict[str, Any]]:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # In async contexts, use discover_jobs directly
+                return []
+            return loop.run_until_complete(self.discover_jobs(query=query, location=location, limit=limit))
+        except Exception:
+            return asyncio.run(self.discover_jobs(query=query, location=location, limit=limit))
+
 
 job_discovery_agent = JobDiscoveryAgent()

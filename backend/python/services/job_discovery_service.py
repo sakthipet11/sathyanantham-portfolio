@@ -1,6 +1,7 @@
+import os
 import uuid
 import asyncio
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 from backend.python.repositories.job_repository import job_repository
 from backend.python.repositories.supabase_repo import db_helper
@@ -8,101 +9,104 @@ from backend.python.services.job_normalization_service import job_normalization_
 from backend.python.services.job_deduplication_service import job_deduplication_service
 from backend.python.services.job_scoring_service import job_scoring_service
 
+
 class JobDiscoveryService:
     """
-    Orchestrates job discovery across multiple configured sources,
-    normalizes payloads, calculates ATS scores, and persists to PostgreSQL.
+    Orchestrates real-time job discovery across configured live MCP providers
+    (Remotive, Himalayas, Adzuna, Greenhouse, Lever), normalizes payloads,
+    calculates ATS scores, and persists to PostgreSQL.
+
+    100% REAL DATA ONLY — No hardcoded stubs, sample jobs, or fake records.
     """
 
     def __init__(self):
         self.repo = job_repository
+        self._mcp_initialized = False
 
-    async def scan_greenhouse_api(self, board_token: str = "figma") -> List[Dict[str, Any]]:
-        # Mock/Real Greenhouse job board fetcher
-        return [
-            {
-                "source_job_id": f"gh-{board_token}-501",
-                "title": "Lead UI Platform Architect",
-                "company": board_token.capitalize(),
-                "location": "Remote - US / Global",
-                "location_type": "Remote",
-                "employment_type": "Full-time",
-                "salary": "$175,000 - $225,000",
-                "description": "We are seeking a Lead UI Platform Architect to scale our micro frontend ecosystem and design system architecture for enterprise tools.",
-                "requirements": "10+ years experience in React, TypeScript, Webpack Module Federation, state management, and web performance optimization.",
-                "apply_url": f"https://boards.greenhouse.io/{board_token}/jobs/501",
-                "portal_type": "greenhouse"
-            }
-        ]
+    def _ensure_mcp(self):
+        """Lazy-initialize MCP components on first use."""
+        if self._mcp_initialized:
+            return
+        try:
+            from backend.python.mcp.job_discovery.providers.registry import initialize_providers, provider_registry
+            from backend.python.mcp.job_discovery.services.cache_service import CacheService
+            from backend.python.mcp.job_discovery.services.search_service import SearchService
+            from backend.python.mcp.job_discovery.services.rate_limiter import rate_limiter
+            from backend.python.mcp.job_discovery.config import settings
 
-    async def scan_lever_api(self, company_name: str = "stripe") -> List[Dict[str, Any]]:
-        return [
-            {
-                "source_job_id": f"lev-{company_name}-302",
-                "title": "Principal Frontend Engineer - Micro Frontends",
-                "company": company_name.capitalize(),
-                "location": "Remote",
-                "location_type": "Remote",
-                "employment_type": "Full-time",
-                "salary": "$180,000 - $230,000",
-                "description": "Lead the modernization of frontend applications across global commerce suites utilizing micro frontend federation.",
-                "requirements": "Strong mastery of React, TypeScript, Next.js, architecture leadership, and mentoring high-velocity engineering pods.",
-                "apply_url": f"https://jobs.lever.co/{company_name}/302",
-                "portal_type": "lever"
-            }
-        ]
+            self._provider_registry = provider_registry
+            self._cache = CacheService(redis_url=settings.redis_url)
+            self._search_service = SearchService(cache=self._cache)
 
-    async def scan_linkedin_source(self, query: str = "Lead Frontend Architect") -> List[Dict[str, Any]]:
-        return [
-            {
-                "source_job_id": "li-ent-9011",
-                "title": "Staff Micro Frontend Architect",
-                "company": "FinTech Dynamics Global",
-                "location": "Remote / Hybrid",
-                "location_type": "Remote",
-                "employment_type": "Full-time",
-                "salary": "$160,000 - $210,000",
-                "description": "Looking for a Staff Micro Frontend Architect with 12+ years of enterprise JavaScript/TypeScript and distributed frontend systems experience.",
-                "requirements": "Deep expertise in Module Federation, React 19, TypeScript, GraphQL, automated CI/CD and Core Web Vitals optimization.",
-                "apply_url": "https://www.linkedin.com/jobs/view/90112345",
-                "portal_type": "linkedin"
-            },
-            {
-                "source_job_id": "li-ent-9012",
-                "title": "Director of UI Engineering",
-                "company": "NextGen AI Platform",
-                "location": "San Francisco, CA (Hybrid)",
-                "location_type": "Hybrid",
-                "employment_type": "Full-time",
-                "salary": "$200,000 - $260,000",
-                "description": "Lead our AI studio UI engineering initiatives.",
-                "requirements": "React, TypeScript, AI integrations.",
-                "apply_url": "https://www.linkedin.com/jobs/view/90112346",
-                "portal_type": "linkedin"
-            }
-        ]
+            # Initialize providers and rate limiters
+            initialize_providers()
+            for provider in provider_registry.get_all():
+                rate_limiter.configure_provider(
+                    provider.name,
+                    provider.config.rate_limit_rpm,
+                )
 
-    async def scan_workday_source(self) -> List[Dict[str, Any]]:
-        # Example of a protected Workday career portal requiring manual review
-        return [
-            {
-                "source_job_id": "wd-sec-4099",
-                "title": "Principal UI Architect - Cloud Solutions",
-                "company": "Oracle Enterprise",
-                "location": "Remote",
-                "location_type": "Remote",
-                "description": "Lead architecture for cloud portal user experiences.",
-                "requirements": "React, Micro Frontends, System Architecture.",
-                "apply_url": "https://oracle.myworkdayjobs.com/careers/job/4099",
-                "portal_type": "workday",
-                "status": "MANUAL_REQUIRED", # Anti-bot/SSO protected by design
-                "manual_reason": "Workday SSO & CAPTCHA protection detected - human application required"
-            }
-        ]
+            self._mcp_initialized = True
+            print(f"[JOB_DISCOVERY] MCP initialized: {provider_registry.enabled_count} providers enabled")
+        except Exception as e:
+            print(f"[JOB_DISCOVERY] MCP initialization error: {e}")
+            self._mcp_initialized = False
 
-    async def run_discovery_pipeline(self, target_role: str = "Lead Frontend Architect", triggered_by: str = "CLOUD_SCHEDULER") -> Dict[str, Any]:
+    # ── Live MCP Discovery ───────────────────────────────────────────────
+
+    async def discover_jobs(self, target_role: str, limit: int = 20) -> List[Tuple[str, Dict[str, Any]]]:
+        """
+        Discover real jobs via the MCP search engine.
+        Returns live job listings from external providers.
+        """
+        self._ensure_mcp()
+        if not self._mcp_initialized:
+            print("[JOB_DISCOVERY] MCP discovery engine unavailable")
+            return []
+
+        from backend.python.mcp.job_discovery.models.search_params import JobSearchParams
+
+        raw_candidates: List[Tuple[str, Dict[str, Any]]] = []
+
+        try:
+            params = JobSearchParams(
+                query=target_role,
+                remote_only=False,
+                limit=limit,
+            )
+            result = await self._search_service.search(params)
+
+            for job in result.jobs:
+                job_dict = job.to_repository_dict()
+                job_dict["source_job_id"] = job.source_job_id
+                raw_candidates.append((job.source, job_dict))
+
+            print(
+                f"[JOB_DISCOVERY] MCP search completed: "
+                f"{result.total_results} live results from {list(result.provider_results.keys())} "
+                f"({result.deduplicated_count} deduped, "
+                f"{len(result.provider_errors)} provider errors)"
+            )
+
+            for err in result.provider_errors:
+                print(f"[JOB_DISCOVERY] Provider '{err.provider}' notice: {err.message}")
+
+        except Exception as e:
+            print(f"[JOB_DISCOVERY] MCP search exception: {e}")
+            return []
+
+        return raw_candidates
+
+    # ── Main Discovery Pipeline ──────────────────────────────────────────
+
+    async def run_discovery_pipeline(
+        self,
+        target_role: str = "Lead Frontend Architect",
+        triggered_by: str = "CLOUD_SCHEDULER",
+        limit: int = 15
+    ) -> Dict[str, Any]:
         run_id = f"run-{uuid.uuid4().hex[:10]}"
-        print(f"[JOB_DISCOVERY] Starting discovery run {run_id} triggered by {triggered_by}...")
+        print(f"[JOB_DISCOVERY] Starting discovery run {run_id} triggered by {triggered_by} — live MCP data")
 
         # 1. Observability: Record start of automation run
         self.repo.create_automation_run(run_id, "DAILY_JOB_DISCOVERY", triggered_by)
@@ -113,23 +117,8 @@ class JobDiscoveryService:
         blacklisted_companies = [c.lower() for c in settings.get("blacklisted_companies", [])]
         blacklisted_keywords = [k.lower() for k in settings.get("blacklisted_keywords", [])]
 
-        raw_candidates: List[Dict[str, Any]] = []
-
-        # 2. Gather from all sources with non-blocking error isolation
-        sources = [
-            ("greenhouse", self.scan_greenhouse_api("figma")),
-            ("lever", self.scan_lever_api("stripe")),
-            ("linkedin", self.scan_linkedin_source(target_role)),
-            ("workday", self.scan_workday_source())
-        ]
-
-        for source_name, task in sources:
-            try:
-                results = await task
-                for item in results:
-                    raw_candidates.append((source_name, item))
-            except Exception as e:
-                print(f"[JOB_DISCOVERY] Source {source_name} failed: {e}. Continuing remaining sources...")
+        # 2. Gather candidates via live MCP providers
+        raw_candidates = await self.discover_jobs(target_role, limit=limit)
 
         jobs_found = len(raw_candidates)
         jobs_scored = 0
@@ -142,7 +131,7 @@ class JobDiscoveryService:
                 # Blacklist filter checks
                 company_name = (raw.get("company") or "").lower()
                 title_name = (raw.get("title") or "").lower()
-                desc_text = (raw.get("description") or "").lower()
+                desc_text = (raw.get("description") or raw.get("description_raw") or "").lower()
 
                 if any(bc in company_name for bc in blacklisted_companies):
                     print(f"[JOB_DISCOVERY] Skipping blacklisted company: {raw.get('company')}")
@@ -164,12 +153,12 @@ class JobDiscoveryService:
                     job_id = existing_job["id"]
                     norm_job["id"] = job_id
                 else:
-                    # Persist initial job record
+                    # Persist initial job record via existing repository
                     saved_job = self.repo.save_job(norm_job)
                     job_id = saved_job["id"]
                     norm_job["id"] = job_id
 
-                # ATS Scoring via Gemini / AI Provider
+                # ATS Scoring via AI Provider
                 score_data = await job_scoring_service.score_job(norm_job, profile)
                 score_data["job_id"] = job_id
                 self.repo.save_job_score(score_data)
@@ -205,10 +194,12 @@ class JobDiscoveryService:
         return {
             "run_id": run_id,
             "status": "success",
+            "discovery_mode": "LIVE_MCP",
             "jobs_found": jobs_found,
             "jobs_scored": jobs_scored,
             "jobs_failed": jobs_failed,
             "jobs": persisted_jobs
         }
+
 
 job_discovery_service = JobDiscoveryService()

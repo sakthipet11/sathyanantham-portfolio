@@ -124,10 +124,13 @@ class ResumeRepository:
             try:
                 with pg_conn.cursor() as cur:
                     cur.execute("DELETE FROM resume_versions WHERE id::text = %s;", (str(resume_id),))
-                    if cur.rowcount > 0:
+                    deleted_count = cur.rowcount
+                    pg_conn.commit()
+                    if deleted_count > 0:
                         deleted = True
             except Exception as e:
-                pass
+                print(f"[RESUME_REPO] PG delete error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 

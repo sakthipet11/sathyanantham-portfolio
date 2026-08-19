@@ -130,68 +130,20 @@ class AIJobCopilotService:
         return llm_res
 
     async def _ensure_seed_jobs_in_db(self) -> List[Dict[str, Any]]:
-        """Ensures database has records for jobs to evaluate and display dynamically."""
+        """Ensures database has records for jobs by triggering live discovery if sparse."""
         jobs = self.repo.list_jobs(limit=50)
         if len(jobs) >= 3:
             return jobs
 
-        # Seed initial realistic high-match jobs if DB is sparse
-        seed_jobs = [
-            {
-                "id": make_uuid("job-figma-01"),
-                "title": "Lead UI Platform Architect",
-                "company": "Figma",
-                "location": "San Francisco, CA (Remote)",
-                "apply_url": "https://boards.greenhouse.io/figma/jobs/501",
-                "portal_type": "greenhouse",
-                "status": "QUALIFIED",
-                "idempotency_key": "figma-lead-ui-501",
-                "description_raw": "Lead UI Platform Architect scaling enterprise canvas, micro-frontends, WebGL performance, and design systems."
-            },
-            {
-                "id": make_uuid("job-stripe-02"),
-                "title": "Principal Frontend Engineer - Micro Frontends",
-                "company": "Stripe",
-                "location": "Remote - US / Global",
-                "apply_url": "https://jobs.lever.co/stripe/302",
-                "portal_type": "lever",
-                "status": "QUALIFIED",
-                "idempotency_key": "stripe-principal-fe-302",
-                "description_raw": "Principal Frontend Engineer leading micro-frontend architecture, payment flows, and zero-downtime micro-app federation."
-            },
-            {
-                "id": make_uuid("job-linear-03"),
-                "title": "Staff Frontend Systems Engineer",
-                "company": "Linear",
-                "location": "Remote - Global",
-                "apply_url": "https://linear.app/careers/staff-fe",
-                "portal_type": "custom",
-                "status": "QUALIFIED",
-                "idempotency_key": "linear-staff-fe-03",
-                "description_raw": "Staff Frontend Systems Engineer building keyboard-first reactive UI architecture, WebSocket state sync, and sleek dark modes."
-            }
-        ]
-
-        for s_job in seed_jobs:
-            saved = self.repo.save_job(s_job)
-            ats_score = 96 if "Figma" in s_job["company"] else (94 if "Stripe" in s_job["company"] else 92)
-            score_data = {
-                "id": make_uuid(f"score-{s_job['id']}"),
-                "job_id": saved["id"],
-                "overall_score": ats_score,
-                "domain_score": 98.0,
-                "seniority_score": 95.0,
-                "tech_stack_score": 96.0,
-                "strengths": [
-                    "Full-Stack Architecture & Micro-Frontends (React, Next.js, WebGL)",
-                    "AI Agent Orchestration & Custom MCP Development",
-                    "High-Throughput Enterprise Systems",
-                    "TypeScript, Rust/Wasm & Performance Optimization"
-                ],
-                "gaps": ["Proprietary internal SDK details"],
-                "recommendation": "APPLY + 1ST DEGREE REFERRAL"
-            }
-            self.repo.save_job_score(score_data)
+        # Run live discovery via MCP to populate real jobs
+        try:
+            await job_discovery_service.run_discovery_pipeline(
+                target_role="Lead Frontend Architect",
+                triggered_by="AI_JOB_COPILOT",
+                limit=5
+            )
+        except Exception as e:
+            print(f"[COPILOT] Live discovery trigger notice: {e}")
 
         return self.repo.list_jobs(limit=50)
 

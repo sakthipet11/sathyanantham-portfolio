@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Award, Calendar, MapPin, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { getApiHost } from '@/lib/utils';
 
 export interface ExperienceItem {
   id: string | number;
@@ -25,7 +26,8 @@ export function ExperienceSection() {
   useEffect(() => {
     async function loadExperienceFromDB() {
       try {
-        const res = await fetch('/api/portfolio/experience');
+        const apiHost = getApiHost();
+        const res = await fetch(`${apiHost}/api/portfolio/experience`);
         if (res.ok) {
           const data = await res.json();
           if (data.experience && Array.isArray(data.experience) && data.experience.length > 0) {
@@ -48,7 +50,7 @@ export function ExperienceSection() {
           }
         }
       } catch (err) {
-        console.error('Failed to load experience from DB:', err);
+        console.error('Failed to load experience from API:', err);
       }
       setLoading(false);
     }

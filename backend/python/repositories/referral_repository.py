@@ -228,10 +228,13 @@ class ReferralRepository:
             try:
                 with pg_conn.cursor() as cur:
                     cur.execute("DELETE FROM referrals WHERE id::text = %s;", (str(referral_id),))
-                    if cur.rowcount > 0:
+                    deleted_count = cur.rowcount
+                    pg_conn.commit()
+                    if deleted_count > 0:
                         deleted = True
             except Exception as e:
                 print(f"[REFERRAL_REPO] PG delete error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 

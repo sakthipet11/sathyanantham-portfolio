@@ -7,6 +7,7 @@ import { ExternalLink, ArrowUpRight, CheckCircle, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { getApiHost } from '@/lib/utils';
 
 export interface ProjectItem {
   id: string | number;
@@ -40,7 +41,8 @@ export function ProjectsSection() {
     setMounted(true);
     async function loadProjectsFromDB() {
       try {
-        const res = await fetch('/api/portfolio/projects');
+        const apiHost = getApiHost();
+        const res = await fetch(`${apiHost}/api/portfolio/projects`);
         if (res.ok) {
           const data = await res.json();
           if (data.projects && Array.isArray(data.projects) && data.projects.length > 0) {

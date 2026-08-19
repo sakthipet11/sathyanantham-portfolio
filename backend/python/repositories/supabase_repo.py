@@ -136,31 +136,10 @@ class SupabaseHelper:
     def _get_pg_connection(self):
         if not psycopg2:
             return None
-
-        # Check existing cached connection health
-        cached = getattr(self, '_cached_pg_conn', None)
-        if cached is not None:
-            try:
-                if getattr(cached, 'closed', 1) == 0:
-                    with cached.cursor() as cur:
-                        cur.execute("SELECT 1;")
-                    return cached
-            except Exception:
-                try:
-                    if hasattr(cached, '_real_close'):
-                        cached._real_close()
-                except Exception:
-                    pass
-                self._cached_pg_conn = None
-
         try:
             conn = psycopg2.connect(self.pg_url, connect_timeout=3)
-            conn.autocommit = True
-            conn._real_close = conn.close
-            conn.close = lambda: None  # No-op close for callers to keep TCP socket alive
-            self._cached_pg_conn = conn
             return conn
-        except Exception:
+        except Exception as e:
             return None
 
     def is_configured(self) -> bool:

@@ -1,82 +1,207 @@
 ---
 name: portfolio-architect
-description: Comprehensive architecture skill for operating and expanding Sathyanantham V's Multi-Agent Portfolio & Recruiter OS platform.
+description: Comprehensive architecture skill for operating and expanding Sathyanantham V's Multi-Agent Portfolio, Job Discovery MCP Server & Recruiter OS platform.
 ---
 
-# Portfolio Architect Skill
+# Portfolio Architect & Job Discovery Engine Skill
 
-This skill provides complete instructions, component specifications, database data flows, and operational workflows for managing Sathyanantham V's AI-Powered Digital Twin & Multi-Agent Recruiter Automation system.
+This skill provides complete architecture specifications, logic flow, configuration reference, and operational workflows for managing Sathyanantham V's AI-Powered Digital Twin & Autonomous Multi-Agent Recruiter System.
 
-## 🎯 Architecture Overview
+---
 
-The system is built on a clean 4-layer architecture without wrapper folders:
+## 🎯 System Architecture Overview
 
-1. **Frontend App (`app/`, `components/`, `lib/`, `hooks/`, `public/`)**: Next.js 15 App Router located directly at root level providing public interactive portfolio views (`ProjectsSection`, `ExperienceSection`, `SkillsMatrix` dynamically fetching from DB) and an Admin OS console (`/admin/dashboard`, `/admin/jobs`, `/admin/applications`, `/admin/resumes`, `/admin/referrals`, `/admin/recruiter-inbox`, `/admin/automation`, `/admin/analytics`, `/admin/settings`).
-2. **Backend Engine (`backend/python/`)**: FastAPI server housing 6 autonomous AI agents (`job_discovery_agent`, `job_scoring_agent`, `resume_agent`, `application_agent`, `email_agent`, `referral_agent`), OpenRouter AI streaming, RAG knowledge retrieval, and WebSocket visitor handoff.
-3. **Database Layer (`database/`)**: PostgreSQL & Supabase database tables (`migrations/001_initial_schema.sql`, `migrations/002_multi_agent_tables.sql`, `migrations/003_job_automation_schema.sql`) and seed files (`seeds/001_seed_portfolio_data.sql`, `seeds/002_seed_jobs_and_agents.sql`, `seeds/003_user_profile_seed.sql`) storing 6 enterprise projects, 3 experience milestones, 30 skills, candidate profiles, job listings, ATS match scores, applications, and recruiter emails.
-4. **Infrastructure & MCP Layer (`infrastructure/` & `backend/python/mcp/`)**: Model Context Protocol servers (`browserbase`, `google_drive`, `gmail`, `postgres`), Cloud Scheduler cron configs, and Docker deployment manifests.
+The platform operates on a clean 4-tier decoupled architecture:
 
-## 🗄️ Database & Repository Data Flow
-
-All components use live PostgreSQL database connections (`postgresql://postgres:postgres@127.0.0.1:5432/postgres`) via `psycopg2` direct queries when running locally or Supabase Cloud when deployed:
-
-- **Portfolio Content API**: GET `/api/portfolio/projects`, GET `/api/portfolio/experience`, GET `/api/portfolio/skills`, GET `/api/portfolio/profile`
-- **Job Discovery & Matching API**: GET `/api/v2/jobs`, GET `/api/v2/jobs/metrics`, POST `/api/v2/jobs/{job_id}/score`
-- **Application Pipeline API**: GET `/api/v2/applications`, POST `/api/v2/applications/{app_id}/status`
-- **Referral Network API**: GET `/api/v2/referrals`, POST `/api/v2/referrals/{ref_id}/status`
-
-## 🤖 Agent Roles & Tool Capabilities
-
-### 1. `job_discovery_agent`
-- **Goal**: Scan engineering portals and LinkedIn for Lead Frontend Architect & Micro Frontend roles.
-- **API Endpoint**: `POST /api/automation/jobs/discover`
-
-### 2. `job_scoring_agent`
-- **Goal**: Match job descriptions against candidate profile (13+ years React, TypeScript, Micro Frontends).
-- **API Endpoint**: `POST /api/v2/jobs/{job_id}/score`
-
-### 3. `resume_agent`
-- **Goal**: Tailor custom PDF and LaTeX resumes based on target role keywords.
-- **API Endpoint**: `POST /api/jobs/tailor-resume`
-
-### 4. `application_agent`
-- **Goal**: Automate application submission via `mcp_browserbase`.
-- **API Endpoint**: `POST /api/jobs/apply`
-
-### 5. `email_agent`
-- **Goal**: Draft and send recruiter outreach & follow-up emails via `mcp_gmail`.
-
-### 6. `referral_agent`
-- **Goal**: Find target company employees and craft connection requests.
-
-## 🚀 Execution & Operational Workflows
-
-### Setup & Seed Database
-```bash
-python database/setup_local_db.py
+```
+[ Frontend: Next.js 15 App Router ]  <-- NEXT_PUBLIC_API_URL -->  [ Backend: FastAPI (Python 3.12+) ]
+  ├── Public Candidate Portfolio (React 19)                         ├── 6 Autonomous AI Agents
+  └── Recruiter / Admin OS (/admin/*)                               ├── Job Discovery MCP Server (10 Tools)
+                                                                    └── Live Handoff & Visitor Telemetry
+                                                                                   │
+                                                                       [ Database & Cache Layer ]
+                                                                        ├── PostgreSQL (Local) / Supabase (Prod)
+                                                                        └── Redis / In-Memory TTL Cache
 ```
 
-### Run Frontend & Backend Dev Servers
-```bash
-# Terminal 1: Next.js App
-npm run dev
+1. **Frontend (`app/`, `components/`, `lib/`)**: Next.js 15 App Router. Public portfolio (`ProjectsSection`, `ExperienceSection`, `SkillsMatrix`) and Admin OS (`/admin/dashboard`, `/admin/jobs`, `/admin/applications`, `/admin/resumes`, `/admin/referrals`, `/admin/recruiter-inbox`, `/admin/automation`, `/admin/retention`). All frontend API calls resolve dynamically through `getApiHost()` via `NEXT_PUBLIC_API_URL`.
+2. **Backend Engine (`backend/python/`)**: FastAPI server housing 6 autonomous AI agents, OpenRouter / Gemini LLM evaluation, RAG knowledge retrieval, and WebSocket presence handoff.
+3. **Job Discovery MCP Server (`backend/python/mcp/job_discovery/`)**: Official Model Context Protocol (MCP) server implementing live multi-portal discovery, rate limiting, deduplication, and schema normalization across 9+ job sources.
+4. **Database & Data Lifecycle Layer (`backend/python/repositories/`)**: Dual-engine persistence supporting Local PostgreSQL in development and Supabase in production with cascade transactions and automated retention purging.
 
-# Terminal 2: FastAPI Backend
-python -m uvicorn backend.python.main:app --host 0.0.0.0 --port 8000 --reload
+---
+
+## 🔍 Job Fetching & Discovery Engine
+
+### 1. Job Fetching Logic Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor AdminOrCron as Cloud Scheduler / Admin UI
+    participant Service as JobDiscoveryService
+    participant MCP as JobDiscoveryMCPServer
+    participant Registry as ProviderRegistry
+    participant Portals as Active Live Providers (LinkedIn, RemoteOK, Arbeitnow, TheMuse, Remotive, Himalayas)
+    participant Dedup as DeduplicationService
+    participant Scoring as JobScoringService (Gemini)
+    participant Repo as JobRepository (PostgreSQL / Supabase)
+
+    AdminOrCron->>Service: POST /api/automation/jobs/discover {"target_role": "..."}
+    Service->>MCP: search_jobs(query, location, limit)
+    MCP->>Registry: get_enabled()
+    Registry-->>MCP: [linkedin, remoteok, arbeitnow, themuse, remotive, himalayas, ...]
+    
+    par Concurrent Fetching with Rate Limiting & Circuit Breakers
+        MCP->>Portals: search_jobs() via httpx async
+    end
+    Portals-->>MCP: Raw job card HTML / JSON responses
+
+    MCP->>MCP: Normalize to NormalizedJob schema
+    MCP->>Dedup: filter_duplicates(jobs) using SHA256 Canonical Fingerprint
+    Dedup-->>MCP: Deduplicated NormalizedJob list
+    MCP-->>Service: SearchResponse (jobs, provider breakdown)
+
+    loop For each discovered job
+        Service->>Scoring: score_job(job, candidate_profile)
+        Scoring-->>Service: ATS score, match breakdown, strengths, gaps
+        Service->>Repo: save_job(job) [Committed DB write]
+        Service->>Repo: save_job_score(score) [Committed DB write]
+    end
+
+    Service-->>AdminOrCron: Summary metrics (discovered, qualified, rejected)
 ```
 
-### Execute Multi-Agent Automation Pipeline
-```bash
-curl -X POST "http://localhost:8000/api/automation/jobs/discover" -H "Content-Type: application/json" -d '{"target_role": "Lead Frontend Architect"}'
+---
+
+### 2. Multi-Portal Provider Registry & Endpoints
+
+| Portal / Engine | Provider Class | Type / Endpoint | Fetching Mechanism |
+| :--- | :--- | :--- | :--- |
+| **LinkedIn** | `LinkedInProvider` | Public Guest API | `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search` (Extracts real company, title, location, apply URL) |
+| **RemoteOK** | `RemoteOKProvider` | Live JSON API | `https://remoteok.com/api` (Tech & developer roles, salary ranges, tags) |
+| **Arbeitnow** | `ArbeitnowProvider` | Live Board API | `https://www.arbeitnow.com/api/job-board-api` (European & Global tech postings) |
+| **The Muse** | `TheMuseProvider` | Enterprise API | `https://www.themuse.com/api/public/jobs` (Verified enterprise tech postings: Google, Stripe, Uber) |
+| **Remotive** | `RemotiveProvider` | Public Remote API | `https://remotive.com/api/remote-jobs` (Global remote software engineering feeds) |
+| **Himalayas** | `HimalayasProvider` | Public Remote API | `https://himalayas.app/jobs/api` (Remote developer roles) |
+| **Adzuna** | `AdzunaProvider` | Aggregator API | `https://api.adzuna.com/v1/api` (Aggregated Indeed/Monster/LinkedIn postings with API keys) |
+| **Greenhouse** | `GreenhouseProvider` | Board API | `https://boards-api.greenhouse.io/v1/boards/{board}/jobs` (Enterprise ATS direct boards) |
+| **Lever** | `LeverProvider` | Board API | `https://api.lever.co/v0/postings/{site}` (Enterprise ATS direct boards) |
+
+---
+
+### 3. Canonical Data Schema & Deduplication
+
+#### Normalized Data Model (`NormalizedJob`)
+Every job fetched from any provider is normalized into a standard Pydantic model:
+- `source`: Provider identifier (`"linkedin"`, `"remoteok"`, `"arbeitnow"`, etc.)
+- `source_job_id`: Native ID from the provider
+- `title`: Job title (sanitized)
+- `company`: Company name (sanitized)
+- `location`: Plaintext location string
+- `location_type`: Enum (`"remote"`, `"hybrid"`, `"onsite"`, `"unspecified"`)
+- `employment_type`: Enum (`"full_time"`, `"contract"`, `"part_time"`, etc.)
+- `salary_min` / `salary_max` / `salary_currency`: Extracted compensation
+- `tech_stack`: List of extracted tech keywords (`["React", "TypeScript", "Next.js"]`)
+- `job_url` / `apply_url`: Direct public application link
+- `fingerprint`: SHA256 canonical hash
+
+#### SHA256 Canonical Fingerprint Logic
+```python
+def generate_fingerprint(company: str, title: str, location: str) -> str:
+    canonical = f"{company.strip().lower()}:{title.strip().lower()}:{location.strip().lower()}"
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 ```
 
-## 📜 Key Configuration & Repository Files
+---
 
-- **Backend Entrypoint**: [main.py](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/backend/python/main.py)
-- **Portfolio API Router**: [portfolio.py](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/backend/python/api/portfolio.py)
-- **Supabase & Postgres Repository**: [supabase_repo.py](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/backend/python/repositories/supabase_repo.py)
-- **Job Repository**: [job_repository.py](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/backend/python/repositories/job_repository.py)
-- **Application Repository**: [application_repository.py](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/backend/python/repositories/application_repository.py)
-- **Dynamic Projects Section**: [ProjectsSection.tsx](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/components/sections/ProjectsSection.tsx)
-- **Dynamic Experience Section**: [ExperienceSection.tsx](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/components/sections/ExperienceSection.tsx)
-- **Dynamic Skills Matrix**: [SkillsMatrix.tsx](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/components/sections/SkillsMatrix.tsx)
+## ⚙️ Configuration Reference (`config.py` & `.env`)
+
+### Dynamic Database Resolution
+
+The MCP server and backend dynamically switch database targets:
+- **Development**: Local PostgreSQL (`postgresql://postgres:postgres@127.0.0.1:5432/postgres`)
+- **Production**: Supabase Cloud (`SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL`)
+
+```python
+# MCPServerConfig dynamic database resolution
+environment = os.getenv("ENVIRONMENT", "development")
+is_production = environment.lower() == "production" or "supabase.co" in os.getenv("SUPABASE_URL", "")
+
+database_url = os.getenv("DATABASE_URL") or (
+    f"postgresql://{os.getenv('POSTGRES_USER', 'postgres')}:{os.getenv('POSTGRES_PASSWORD', 'postgres')}@"
+    f"{os.getenv('POSTGRES_HOST', '127.0.0.1')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB', 'postgres')}"
+)
+```
+
+### Provider Settings & Rate Limits
+
+```python
+# Provider Flags and Rate Limits (RPM)
+remotive_enabled = True        # RPM: 30, Cache TTL: 1800s
+himalayas_enabled = True       # RPM: 30, Cache TTL: 1800s
+linkedin_enabled = True        # RPM: 15, Cache TTL: 900s
+remoteok_enabled = True        # RPM: 20, Cache TTL: 1800s
+arbeitnow_enabled = True       # RPM: 30, Cache TTL: 1800s
+themuse_enabled = True         # RPM: 30, Cache TTL: 1800s
+adzuna_enabled = False         # Requires adzuna_app_id & adzuna_api_key
+greenhouse_enabled = True      # Scans enterprise target boards
+lever_enabled = True           # Scans enterprise target sites
+```
+
+---
+
+## 🛠️ 10 Standard MCP Tools
+
+The Job Discovery MCP Server exposes the following standard tools:
+
+1. `search_jobs(query, location, remote_only, limit, providers)`: Concurrent multi-portal search with rate-limiting and deduplication.
+2. `get_job(source, source_job_id)`: Fetches full details for a single job by source ID.
+3. `get_jobs(job_ids)`: Batch fetch by source:job_id pairs.
+4. `get_new_jobs(since, limit)`: Delta sync for newly posted jobs.
+5. `search_jobs_for_profile(profile, limit)`: Queries matching jobs based on candidate skills.
+6. `get_provider_status()`: Real-time health, latency, error count, and circuit breaker states.
+7. `refresh_job(source, source_job_id)`: Re-fetches a job to check if listing is still active.
+8. `save_job(job)`: **Inert by architectural specification**. Database persistence is owned exclusively by `job_repository.py`.
+9. `health_check()`: Server status, active providers, and memory metrics.
+10. `search_companies(query, limit)`: Discovers hiring companies across all providers.
+
+---
+
+## 🗑️ Deletion & Retention Lifecycle
+
+All delete paths for jobs execute **explicit PostgreSQL commits (`pg_conn.commit()`)** and cascade delete dependent evaluation records:
+
+```python
+# Single and bulk delete in job_repository.py
+cur.execute("DELETE FROM job_scores WHERE job_id::text = %s;", (str(job_id),))
+cur.execute("DELETE FROM job_source_records WHERE job_id::text = %s;", (str(job_id),))
+cur.execute("DELETE FROM jobs WHERE id::text = %s;", (str(job_id),))
+cur.execute("DELETE FROM job_listings WHERE id::text = %s;", (str(job_id),))
+pg_conn.commit()
+```
+
+### Available Delete API Routes:
+- `DELETE /api/v2/jobs/{job_id}`: Single hard delete.
+- `POST /api/v2/jobs/bulk-delete {"ids": [...]}`: Batch delete (up to 500 IDs).
+- `DELETE /api/v2/{pipeline}/{item_id}`: Generic lifecycle delete (`pipeline="jobs"`).
+- `POST /api/v2/{pipeline}/bulk-delete`: Generic lifecycle bulk delete.
+- `POST /api/v2/automation/retention-purge/{pipeline}`: Automated expiry purge based on configured retention days.
+
+---
+
+## 🚀 Key Operational Commands
+
+```bash
+# 1. Run MCP Server Unit Test Suite
+python -m pytest backend/python/mcp/job_discovery/tests -v
+
+# 2. Trigger End-to-End Multi-Portal Job Discovery
+curl -X POST "http://localhost:8000/api/automation/jobs/discover" \
+     -H "Content-Type: application/json" \
+     -d '{"target_role": "Lead Frontend Architect"}'
+
+# 3. View Discovered Jobs & HUD Metrics
+curl -s "http://localhost:8000/api/v2/jobs/metrics"
+curl -s "http://localhost:8000/api/v2/jobs?limit=10"
+```

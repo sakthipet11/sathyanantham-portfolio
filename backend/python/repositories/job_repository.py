@@ -1,3 +1,4 @@
+import uuid
 import hashlib
 import json
 from typing import Dict, Any, List, Optional
@@ -99,13 +100,16 @@ class JobRepository:
             try:
                 with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute("""
-                        INSERT INTO jobs (id, title, company, location, apply_url, portal_type, status, idempotency_key, description_raw)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO jobs (id, title, company, location, apply_url, portal_type, status, idempotency_key, description_raw, source, job_url, posted_date, fingerprint, tech_stack, salary_min, salary_max)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (idempotency_key) DO UPDATE SET
                             title = EXCLUDED.title,
                             company = EXCLUDED.company,
                             location = EXCLUDED.location,
                             status = EXCLUDED.status,
+                            source = COALESCE(EXCLUDED.source, jobs.source),
+                            job_url = COALESCE(EXCLUDED.job_url, jobs.job_url),
+                            fingerprint = COALESCE(EXCLUDED.fingerprint, jobs.fingerprint),
                             updated_at = NOW()
                         RETURNING *;
                     """, (
@@ -117,34 +121,44 @@ class JobRepository:
                         job_data.get("portal_type", "custom"),
                         job_data.get("status", "DISCOVERED"),
                         job_data.get("idempotency_key", str(job_id)),
-                        job_data.get("description_raw", job_data.get("description", ""))
+                        job_data.get("description_raw", job_data.get("description", "")),
+                        job_data.get("source"),
+                        job_data.get("job_url"),
+                        job_data.get("posted_date"),
+                        job_data.get("fingerprint"),
+                        job_data.get("tech_stack", []),
+                        job_data.get("salary_min"),
+                        job_data.get("salary_max")
                     ))
                     row = cur.fetchone()
+                    pg_conn.commit()
 
                     try:
-                        cur.execute("""
-                            INSERT INTO job_listings (id, title, company, location, apply_url, portal_type, status, idempotency_key, description_raw)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            ON CONFLICT DO NOTHING;
-                        """, (
-                            job_data["id"],
-                            job_data.get("title", ""),
-                            job_data.get("company", ""),
-                            job_data.get("location", "Remote"),
-                            job_data.get("apply_url", "https://example.com"),
-                            job_data.get("portal_type", "custom"),
-                            job_data.get("status", "DISCOVERED"),
-                            job_data.get("idempotency_key", str(job_id)),
-                            job_data.get("description_raw", job_data.get("description", ""))
-                        ))
+                        with pg_conn.cursor() as cur2:
+                            cur2.execute("""
+                                INSERT INTO job_listings (id, title, company, location, tech_stack, source, discovered_by_agent)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                ON CONFLICT (id) DO NOTHING;
+                            """, (
+                                str(job_data["id"]),
+                                job_data.get("title", ""),
+                                job_data.get("company", ""),
+                                job_data.get("location", "Remote"),
+                                job_data.get("tech_stack", []),
+                                job_data.get("source", "mcp"),
+                                "job_discovery_mcp"
+                            ))
+                            pg_conn.commit()
                     except Exception:
                         pass
+
                     if row:
                         saved = dict(row)
                         self._in_memory_jobs[saved["id"]] = saved
                         return saved
             except Exception as e:
                 print(f"[JOB_REPO] PG save_job error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 
@@ -170,12 +184,14 @@ class JobRepository:
                 with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute("UPDATE jobs SET status = %s, updated_at = NOW() WHERE id::text = %s RETURNING *;", (status, str(job_id)))
                     row = cur.fetchone()
+                    pg_conn.commit()
                     if row:
                         res = dict(row)
                         self._in_memory_jobs[str(job_id)] = res
                         return res
             except Exception as e:
                 print(f"[JOB_REPO] PG update_job_status error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 
@@ -202,6 +218,47 @@ class JobRepository:
             except Exception as e:
                 print(f"[JOB_REPO] Error saving score to Supabase: {e}")
 
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    score_breakdown = {
+                        "responsibility_match": score_data.get("responsibility_match", 85.0),
+                        "education_match": score_data.get("education_match", 90.0),
+                        "location_match": score_data.get("location_match", 90.0),
+                        "keyword_match": score_data.get("keyword_match", 85.0),
+                        "strengths": score_data.get("strengths", []),
+                        "gaps": score_data.get("gaps", []),
+                    }
+                    cur.execute("""
+                        INSERT INTO job_scores (job_id, overall_score, skills_match_score, experience_match_score, seniority_match_score, missing_skills, matching_skills, evaluation_summary, score_breakdown, llm_model_used, evaluated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING *;
+                    """, (
+                        score_data["job_id"],
+                        score_data.get("overall_score", 0.0),
+                        score_data.get("skills_match", score_data.get("skills_match_score", 0.0)),
+                        score_data.get("experience_match", score_data.get("experience_match_score", 0.0)),
+                        score_data.get("seniority_match", score_data.get("seniority_match_score", 0.0)),
+                        score_data.get("missing_keywords", score_data.get("missing_skills", [])),
+                        score_data.get("matching_keywords", score_data.get("matching_skills", [])),
+                        score_data.get("recommendation", score_data.get("evaluation_summary", "Evaluation complete")),
+                        json.dumps(score_breakdown),
+                        score_data.get("llm_model_used", "openrouter/nemotron"),
+                        score_data.get("evaluated_at")
+                    ))
+                    row = cur.fetchone()
+                    pg_conn.commit()
+                    if row:
+                        saved = dict(row)
+                        self._in_memory_scores[score_data["job_id"]] = saved
+                        return saved
+            except Exception as e:
+                print(f"[JOB_REPO] PG save_job_score error: {e}")
+                pg_conn.rollback()
+            finally:
+                pg_conn.close()
+
         self._in_memory_scores[score_data["job_id"]] = score_data
         return score_data
 
@@ -213,6 +270,20 @@ class JobRepository:
                     return res.data[0]
             except Exception as e:
                 print(f"[JOB_REPO] Error fetching job score: {e}")
+
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM job_scores WHERE job_id::text = %s ORDER BY evaluated_at DESC LIMIT 1;", (str(job_id),))
+                    row = cur.fetchone()
+                    if row:
+                        return dict(row)
+            except Exception as e:
+                print(f"[JOB_REPO] PG get_job_score error: {e}")
+            finally:
+                pg_conn.close()
+
         return self._in_memory_scores.get(job_id)
 
     def list_jobs(self, status: Optional[str] = None, source: Optional[str] = None, min_score: Optional[float] = None, limit: int = 50) -> List[Dict[str, Any]]:
@@ -349,6 +420,7 @@ class JobRepository:
         deleted = False
         if self.db.client:
             try:
+                self.db.client.table("job_scores").delete().eq("job_id", job_id).execute()
                 self.db.client.table("jobs").delete().eq("id", job_id).execute()
                 deleted = True
             except Exception as e:
@@ -358,19 +430,25 @@ class JobRepository:
         if pg_conn:
             try:
                 with pg_conn.cursor() as cur:
+                    cur.execute("DELETE FROM job_scores WHERE job_id::text = %s;", (str(job_id),))
+                    cur.execute("DELETE FROM job_source_records WHERE job_id::text = %s;", (str(job_id),))
                     cur.execute("DELETE FROM jobs WHERE id::text = %s;", (str(job_id),))
                     deleted_count = cur.rowcount
                     cur.execute("DELETE FROM job_listings WHERE id::text = %s;", (str(job_id),))
+                    pg_conn.commit()
                     if deleted_count > 0 or cur.rowcount > 0:
                         deleted = True
             except Exception as e:
                 print(f"[JOB_REPO] PG delete error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 
         if job_id in self._in_memory_jobs:
             del self._in_memory_jobs[job_id]
             deleted = True
+        if job_id in self._in_memory_scores:
+            del self._in_memory_scores[job_id]
 
         return deleted
 
