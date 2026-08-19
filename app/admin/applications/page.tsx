@@ -31,23 +31,24 @@ import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
+const ZERO_METRICS = {
+  total_applications: 0,
+  ready_for_review: 0,
+  approved: 0,
+  submitted: 0,
+  manual_required: 0,
+  failed: 0,
+  success_rate: 0.0
+};
+
 export default function AdminApplicationsPage() {
   const apiHost = getApiHost();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
-  const [metrics, setMetrics] = useState({
-    total_applications: 0,
-    ready_for_review: 0,
-    approved: 0,
-    submitted: 0,
-    manual_required: 0,
-    failed: 0,
-    success_rate: 0.0
-  });
-
+  const [metrics, setMetrics] = useState(ZERO_METRICS);
   const [applications, setApplications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedApp, setSelectedApp] = useState<any | null>(null);
   useLockBodyScroll(!!selectedApp);
   const [appEvents, setAppEvents] = useState<any[]>([]);
@@ -67,16 +68,9 @@ export default function AdminApplicationsPage() {
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      const timestamp = Date.now();
       const [appsRes, metricsRes] = await Promise.all([
-        fetchWithTimeout(`${apiHost}/api/v2/applications?limit=100&_t=${timestamp}`, {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-        }, 1500),
-        fetchWithTimeout(`${apiHost}/api/v2/applications/metrics?_t=${timestamp}`, {
-          cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-        }, 1500)
+        fetchWithTimeout(`${apiHost}/api/v2/applications?limit=100`, {}, 3000),
+        fetchWithTimeout(`${apiHost}/api/v2/applications/metrics`, {}, 3000)
       ]);
 
       if (appsRes.ok) {
@@ -89,10 +83,13 @@ export default function AdminApplicationsPage() {
       if (metricsRes.ok) {
         const mData = await metricsRes.json();
         if (mData.metrics) setMetrics(mData.metrics);
+      } else {
+        setMetrics(ZERO_METRICS);
       }
     } catch (err) {
-      console.warn("Error fetching applications:", err);
+      console.warn("API failed for applications:", err);
       setApplications([]);
+      setMetrics(ZERO_METRICS);
     } finally {
       setLoading(false);
     }

@@ -69,7 +69,7 @@ const PIPELINE_LABELS: Record<string, { title: string; desc: string; icon: any }
 export default function RetentionManagementPage() {
   const apiHost = getApiHost();
   const [policies, setPolicies] = useState<RetentionPolicy[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Edit State per pipeline
@@ -93,23 +93,25 @@ export default function RetentionManagementPage() {
   const fetchPolicies = async () => {
     try {
       setLoading(true);
-      const res = await fetchWithTimeout(`${apiHost}/api/v2/automation/retention-policies`, {}, 1500);
+      const res = await fetchWithTimeout(`${apiHost}/api/v2/automation/retention-policies`, {}, 3000);
       if (res.ok) {
         const data = await res.json();
         const pols: RetentionPolicy[] = data.policies || [];
         setPolicies(pols);
 
-        const initialEdits: Record<string, { retention_days: number; status_filter_text: string }> = {};
+        const updatedEdits: Record<string, { retention_days: number; status_filter_text: string }> = {};
         pols.forEach((p) => {
-          initialEdits[p.pipeline] = {
+          updatedEdits[p.pipeline] = {
             retention_days: p.retention_days,
             status_filter_text: p.status_filter ? p.status_filter.join(', ') : ''
           };
         });
-        setEditState(initialEdits);
+        setEditState(updatedEdits);
+      } else {
+        setPolicies([]);
       }
     } catch {
-      showToast("Error loading retention policies");
+      setPolicies([]);
     } finally {
       setLoading(false);
     }

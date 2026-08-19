@@ -33,6 +33,16 @@ import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
+const ZERO_METRICS = {
+  jobs_discovered_today: 0,
+  qualified_jobs: 0,
+  average_ats_score: 0.0,
+  excellent_matches: 0,
+  strong_matches: 0,
+  applications_pending_approval: 0,
+  applications_submitted: 0
+};
+
 export default function AdminJobsPage() {
   const apiHost = getApiHost();
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,18 +50,9 @@ export default function AdminJobsPage() {
   const [selectedSource, setSelectedSource] = useState<string>('ALL');
   const [minScoreFilter, setMinScoreFilter] = useState<number>(0);
 
-  const [metrics, setMetrics] = useState({
-    jobs_discovered_today: 0,
-    qualified_jobs: 0,
-    average_ats_score: 0.0,
-    excellent_matches: 0,
-    strong_matches: 0,
-    applications_pending_approval: 0,
-    applications_submitted: 0
-  });
-
+  const [metrics, setMetrics] = useState(ZERO_METRICS);
   const [jobs, setJobs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any | null>(null);
   useLockBodyScroll(!!selectedJob);
@@ -76,11 +77,11 @@ export default function AdminJobsPage() {
         fetchWithTimeout(`${apiHost}/api/v2/jobs?limit=100&_t=${timestamp}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-        }, 1500),
+        }, 3000),
         fetchWithTimeout(`${apiHost}/api/v2/jobs/metrics?_t=${timestamp}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-        }, 1500)
+        }, 3000)
       ]);
 
       if (jobsRes.ok) {
@@ -93,10 +94,13 @@ export default function AdminJobsPage() {
       if (metricsRes.ok) {
         const mData = await metricsRes.json();
         if (mData.metrics) setMetrics(mData.metrics);
+      } else {
+        setMetrics(ZERO_METRICS);
       }
     } catch (err) {
-      console.warn("Error fetching jobs radar data:", err);
+      console.warn("API failed for jobs:", err);
       setJobs([]);
+      setMetrics(ZERO_METRICS);
     } finally {
       setLoading(false);
     }
