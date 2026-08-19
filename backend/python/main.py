@@ -1,18 +1,36 @@
 import os
+import sys
 import json
 import asyncio
+
+# Ensure repository root and current package directory are in sys.path
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_repo_root = os.path.abspath(os.path.join(_current_dir, "..", ".."))
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot, portfolio, data_lifecycle
-from backend.python.services.websocket_service import ws_manager
-from backend.python.repositories.supabase_repo import db_helper
-from backend.python.services.notifications import notify_handoff_requested
-from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
-from backend.python.services.rag_service import kb
+try:
+    from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot, portfolio, data_lifecycle
+    from backend.python.services.websocket_service import ws_manager
+    from backend.python.repositories.supabase_repo import db_helper
+    from backend.python.services.notifications import notify_handoff_requested
+    from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
+    from backend.python.services.rag_service import kb
+except ModuleNotFoundError:
+    from api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot, portfolio, data_lifecycle
+    from services.websocket_service import ws_manager
+    from repositories.supabase_repo import db_helper
+    from services.notifications import notify_handoff_requested
+    from services.ai_providers import GenericLLMProvider, llm_provider
+    from services.rag_service import kb
 
 app = FastAPI(
     title="Sathyanantham V Enterprise AI Twin & Multi-Agent API",
