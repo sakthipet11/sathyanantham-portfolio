@@ -227,6 +227,7 @@ export function AdminSidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={true}
                     onClick={() => {
                       if (onLinkClick) onLinkClick();
                       if (typeof window !== 'undefined') {

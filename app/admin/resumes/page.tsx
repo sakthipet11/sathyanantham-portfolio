@@ -11,7 +11,7 @@ import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
 export default function AdminResumesPage() {
   const apiHost = getApiHost();
   const [resumeVersions, setResumeVersions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Multi-Select & Delete State
@@ -28,7 +28,7 @@ export default function AdminResumesPage() {
   const fetchResumes = async () => {
     try {
       setLoading(true);
-      const res = await fetchWithTimeout(`${apiHost}/api/v2/resumes`, {}, 1500);
+      const res = await fetchWithTimeout(`${apiHost}/api/v2/resumes`, {}, 3000);
       if (res.ok) {
         const data = await res.json();
         setResumeVersions(Array.isArray(data.resumes) ? data.resumes : []);

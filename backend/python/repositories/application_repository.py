@@ -176,43 +176,39 @@ class ApplicationRepository:
         return [e for e in self._in_memory_events if e.get("application_id") == application_id]
 
     def list_applications(self, status: Optional[str] = None, limit: int = 50) -> List[Dict[str, Any]]:
-        all_apps: List[Dict[str, Any]] = []
         if self.db.client:
             try:
                 query = self.db.client.table("applications").select("*").order("submitted_at", desc=True).limit(limit)
                 if status and status != "ALL":
                     query = query.eq("status", status)
                 res = query.execute()
-                all_apps = res.data or []
+                if res.data is not None:
+                    return res.data
             except Exception as e:
                 print(f"[APP_REPO] Error listing applications from Supabase: {e}")
 
-        if not all_apps:
-            pg_conn = self.db._get_pg_connection()
-            if pg_conn:
-                try:
-                    with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                        sql = "SELECT * FROM applications"
-                        params = []
-                        if status and status != "ALL":
-                            sql += " WHERE status = %s"
-                            params.append(status)
-                        sql += " ORDER BY submitted_at DESC LIMIT %s;"
-                        params.append(limit)
-                        cur.execute(sql, tuple(params))
-                        rows = cur.fetchall()
-                        all_apps = [dict(r) for r in rows]
-                except Exception as e:
-                    print(f"[APP_REPO] PG list_applications error: {e}")
-                finally:
-                    pg_conn.close()
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    sql = "SELECT * FROM applications"
+                    params = []
+                    if status and status != "ALL":
+                        sql += " WHERE status = %s"
+                        params.append(status)
+                    sql += " ORDER BY submitted_at DESC LIMIT %s;"
+                    params.append(limit)
+                    cur.execute(sql, tuple(params))
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
+            except Exception as e:
+                print(f"[APP_REPO] PG list_applications error: {e}")
+            finally:
+                pg_conn.close()
 
-        if not all_apps:
-            all_apps = list(self._in_memory_apps.values())
-
-        if status and status != "ALL" and not self.db.client:
+        all_apps = list(self._in_memory_apps.values())
+        if status and status != "ALL":
             all_apps = [a for a in all_apps if a.get("status") == status]
-
         return all_apps[:limit]
 
     def get_application_metrics(self) -> Dict[str, Any]:

@@ -18,14 +18,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 try:
-    from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot, portfolio, data_lifecycle
+    from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot, portfolio, data_lifecycle, resumes
     from backend.python.services.websocket_service import ws_manager
     from backend.python.repositories.supabase_repo import db_helper
     from backend.python.services.notifications import notify_handoff_requested
     from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
     from backend.python.services.rag_service import kb
 except ModuleNotFoundError:
-    from api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot, portfolio, data_lifecycle
+    from api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, control_center, hardening, copilot, portfolio, data_lifecycle, resumes
     from services.websocket_service import ws_manager
     from repositories.supabase_repo import db_helper
     from services.notifications import notify_handoff_requested
@@ -59,6 +59,7 @@ app.include_router(control_center.router)
 app.include_router(hardening.router)
 app.include_router(copilot.router)
 app.include_router(portfolio.router)
+app.include_router(resumes.router)
 
 @app.get("/")
 def read_root():

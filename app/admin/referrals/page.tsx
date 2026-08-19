@@ -41,24 +41,25 @@ import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
+const ZERO_METRICS = {
+  total_qualified_jobs: 0,
+  first_degree_contacts: 0,
+  messages_drafted: 0,
+  ready_for_review: 0,
+  approved: 0,
+  sent: 0,
+  replied: 0
+};
+
 export default function AdminReferralsPage() {
   const apiHost = getApiHost();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedConnectionType, setSelectedConnectionType] = useState<string>('ALL');
 
-  const [metrics, setMetrics] = useState<any>({
-    total_qualified_jobs: 0,
-    first_degree_contacts: 0,
-    messages_drafted: 0,
-    ready_for_review: 0,
-    approved: 0,
-    sent: 0,
-    replied: 0
-  });
-
+  const [metrics, setMetrics] = useState<any>(ZERO_METRICS);
   const [referrals, setReferrals] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [selectedReferral, setSelectedReferral] = useState<any | null>(null);
   useLockBodyScroll(!!selectedReferral);
@@ -81,8 +82,8 @@ export default function AdminReferralsPage() {
     try {
       setLoading(true);
       const [refsRes, metricsRes] = await Promise.all([
-        fetchWithTimeout(`${apiHost}/api/v2/referrals?limit=100`, {}, 1500),
-        fetchWithTimeout(`${apiHost}/api/v2/referrals/metrics`, {}, 1500)
+        fetchWithTimeout(`${apiHost}/api/v2/referrals?limit=100`, {}, 3000),
+        fetchWithTimeout(`${apiHost}/api/v2/referrals/metrics`, {}, 3000)
       ]);
 
       if (refsRes.ok) {
@@ -95,10 +96,13 @@ export default function AdminReferralsPage() {
       if (metricsRes.ok) {
         const mData = await metricsRes.json();
         if (mData.metrics) setMetrics(mData.metrics);
+      } else {
+        setMetrics(ZERO_METRICS);
       }
     } catch (err) {
-      console.warn("Error fetching referrals data:", err);
+      console.warn("API failed for referrals:", err);
       setReferrals([]);
+      setMetrics(ZERO_METRICS);
     } finally {
       setLoading(false);
     }

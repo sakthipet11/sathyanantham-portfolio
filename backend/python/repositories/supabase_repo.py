@@ -134,14 +134,34 @@ class SupabaseHelper:
         self._mock_chat_messages: Dict[str, List[Dict[str, Any]]] = {}
 
     def _get_pg_connection(self):
-        if psycopg2:
+        if not psycopg2:
+            return None
+
+        # Check existing cached connection health
+        cached = getattr(self, '_cached_pg_conn', None)
+        if cached is not None:
             try:
-                conn = psycopg2.connect(self.pg_url, connect_timeout=3)
-                conn.autocommit = True
-                return conn
+                if getattr(cached, 'closed', 1) == 0:
+                    with cached.cursor() as cur:
+                        cur.execute("SELECT 1;")
+                    return cached
             except Exception:
-                return None
-        return None
+                try:
+                    if hasattr(cached, '_real_close'):
+                        cached._real_close()
+                except Exception:
+                    pass
+                self._cached_pg_conn = None
+
+        try:
+            conn = psycopg2.connect(self.pg_url, connect_timeout=3)
+            conn.autocommit = True
+            conn._real_close = conn.close
+            conn.close = lambda: None  # No-op close for callers to keep TCP socket alive
+            self._cached_pg_conn = conn
+            return conn
+        except Exception:
+            return None
 
     def is_configured(self) -> bool:
         return self.client is not None or self._get_pg_connection() is not None
@@ -403,12 +423,10 @@ class SupabaseHelper:
         return {"status": "mock_success", "message": "Saved event locally in offline mode", "data": payload}
 
     def upsert_chat_session(self, session_id: str, status: str = "ai_twin", visitor_info: Dict[str, Any] = None) -> Dict[str, Any]:
-        now_str = datetime.utcnow().isoformat()
         payload = {
             "id": session_id,
             "status": status,
-            "visitor_info": visitor_info or {},
-            "updated_at": now_str
+            "visitor_info": visitor_info or {}
         }
 
         if self.client:
@@ -440,6 +458,9 @@ class SupabaseHelper:
         return {"status": "mock_success", "message": "Saved session locally in offline mode", "data": payload}
 
     def insert_chat_message(self, session_id: str, role: str, content: str) -> Dict[str, Any]:
+        # Always ensure the parent chat session exists first
+        self.upsert_chat_session(session_id)
+
         now_str = datetime.utcnow().isoformat()
         payload = {
             "session_id": session_id,
