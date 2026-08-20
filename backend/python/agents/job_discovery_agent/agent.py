@@ -6,10 +6,10 @@ from backend.python.services.job_discovery_service import job_discovery_service
 class JobDiscoveryAgent:
     def __init__(self):
         self.name = "job_discovery_agent"
-        self.description = "Autonomous job discovery agent that queries live MCP job providers (Remotive, Himalayas, Adzuna, Greenhouse, Lever) for real career postings."
+        self.description = "Autonomous job discovery agent that queries live JSearch / Google for Jobs provider for real career postings."
 
     async def discover_jobs(self, query: str = "Lead Frontend Architect", location: str = "Remote", limit: int = 20) -> List[Dict[str, Any]]:
-        print(f"[SEARCH] [{self.name}] Initiating live multi-provider discovery for '{query}' in '{location}'...")
+        print(f"[SEARCH] [{self.name}] Initiating live JSearch discovery for '{query}' in '{location}'...")
         raw_candidates = await job_discovery_service.discover_jobs(target_role=query, limit=limit)
         return [job_dict for source_name, job_dict in raw_candidates]
 

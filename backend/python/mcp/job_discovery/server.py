@@ -67,7 +67,7 @@ TOOL_DEFINITIONS = [
     Tool(
         name="search_jobs",
         description=(
-            "Search for real job postings across multiple providers (Remotive, Himalayas, Adzuna, etc.). "
+            "Search for real job postings via JSearch / Google for Jobs provider. "
             "Returns normalized, deduplicated results with source URLs. Never returns fake data."
         ),
         inputSchema={
@@ -81,7 +81,7 @@ TOOL_DEFINITIONS = [
                 "max_salary": {"type": "number", "description": "Maximum salary (USD)"},
                 "company": {"type": "string", "description": "Filter by company name"},
                 "tech_stack": {"type": "array", "items": {"type": "string"}, "description": "Required technologies"},
-                "providers": {"type": "array", "items": {"type": "string"}, "description": "Specific providers to search"},
+                "providers": {"type": "array", "items": {"type": "string"}, "description": "Specific providers to search (defaults to 'jsearch')"},
                 "limit": {"type": "integer", "default": 50, "minimum": 1, "maximum": 200},
             },
             "required": ["query"],
@@ -93,7 +93,7 @@ TOOL_DEFINITIONS = [
         inputSchema={
             "type": "object",
             "properties": {
-                "provider": {"type": "string", "description": "Provider name e.g. 'remotive'"},
+                "provider": {"type": "string", "description": "Provider name e.g. 'jsearch'"},
                 "job_id": {"type": "string", "description": "Provider-specific job ID"},
             },
             "required": ["provider", "job_id"],

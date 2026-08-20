@@ -109,7 +109,7 @@ class JobDiscoveryTools:
     ) -> Dict[str, Any]:
         """
         Batch fetch multiple jobs. Each entry needs provider + job_id.
-        Input: [{"provider": "remotive", "job_id": "123"}, ...]
+        Input: [{"provider": "jsearch", "job_id": "123"}, ...]
         """
         results = []
         for entry in job_ids[:50]:  # Cap at 50 per batch

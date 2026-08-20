@@ -170,3 +170,38 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.70 0.14 45);
 }
+
+/* Premium Universal Select Box Styling */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 0.95rem 0.95rem;
+  padding-right: 2.25rem !important;
+  cursor: pointer;
+  border-radius: 0.75rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.dark select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+select:hover {
+  border-color: oklch(0.70 0.14 45 / 0.6);
+}
+
+select:focus {
+  outline: none;
+  border-color: oklch(0.70 0.14 45 / 0.9);
+  box-shadow: 0 0 0 2px oklch(0.70 0.14 45 / 0.2);
+}
+
+select option {
+  background-color: var(--card);
+  color: var(--foreground);
+  padding: 8px 12px;
+}

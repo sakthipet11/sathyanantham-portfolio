@@ -62,9 +62,6 @@ def validate_provider_list(providers: List[str]) -> List[str]:
     """Validate provider name list."""
     if not providers:
         return []
-    known_providers = {
-        "remotive", "himalayas", "linkedin", "remoteok", "arbeitnow", 
-        "themuse", "adzuna", "greenhouse", "lever", "indeed", "naukri", "jobspy"
-    }
+    known_providers = {"jsearch"}
     valid = [p.lower().strip() for p in providers[:MAX_PROVIDERS_PER_REQUEST]]
     return [p for p in valid if p in known_providers]

@@ -25,7 +25,7 @@ def get_llm_base_url() -> str:
         os.getenv("LLM_BASE_URL") or
         os.getenv("LLM_API_BASE") or
         os.getenv("OPENROUTER_BASE_URL") or
-        "https://openrouter.ai/api/v1"
+        "https://integrate.api.nvidia.com/v1"
     ).strip().rstrip("/")
     return base
 
@@ -35,7 +35,7 @@ def get_llm_default_model() -> str:
         os.getenv("OPENROUTER_API_MODEL") or
         os.getenv("NEXT_PUBLIC_LLM_MODEL") or
         os.getenv("NEXT_PUBLIC_OPENROUTER_API_MODEL") or
-        "nvidia/nemotron-3-ultra-550b-a55b:free"
+        "z-ai/glm-5.2"
     ).strip()
 
 

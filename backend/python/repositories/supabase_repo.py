@@ -118,12 +118,20 @@ class SupabaseHelper:
             "id": "00000000-0000-0000-0000-000000000002",
             "user_profile_id": "00000000-0000-0000-0000-000000000001",
             "daily_application_limit": 10,
-            "min_ats_score_threshold": 80.0,
+            "min_ats_score_threshold": 75.0,
+            "profile_ats_threshold": 75.0,
+            "jd_match_threshold": 50.0,
             "auto_apply_enabled": False,
             "require_human_review_for_apply": True,
             "require_human_review_for_email": True,
-            "target_titles": ["Lead Software Engineer", "Frontend Architect", "Lead Full Stack Engineer", "Principal UI Engineer"],
-            "target_locations": ["Remote", "Coimbatore", "Bangalore", "Hybrid", "US Remote"],
+            "target_titles": ["Lead Frontend Architect", "Principal UI Platform Engineer", "Senior UI Developer", "React Developer", "AI Engineer"],
+            "target_roles": ["Senior UI Developer", "React Developer", "Lead Software Engineer", "AI Engineer"],
+            "target_locations": ["Coimbatore", "Bangalore", "Chennai", "India", "Remote"],
+            "remote_preference": "Local + Remote",
+            "experience_levels": ["Senior", "Lead"],
+            "employment_types": ["Full-time", "Contract"],
+            "job_recency_hours": 24,
+            "daily_schedule_time": "08:00 AM IST",
             "blacklisted_companies": ["Revature", "CyberCoders"],
             "blacklisted_keywords": ["Unpaid", "Volunteer", "Junior Intern"],
             "is_active": True
@@ -222,11 +230,13 @@ class SupabaseHelper:
         return {"status": "mock_success", "data": self._mock_profile}
 
     def get_automation_settings(self) -> Dict[str, Any]:
+        merged_settings = dict(self._mock_settings)
         if self.client:
             try:
                 res = self.client.table("automation_settings").select("*").limit(1).execute()
                 if res.data and len(res.data) > 0:
-                    return res.data[0]
+                    merged_settings.update(res.data[0])
+                    return merged_settings
             except Exception as e:
                 print(f"Error fetching automation settings from Supabase: {e}")
 
@@ -237,13 +247,14 @@ class SupabaseHelper:
                     cur.execute("SELECT * FROM automation_settings LIMIT 1;")
                     row = cur.fetchone()
                     if row:
-                        return dict(row)
+                        merged_settings.update(dict(row))
+                        return merged_settings
             except Exception as e:
                 print(f"PostgreSQL automation settings query error: {e}")
             finally:
                 pg_conn.close()
 
-        return self._mock_settings
+        return merged_settings
 
     def update_automation_settings(self, settings_data: Dict[str, Any]) -> Dict[str, Any]:
         settings_data["updated_at"] = datetime.utcnow().isoformat()
@@ -253,10 +264,81 @@ class SupabaseHelper:
                 target_id = existing.get("id") or self._mock_settings["id"]
                 settings_data["id"] = target_id
                 res = self.client.table("automation_settings").upsert(settings_data).execute()
-                return {"status": "success", "data": res.data[0] if res.data else settings_data}
+                saved = res.data[0] if res.data else settings_data
+                self._mock_settings.update(saved)
+                return {"status": "success", "data": saved}
             except Exception as e:
                 print(f"Error updating automation settings in Supabase: {e}")
-                return {"status": "error", "message": str(e)}
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                existing = self.get_automation_settings()
+                target_id = existing.get("id") or self._mock_settings["id"]
+                settings_data["id"] = target_id
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        INSERT INTO automation_settings (
+                            id, user_profile_id, daily_application_limit, min_ats_score_threshold,
+                            profile_ats_threshold, jd_match_threshold, auto_apply_enabled,
+                            require_human_review_for_apply, require_human_review_for_email,
+                            target_titles, target_roles, target_locations, remote_preference,
+                            experience_levels, employment_types, job_recency_hours, daily_schedule_time,
+                            blacklisted_companies, blacklisted_keywords, is_active, updated_at
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                        ON CONFLICT (id) DO UPDATE SET
+                            min_ats_score_threshold = COALESCE(EXCLUDED.min_ats_score_threshold, automation_settings.min_ats_score_threshold),
+                            profile_ats_threshold = COALESCE(EXCLUDED.profile_ats_threshold, automation_settings.profile_ats_threshold),
+                            jd_match_threshold = COALESCE(EXCLUDED.jd_match_threshold, automation_settings.jd_match_threshold),
+                            daily_application_limit = COALESCE(EXCLUDED.daily_application_limit, automation_settings.daily_application_limit),
+                            auto_apply_enabled = COALESCE(EXCLUDED.auto_apply_enabled, automation_settings.auto_apply_enabled),
+                            target_titles = COALESCE(EXCLUDED.target_titles, automation_settings.target_titles),
+                            target_roles = COALESCE(EXCLUDED.target_roles, automation_settings.target_roles),
+                            target_locations = COALESCE(EXCLUDED.target_locations, automation_settings.target_locations),
+                            remote_preference = COALESCE(EXCLUDED.remote_preference, automation_settings.remote_preference),
+                            experience_levels = COALESCE(EXCLUDED.experience_levels, automation_settings.experience_levels),
+                            employment_types = COALESCE(EXCLUDED.employment_types, automation_settings.employment_types),
+                            job_recency_hours = COALESCE(EXCLUDED.job_recency_hours, automation_settings.job_recency_hours),
+                            daily_schedule_time = COALESCE(EXCLUDED.daily_schedule_time, automation_settings.daily_schedule_time),
+                            blacklisted_companies = COALESCE(EXCLUDED.blacklisted_companies, automation_settings.blacklisted_companies),
+                            blacklisted_keywords = COALESCE(EXCLUDED.blacklisted_keywords, automation_settings.blacklisted_keywords),
+                            is_active = COALESCE(EXCLUDED.is_active, automation_settings.is_active),
+                            updated_at = NOW()
+                        RETURNING *;
+                    """, (
+                        target_id,
+                        settings_data.get("user_profile_id", "00000000-0000-0000-0000-000000000001"),
+                        settings_data.get("daily_application_limit", 10),
+                        settings_data.get("min_ats_score_threshold", settings_data.get("profile_ats_threshold", 75.0)),
+                        settings_data.get("profile_ats_threshold", 75.0),
+                        settings_data.get("jd_match_threshold", 50.0),
+                        settings_data.get("auto_apply_enabled", False),
+                        settings_data.get("require_human_review_for_apply", True),
+                        settings_data.get("require_human_review_for_email", True),
+                        settings_data.get("target_titles", ["Senior UI Developer", "React Developer", "Lead Software Engineer", "AI Engineer"]),
+                        settings_data.get("target_roles", ["Senior UI Developer", "React Developer", "Lead Software Engineer", "AI Engineer"]),
+                        settings_data.get("target_locations", ["Coimbatore", "Bangalore", "Chennai", "India", "Remote"]),
+                        settings_data.get("remote_preference", "Local + Remote"),
+                        settings_data.get("experience_levels", ["Senior", "Lead"]),
+                        settings_data.get("employment_types", ["Full-time", "Contract"]),
+                        settings_data.get("job_recency_hours", 24),
+                        settings_data.get("daily_schedule_time", "08:00 AM IST"),
+                        settings_data.get("blacklisted_companies", []),
+                        settings_data.get("blacklisted_keywords", []),
+                        settings_data.get("is_active", True)
+                    ))
+                    row = cur.fetchone()
+                    pg_conn.commit()
+                    if row:
+                        saved = dict(row)
+                        self._mock_settings.update(saved)
+                        return {"status": "success", "data": saved}
+            except Exception as e:
+                print(f"PostgreSQL settings update error: {e}")
+                pg_conn.rollback()
+            finally:
+                pg_conn.close()
 
         self._mock_settings.update(settings_data)
         return {"status": "mock_success", "data": self._mock_settings}

@@ -13,7 +13,7 @@ from backend.python.mcp.job_discovery.models.normalized_job import (
 
 def test_normalized_job_instantiation_and_defaults():
     job = NormalizedJob(
-        source="remotive",
+        source="jsearch",
         source_job_id="101",
         title="Lead Frontend Architect",
         company="NextGen Tech",
@@ -21,7 +21,7 @@ def test_normalized_job_instantiation_and_defaults():
         apply_url="https://example.com/apply/101",
     )
 
-    assert job.source == "remotive"
+    assert job.source == "jsearch"
     assert job.source_job_id == "101"
     assert job.title == "Lead Frontend Architect"
     assert job.company == "NextGen Tech"
@@ -34,8 +34,8 @@ def test_normalized_job_instantiation_and_defaults():
 
 def test_to_repository_dict_mapping():
     job = NormalizedJob(
-        source="adzuna",
-        source_job_id="adz-99",
+        source="jsearch",
+        source_job_id="js-99",
         title="Staff Engineer",
         company="Stripe",
         location="San Francisco, CA",
@@ -53,8 +53,8 @@ def test_to_repository_dict_mapping():
     )
 
     repo_dict = job.to_repository_dict()
-    assert repo_dict["source"] == "adzuna"
-    assert repo_dict["external_job_id"] == "adz-99"
+    assert repo_dict["source"] == "jsearch"
+    assert repo_dict["external_job_id"] == "js-99"
     assert repo_dict["title"] == "Staff Engineer"
     assert repo_dict["company"] == "Stripe"
     assert repo_dict["location_type"] == "Hybrid"

@@ -91,12 +91,20 @@ class AutomationSettingsModel(BaseModel):
     id: Optional[str] = None
     user_profile_id: Optional[str] = None
     daily_application_limit: int = 10
-    min_ats_score_threshold: float = 80.00
+    min_ats_score_threshold: float = 75.00
+    profile_ats_threshold: float = 75.00
+    jd_match_threshold: float = 50.00
     auto_apply_enabled: bool = False
     require_human_review_for_apply: bool = True
     require_human_review_for_email: bool = True
-    target_titles: List[str] = ["Lead Frontend Architect", "Principal UI Platform Engineer"]
-    target_locations: List[str] = ["Remote", "Hybrid"]
+    target_titles: List[str] = ["Lead Frontend Architect", "Principal UI Platform Engineer", "Senior UI Developer", "React Developer", "AI Engineer"]
+    target_roles: List[str] = ["Senior UI Developer", "React Developer", "Lead Software Engineer", "AI Engineer"]
+    target_locations: List[str] = ["Coimbatore", "Bangalore", "Chennai", "India", "Remote"]
+    remote_preference: str = "Local + Remote"
+    experience_levels: List[str] = ["Senior", "Lead"]
+    employment_types: List[str] = ["Full-time", "Contract"]
+    job_recency_hours: int = 24
+    daily_schedule_time: str = "08:00 AM IST"
     blacklisted_companies: List[str] = []
     blacklisted_keywords: List[str] = []
     is_active: bool = True
@@ -105,11 +113,19 @@ class AutomationSettingsModel(BaseModel):
 class AutomationSettingsUpdate(BaseModel):
     daily_application_limit: Optional[int] = None
     min_ats_score_threshold: Optional[float] = None
+    profile_ats_threshold: Optional[float] = None
+    jd_match_threshold: Optional[float] = None
     auto_apply_enabled: Optional[bool] = None
     require_human_review_for_apply: Optional[bool] = None
     require_human_review_for_email: Optional[bool] = None
     target_titles: Optional[List[str]] = None
+    target_roles: Optional[List[str]] = None
     target_locations: Optional[List[str]] = None
+    remote_preference: Optional[str] = None
+    experience_levels: Optional[List[str]] = None
+    employment_types: Optional[List[str]] = None
+    job_recency_hours: Optional[int] = None
+    daily_schedule_time: Optional[str] = None
     blacklisted_companies: Optional[List[str]] = None
     blacklisted_keywords: Optional[List[str]] = None
     is_active: Optional[bool] = None
@@ -121,6 +137,12 @@ class JobDiscoveryQuery(BaseModel):
     title: str = "Lead Frontend Architect"
     keywords: List[str] = ["React", "TypeScript", "Micro Frontends", "AI"]
     location: Optional[str] = "Remote"
+
+class JDSearchRequest(BaseModel):
+    jd_text: str
+    target_role: Optional[str] = None
+    custom_threshold: Optional[float] = None
+    limit: Optional[int] = 30
 
 class JobModel(BaseModel):
     id: Optional[str] = None
@@ -140,6 +162,10 @@ class JobModel(BaseModel):
     apply_url: str
     portal_type: Optional[str] = "custom"
     status: str = "DISCOVERED"
+    match_type: Optional[str] = "PROFILE_MATCH"
+    reference_jd_summary: Optional[str] = None
+    match_score: Optional[float] = None
+    published_time: Optional[str] = None
     idempotency_key: str
     discovered_at: Optional[str] = None
     updated_at: Optional[str] = None

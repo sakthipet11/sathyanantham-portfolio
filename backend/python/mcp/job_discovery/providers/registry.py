@@ -76,27 +76,11 @@ def initialize_providers() -> ProviderRegistry:
     and independently failing — a missing API key for Adzuna does not prevent
     Remotive from being registered.
     """
-    # Import providers here to avoid circular imports
-    from backend.python.mcp.job_discovery.providers.remotive import RemotiveProvider
-    from backend.python.mcp.job_discovery.providers.himalayas import HimalayasProvider
-    from backend.python.mcp.job_discovery.providers.linkedin import LinkedInProvider
-    from backend.python.mcp.job_discovery.providers.remoteok import RemoteOKProvider
-    from backend.python.mcp.job_discovery.providers.arbeitnow import ArbeitnowProvider
-    from backend.python.mcp.job_discovery.providers.themuse import TheMuseProvider
-    from backend.python.mcp.job_discovery.providers.adzuna import AdzunaProvider
-    from backend.python.mcp.job_discovery.providers.greenhouse import GreenhouseProvider
-    from backend.python.mcp.job_discovery.providers.lever import LeverProvider
+    # Import JSearch provider
+    from backend.python.mcp.job_discovery.providers.jsearch import JSearchProvider
 
     providers_to_register = [
-        ("remotive", RemotiveProvider),
-        ("himalayas", HimalayasProvider),
-        ("linkedin", LinkedInProvider),
-        ("remoteok", RemoteOKProvider),
-        ("arbeitnow", ArbeitnowProvider),
-        ("themuse", TheMuseProvider),
-        ("adzuna", AdzunaProvider),
-        ("greenhouse", GreenhouseProvider),
-        ("lever", LeverProvider),
+        ("jsearch", JSearchProvider),
     ]
 
     for name, ProviderClass in providers_to_register:

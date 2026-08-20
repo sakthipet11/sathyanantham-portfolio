@@ -24,12 +24,12 @@ async def test_provider_status_tool(tools_instance):
     res = await tools_instance.get_provider_status()
     assert res["status"] == "success"
     assert "providers" in res
-    assert res["total_count"] >= 4
+    assert res["total_count"] >= 1
     
-    # Check Remotive is listed and enabled
-    remotive_status = next((p for p in res["providers"] if p["provider"] == "remotive"), None)
-    assert remotive_status is not None
-    assert remotive_status["enabled"] is True
+    # Check JSearch is listed and enabled
+    jsearch_status = next((p for p in res["providers"] if p["provider"] == "jsearch"), None)
+    assert jsearch_status is not None
+    assert jsearch_status["enabled"] is True
 
 
 @pytest.mark.asyncio
