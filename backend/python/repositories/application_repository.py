@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from backend.python.repositories.supabase_repo import db_helper
@@ -86,8 +87,8 @@ class ApplicationRepository:
             app_data["submitted_at"] = datetime.utcnow().isoformat()
 
         app_id = app_data.get("id")
-        if not app_id or not app_id.count("-") == 4:
-            key_to_hash = app_data.get('idempotency_key') or str(datetime.utcnow().timestamp())
+        if not app_id:
+            key_to_hash = app_data.get('idempotency_key') or app_data.get('job_id') or "default-app"
             app_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
         app_data["id"] = app_id
 

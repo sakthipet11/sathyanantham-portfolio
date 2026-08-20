@@ -96,8 +96,9 @@ class ReferralRepository:
 
     def save_referral(self, referral_data: Dict[str, Any]) -> Dict[str, Any]:
         ref_id = referral_data.get("id")
-        if not ref_id or not str(ref_id).count("-") == 4:
-            ref_id = str(uuid.uuid4())
+        if not ref_id or str(ref_id).count("-") != 4:
+            key_to_hash = referral_data.get('person_name') or ref_id or str(datetime.utcnow().timestamp())
+            ref_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
         referral_data["id"] = ref_id
         
         now = datetime.now(timezone.utc).isoformat()

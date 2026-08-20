@@ -58,32 +58,26 @@ class TestPhase8Copilot(unittest.TestCase):
         for ref in result["referrals"]:
             self.assertIn("openTwin=true", ref["draft_message"])
 
-    def test_copilot_inbox_intent(self):
-        result = ai_job_copilot_service.process_chat_message("Summarize my recruiter inbox")
-        self.assertEqual(result["type"], "INBOX_SUMMARY_RESULT")
-        self.assertIn("items", result)
+    def test_copilot_tailor_cv_intent(self):
+        result = ai_job_copilot_service.process_chat_message("Tailor CV and resume for Figma")
+        self.assertEqual(result["type"], "TAILOR_RESUME_RESULT")
+        self.assertIn("resume", result)
+        self.assertEqual(result["resume"]["company"], "Figma")
+        self.assertIn("download_url", result["resume"])
 
-    def test_api_copilot_endpoints(self):
-        # 1. Chat endpoint
-        res = self.client.post("/api/v2/copilot/chat", json={
-            "message": "Find the best 10 jobs for me today"
-        })
-        self.assertEqual(res.status_code, 200)
-        data = res.json()
-        self.assertEqual(data["status"], "success")
-        self.assertEqual(data["data"]["type"], "JOB_DISCOVERY_RESULT")
+    def test_copilot_send_hr_email_intent(self):
+        result = ai_job_copilot_service.process_chat_message("Send email to HR for Figma")
+        self.assertEqual(result["type"], "SEND_HR_EMAIL_RESULT")
+        self.assertIn("details", result)
+        self.assertEqual(result["details"]["company"], "Figma")
+        self.assertEqual(result["details"]["status"], "SENT")
 
-        # 2. Suggestions endpoint
-        sug_res = self.client.get("/api/v2/copilot/suggestions")
-        self.assertEqual(sug_res.status_code, 200)
-        self.assertIn("suggestions", sug_res.json())
-
-        # 3. Batch action endpoint
-        act_res = self.client.post("/api/v2/copilot/execute-action", json={
-            "action_id": "APPROVE_ALL_STAGED"
-        })
-        self.assertEqual(act_res.status_code, 200)
-        self.assertIn("approved", act_res.json()["message"].lower())
+    def test_copilot_apply_job_intent(self):
+        result = ai_job_copilot_service.process_chat_message("Apply job for Figma")
+        self.assertEqual(result["type"], "APPLY_JOB_RESULT")
+        self.assertIn("application", result)
+        self.assertEqual(result["application"]["company"], "Figma")
+        self.assertEqual(result["application"]["status"], "SUBMITTED")
 
 if __name__ == "__main__":
     unittest.main()

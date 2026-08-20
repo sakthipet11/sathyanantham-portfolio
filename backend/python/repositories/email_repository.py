@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from backend.python.repositories.supabase_repo import db_helper
@@ -72,8 +73,8 @@ class EmailRepository:
             email_data["received_at"] = datetime.utcnow().isoformat()
 
         email_id = email_data.get("id")
-        if not email_id or not email_id.count("-") == 4:
-            key_to_hash = email_data.get('gmail_message_id') or str(datetime.utcnow().timestamp())
+        if not email_id or email_id.count("-") != 4:
+            key_to_hash = email_data.get('gmail_message_id') or email_id or str(datetime.utcnow().timestamp())
             email_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
         email_data["id"] = email_id
 

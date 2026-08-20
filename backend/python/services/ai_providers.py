@@ -35,7 +35,7 @@ def get_llm_default_model() -> str:
         os.getenv("OPENROUTER_API_MODEL") or
         os.getenv("NEXT_PUBLIC_LLM_MODEL") or
         os.getenv("NEXT_PUBLIC_OPENROUTER_API_MODEL") or
-        "z-ai/glm-5.2"
+        "nvidia/nemotron-3-super-120b-a12b"
     ).strip()
 
 

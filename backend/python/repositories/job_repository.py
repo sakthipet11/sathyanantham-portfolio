@@ -118,9 +118,9 @@ class JobRepository:
         if not job_data.get("discovered_at"):
             job_data["discovered_at"] = datetime.utcnow().isoformat()
 
-        key_to_hash = job_data.get('idempotency_key') or str(datetime.utcnow().timestamp())
+        key_to_hash = job_data.get('idempotency_key') or job_data.get('id') or str(datetime.utcnow().timestamp())
         job_id = job_data.get("id")
-        if not job_id or not job_id.count("-") == 4:
+        if not job_id:
             job_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
         job_data["id"] = job_id
 

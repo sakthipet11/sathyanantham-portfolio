@@ -98,6 +98,7 @@ class ReferralMessagingService:
         self,
         job: Dict[str, Any],
         contact: Dict[str, Any],
+        candidate_profile: Optional[Dict[str, Any]] = None,
         include_twin_demo: bool = True
     ) -> Dict[str, Any]:
         person_name = contact.get("person_name", "there")
@@ -106,7 +107,7 @@ class ReferralMessagingService:
         job_title = job.get("title") or "Engineering Role"
         connection_type = contact.get("connection_type") or "PUBLIC_DIRECTORY"
 
-        portfolio_url = candidate_profile.get("portfolio_url") if candidate_profile else "https://sathyanantham-portfolio-tv.vercel.app"
+        portfolio_url = (candidate_profile.get("portfolio_url") if candidate_profile else None) or "https://sathyanantham-portfolio-tv.vercel.app"
         twin_url = f"{portfolio_url}?openTwin=true"
 
         if connection_type == "1ST_DEGREE_LINKEDIN":
