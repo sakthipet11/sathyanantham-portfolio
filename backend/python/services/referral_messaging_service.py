@@ -65,16 +65,19 @@ class ReferralMessagingService:
         }
 
         try:
-            raw_response = await self.ai_provider.chat_completion(
+            full_response = ""
+            async for chunk in self.ai_provider.chat_completion(
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Generate referral message for: {json.dumps(user_content)}"}
                 ],
+                stream=False,
                 temperature=0.3,
                 max_tokens=600
-            )
+            ):
+                full_response += chunk
 
-            clean_json = raw_response.strip()
+            clean_json = full_response.strip()
             if "```json" in clean_json:
                 clean_json = clean_json.split("```json")[1].split("```")[0].strip()
             elif "```" in clean_json:
@@ -92,7 +95,7 @@ class ReferralMessagingService:
             print(f"[REFERRAL_MSG] LLM generation failed, falling back to deterministic template: {e}")
 
         # Deterministic Grounded Fallback Template
-        return self.deterministic_generate(job, contact, include_twin_demo)
+        return self.deterministic_generate(job=job, contact=contact, candidate_profile=candidate_profile, include_twin_demo=include_twin_demo)
 
     def deterministic_generate(
         self,

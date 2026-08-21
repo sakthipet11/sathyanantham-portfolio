@@ -145,3 +145,31 @@ async def toggle_admin_presence(req: PresenceToggleRequest):
         "is_online": ws_manager.is_sathyanantham_online,
         "message": f"Sathyanantham V presence updated to {'Online' if req.is_online else 'Offline'}"
     }
+
+# ============================================================================
+# Google Drive Excel -> Database Sync Job Endpoints
+# ============================================================================
+@router.post("/gdrive-sync/run")
+def trigger_gdrive_sync_run_now(date_str: Optional[str] = Query(None, description="Optional target date YYYY-MM-DD")):
+    """Run Now button trigger for instant Google Drive Excel ingestion."""
+    from backend.python.services.gdrive_sync_service import gdrive_sync_service
+    res = gdrive_sync_service.run_sync(date_str=date_str, triggered_by="MANUAL_RUN_NOW_UI")
+    return res
+
+@router.get("/gdrive-sync/status")
+def get_gdrive_sync_status():
+    """Gets Google Drive Sync HUD status and last run metrics."""
+    settings = db_helper.get_automation_settings()
+    from datetime import datetime
+    today_file = f"job_tracker_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
+    return {
+        "status": "success",
+        "enabled": settings.get("gdrive_sync_enabled", True),
+        "schedule_time": settings.get("gdrive_sync_schedule_time", "07:00 AM IST"),
+        "frequency": settings.get("gdrive_sync_frequency", "DAILY"),
+        "last_run": settings.get("gdrive_sync_last_run"),
+        "last_status": settings.get("gdrive_sync_last_status", "IDLE"),
+        "last_file": settings.get("gdrive_sync_last_file", today_file),
+        "last_jobs_count": settings.get("gdrive_sync_last_jobs_count", 0)
+    }
+

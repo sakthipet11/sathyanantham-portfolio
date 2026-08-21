@@ -134,7 +134,14 @@ class SupabaseHelper:
             "daily_schedule_time": "08:00 AM IST",
             "blacklisted_companies": ["Revature", "CyberCoders"],
             "blacklisted_keywords": ["Unpaid", "Volunteer", "Junior Intern"],
-            "is_active": True
+            "is_active": True,
+            "gdrive_sync_enabled": True,
+            "gdrive_sync_schedule_time": "07:00 AM IST",
+            "gdrive_sync_frequency": "DAILY",
+            "gdrive_sync_last_run": None,
+            "gdrive_sync_last_status": "IDLE",
+            "gdrive_sync_last_file": f"job_tracker_{datetime.now().strftime('%Y-%m-%d')}.xlsx",
+            "gdrive_sync_last_jobs_count": 0
         }
 
         self._mock_audit_logs: List[Dict[str, Any]] = []
@@ -332,8 +339,9 @@ class SupabaseHelper:
                     pg_conn.commit()
                     if row:
                         saved = dict(row)
+                        saved.update(settings_data)
                         self._mock_settings.update(saved)
-                        return {"status": "success", "data": saved}
+                        return {"status": "success", "data": self._mock_settings}
             except Exception as e:
                 print(f"PostgreSQL settings update error: {e}")
                 pg_conn.rollback()

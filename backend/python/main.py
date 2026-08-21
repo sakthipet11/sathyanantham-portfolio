@@ -61,6 +61,15 @@ app.include_router(copilot.router)
 app.include_router(portfolio.router)
 app.include_router(resumes.router)
 
+@app.on_event("startup")
+async def start_gdrive_sync_scheduler():
+    try:
+        from backend.python.services.gdrive_sync_scheduler import gdrive_sync_scheduler
+        gdrive_sync_scheduler.start()
+        print("[MAIN] Google Drive Sync background scheduler started successfully.")
+    except Exception as e:
+        print(f"[MAIN] Error starting GDrive sync scheduler: {e}")
+
 @app.get("/")
 def read_root():
     return {

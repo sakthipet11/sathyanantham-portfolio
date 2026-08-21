@@ -55,7 +55,15 @@ class ReferralRepository:
                     cur.execute(sql, tuple(params))
                     rows = cur.fetchall()
                     if rows:
-                        return [dict(r) for r in rows]
+                        merged_list = []
+                        for r in rows:
+                            row_dict = dict(r)
+                            r_id = str(row_dict.get("id"))
+                            if r_id in self._in_memory_referrals:
+                                merged_list.append({**self._in_memory_referrals[r_id], **row_dict})
+                            else:
+                                merged_list.append(row_dict)
+                        return merged_list
             except Exception as e:
                 print(f"[REFERRAL_REPO] PG list_referrals error: {e}")
             finally:
@@ -71,11 +79,15 @@ class ReferralRepository:
         return results[:limit]
 
     def get_referral_by_id(self, referral_id: str) -> Optional[Dict[str, Any]]:
+        ref_id_str = str(referral_id)
         if self.db.client:
             try:
                 res = self.db.client.table("referrals").select("*").eq("id", referral_id).execute()
                 if res.data and len(res.data) > 0:
-                    return res.data[0]
+                    pg_data = res.data[0]
+                    if ref_id_str in self._in_memory_referrals:
+                        return {**self._in_memory_referrals[ref_id_str], **pg_data}
+                    return pg_data
             except Exception as e:
                 print(f"[REFERRAL_REPO] Error fetching referral {referral_id}: {e}")
 
@@ -83,16 +95,19 @@ class ReferralRepository:
         if pg_conn:
             try:
                 with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                    cur.execute("SELECT * FROM referrals WHERE id::text = %s LIMIT 1;", (str(referral_id),))
+                    cur.execute("SELECT * FROM referrals WHERE id::text = %s LIMIT 1;", (ref_id_str,))
                     row = cur.fetchone()
                     if row:
-                        return dict(row)
+                        pg_data = dict(row)
+                        if ref_id_str in self._in_memory_referrals:
+                            return {**self._in_memory_referrals[ref_id_str], **pg_data}
+                        return pg_data
             except Exception as e:
                 print(f"[REFERRAL_REPO] PG query error: {e}")
             finally:
                 pg_conn.close()
 
-        return self._in_memory_referrals.get(referral_id)
+        return self._in_memory_referrals.get(ref_id_str) or self._in_memory_referrals.get(referral_id)
 
     def save_referral(self, referral_data: Dict[str, Any]) -> Dict[str, Any]:
         ref_id = referral_data.get("id")
@@ -137,8 +152,9 @@ class ReferralRepository:
                     row = cur.fetchone()
                     if row:
                         res = dict(row)
-                        self._in_memory_referrals[referral_data["id"]] = res
-                        return res
+                        merged = {**referral_data, **res}
+                        self._in_memory_referrals[referral_data["id"]] = merged
+                        return merged
             except Exception as e:
                 print(f"[REFERRAL_REPO] PG save_referral error: {e}")
             finally:
@@ -147,10 +163,30 @@ class ReferralRepository:
         self._in_memory_referrals[referral_data["id"]] = referral_data
         return referral_data
 
-    def update_referral_status(self, referral_id: str, status: str, message: Optional[str] = None, sent_at: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    def update_referral_status(
+        self,
+        referral_id: str,
+        status: str,
+        message: Optional[str] = None,
+        sent_at: Optional[str] = None,
+        contact_email: Optional[str] = None,
+        follow_up_due_at: Optional[str] = None,
+        follow_up_status: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         ref = self.get_referral_by_id(referral_id)
-        
         now = datetime.now(timezone.utc).isoformat()
+
+        updates = {"status": status, "updated_at": now}
+        if message is not None:
+            updates["message"] = message
+        if sent_at is not None:
+            updates["sent_at"] = sent_at
+        if contact_email is not None:
+            updates["contact_email"] = contact_email
+        if follow_up_due_at is not None:
+            updates["follow_up_due_at"] = follow_up_due_at
+        if follow_up_status is not None:
+            updates["follow_up_status"] = follow_up_status
 
         pg_conn = self.db._get_pg_connection()
         if pg_conn:
@@ -160,16 +196,41 @@ class ReferralRepository:
                     row = cur.fetchone()
                     if row:
                         res = dict(row)
-                        self._in_memory_referrals[referral_id] = res
-                        return res
+                        if referral_id in self._in_memory_referrals:
+                            self._in_memory_referrals[referral_id].update(updates)
+                        else:
+                            self._in_memory_referrals[referral_id] = {**res, **updates}
+                        return self._in_memory_referrals[referral_id]
             except Exception as e:
                 print(f"[REFERRAL_REPO] PG update_referral_status error: {e}")
             finally:
                 pg_conn.close()
 
         if ref:
-            ref["status"] = status
-            ref["updated_at"] = now
+            ref.update(updates)
+            self._in_memory_referrals[referral_id] = ref
+            return ref
+        return None
+
+    def update_referral(self, referral_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        ref = self.get_referral_by_id(referral_id)
+        now = datetime.now(timezone.utc).isoformat()
+        updates["updated_at"] = now
+
+        if self.db.client:
+            try:
+                res = self.db.client.table("referrals").update(updates).eq("id", referral_id).execute()
+                if res.data and len(res.data) > 0:
+                    if referral_id in self._in_memory_referrals:
+                        self._in_memory_referrals[referral_id].update(res.data[0])
+                    else:
+                        self._in_memory_referrals[referral_id] = res.data[0]
+                    return self._in_memory_referrals[referral_id]
+            except Exception as e:
+                print(f"[REFERRAL_REPO] Supabase update error: {e}")
+
+        if ref:
+            ref.update(updates)
             self._in_memory_referrals[referral_id] = ref
             return ref
         return None
@@ -187,14 +248,15 @@ class ReferralRepository:
         self._in_memory_events.append(event)
 
     def get_metrics(self) -> Dict[str, Any]:
-        all_refs = self.list_referrals(limit=100)
+        all_refs = self.list_referrals(limit=200)
         return {
             "total_qualified_jobs": len(all_refs),
-            "first_degree_contacts": sum(1 for r in all_refs if r.get("connection_degree") in ["1ST_DEGREE", "1ST_DEGREE_LINKEDIN"]),
+            "first_degree_contacts": sum(1 for r in all_refs if r.get("connection_type") == "1ST_DEGREE_LINKEDIN" or r.get("connection_degree") in ["1ST_DEGREE", "1ST_DEGREE_LINKEDIN"]),
             "messages_drafted": sum(1 for r in all_refs if r.get("status") in ["DRAFTED", "READY_FOR_REVIEW", "APPROVED", "SENT"]),
             "ready_for_review": sum(1 for r in all_refs if r.get("status") == "READY_FOR_REVIEW"),
             "approved": sum(1 for r in all_refs if r.get("status") == "APPROVED"),
             "sent": sum(1 for r in all_refs if r.get("status") == "SENT"),
+            "no_contact_found": sum(1 for r in all_refs if r.get("status") == "NO_CONTACT_FOUND"),
             "replied": sum(1 for r in all_refs if r.get("status") == "REPLIED")
         }
 
