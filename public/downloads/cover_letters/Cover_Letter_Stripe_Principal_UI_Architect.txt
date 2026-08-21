@@ -1,0 +1,12 @@
+Dear Elena Rostova,
+
+I am thrilled to submit my application for the Principal UI Architect position at Stripe. The prospect of leading distributed UI architecture and micro frontends at a company that powers global commerce aligns perfectly with my passion for building scalable, high‑performance front‑end systems.
+
+With over 13.5 years of experience architecting enterprise web platforms, I have spearheaded Micro Frontend implementations using Module Federation, delivered large‑scale React and Next.js applications, and integrated AI‑driven agent capabilities (Claude Skills, IBM AI) to enhance developer productivity and user experience. These initiatives consistently reduced bundle sizes by 30‑40 %, improved page load times, and enabled independent team velocity.
+
+At Stripe, I would leverage this background to evolve your UI foundation, ensuring seamless composition of micro frontends, optimizing runtime performance, and establishing clear contracts that support rapid feature rollout across payments, billing, and emerging products. My focus on architectural governance and mentorship would help scale your engineering organization while maintaining the reliability Stripe’s users expect.
+
+Please review my portfolio at https://sathyanantham-portfolio-tv.vercel.app to see representative work, and feel free to reach out via v.sathyanantham@gmail.com or +91 8870956756. I look forward to discussing how I can contribute to Stripe’s next wave of UI innovation.
+
+Sincerely  
+Sathyanantham V

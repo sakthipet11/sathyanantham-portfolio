@@ -129,6 +129,13 @@ class AutomationSettingsUpdate(BaseModel):
     blacklisted_companies: Optional[List[str]] = None
     blacklisted_keywords: Optional[List[str]] = None
     is_active: Optional[bool] = None
+    gdrive_sync_enabled: Optional[bool] = None
+    gdrive_sync_schedule_time: Optional[str] = None
+    gdrive_sync_frequency: Optional[str] = None
+    gdrive_sync_last_run: Optional[str] = None
+    gdrive_sync_last_status: Optional[str] = None
+    gdrive_sync_last_file: Optional[str] = None
+    gdrive_sync_last_jobs_count: Optional[int] = None
 
 # ============================================================================
 # Job Discovery, ATS Scoring & Pipeline Models

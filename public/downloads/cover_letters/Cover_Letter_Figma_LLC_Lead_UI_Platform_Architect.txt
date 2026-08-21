@@ -1,0 +1,12 @@
+Dear Marcus Vance,
+
+I am excited to apply for the Lead UI Platform Architect role at Figma LLC, where I can bring my 13.5+ years of experience building enterprise‑scale web platforms to advance Figma’s design system and micro‑frontend initiatives. Your focus on architecting design systems and micro‑frontend platforms in TypeScript aligns perfectly with my passion for creating cohesive, high‑performance UI ecosystems.
+
+Throughout my career I have led the design and implementation of Micro Frontend architectures using Module Federation, enabling independent teams to ship features at velocity while maintaining a unified user experience. I have engineered Enterprise React and Next.js applications that consistently achieve sub‑100 ms first‑contentful paint and support millions of monthly active users. Additionally, I have integrated AI agent capabilities—leveraging Claude Skills and IBM AI—to automate component generation and improve accessibility testing, further accelerating delivery cycles.
+
+At Figma, I would partner with your engineering leadership to evolve the platform’s extensibility, ensuring that micro‑frontend boundaries enhance collaboration without sacrificing performance or design consistency. My track record of scaling UI platforms while fostering cross‑team autonomy positions me to drive both technical excellence and product innovation for your growing designer community.
+
+Please find my portfolio at https://sathyanantham-portfolio-tv.vercel.app, which showcases representative architectures and AI‑enhanced UI solutions. I look forward to discussing how my background can contribute to Figma’s next generation of design tools.
+
+Sincerely  
+Sathyanantham V
