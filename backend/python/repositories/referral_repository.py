@@ -96,8 +96,9 @@ class ReferralRepository:
 
     def save_referral(self, referral_data: Dict[str, Any]) -> Dict[str, Any]:
         ref_id = referral_data.get("id")
-        if not ref_id or not str(ref_id).count("-") == 4:
-            ref_id = str(uuid.uuid4())
+        if not ref_id or str(ref_id).count("-") != 4:
+            key_to_hash = referral_data.get('person_name') or ref_id or str(datetime.utcnow().timestamp())
+            ref_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
         referral_data["id"] = ref_id
         
         now = datetime.now(timezone.utc).isoformat()
@@ -228,10 +229,13 @@ class ReferralRepository:
             try:
                 with pg_conn.cursor() as cur:
                     cur.execute("DELETE FROM referrals WHERE id::text = %s;", (str(referral_id),))
-                    if cur.rowcount > 0:
+                    deleted_count = cur.rowcount
+                    pg_conn.commit()
+                    if deleted_count > 0:
                         deleted = True
             except Exception as e:
                 print(f"[REFERRAL_REPO] PG delete error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 

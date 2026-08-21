@@ -1,7 +1,11 @@
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Body, Header, Depends
 from pydantic import BaseModel
+from backend.python.models.pydantic_models import (
+    JDSearchRequest, AutomationSettingsUpdate, AutomationSettingsModel
+)
 from backend.python.repositories.job_repository import job_repository
+from backend.python.repositories.supabase_repo import db_helper
 from backend.python.services.job_discovery_service import job_discovery_service
 from backend.python.services.job_scoring_service import job_scoring_service
 
@@ -12,40 +16,86 @@ class StatusUpdateRequest(BaseModel):
     notes: Optional[str] = None
 
 class DiscoveryTriggerRequest(BaseModel):
-    target_role: Optional[str] = "Lead Frontend Architect"
+    target_role: Optional[str] = None
     triggered_by: Optional[str] = "MANUAL_ADMIN"
 
 # ============================================================================
-# Cloud Scheduler & Automation Ingestion Endpoint
+# 1. Cloud Scheduler & Automation Discovery Endpoints
 # ============================================================================
 @router.post("/api/automation/jobs/discover")
 async def trigger_automated_job_discovery(req: DiscoveryTriggerRequest = Body(default=DiscoveryTriggerRequest())):
     """
-    Cloud Scheduler & Admin trigger endpoint.
-    Scans configured job sources, normalizes, deduplicates, and scores with Gemini.
+    Daily Job Discovery Pipeline (Use Case 1: Profile ↔ Job ATS >= 75%).
+    Discovers jobs based on configured locations, remote preference, roles, and recency.
     """
     result = await job_discovery_service.run_discovery_pipeline(
-        target_role=req.target_role or "Lead Frontend Architect",
+        target_role=req.target_role,
         triggered_by=req.triggered_by or "CLOUD_SCHEDULER"
     )
     return result
 
 # ============================================================================
-# Job Discovery & ATS Radar API Endpoints
+# 2. Search Jobs Using a Reference Job Description (Use Case 2: JD Match >= 50%)
+# ============================================================================
+@router.post("/api/v2/jobs/search-by-jd")
+async def search_jobs_by_jd(req: JDSearchRequest):
+    """
+    JD-Based Search:
+    Extracts skills/role from reference JD, searches multi-portal sources,
+    and runs AI semantic comparison (Match >= 50%).
+    """
+    if not req.jd_text or len(req.jd_text.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Please provide a valid Job Description with at least 10 characters.")
+
+    result = await job_discovery_service.search_jobs_by_jd(
+        jd_text=req.jd_text,
+        custom_threshold=req.custom_threshold,
+        limit=req.limit or 30
+    )
+    return result
+
+# ============================================================================
+# 3. Job Discovery Settings Endpoints
+# ============================================================================
+@router.get("/api/v2/jobs/settings")
+def get_job_discovery_settings():
+    """Returns the current job discovery settings (the single source of truth)."""
+    settings = db_helper.get_automation_settings()
+    return {
+        "status": "success",
+        "settings": settings
+    }
+
+@router.put("/api/v2/jobs/settings")
+def update_job_discovery_settings(req: AutomationSettingsUpdate):
+    """Updates job discovery configuration (locations, remote, roles, recency, thresholds)."""
+    update_data = {k: v for k, v in req.model_dump().items() if v is not None}
+    res = db_helper.update_automation_settings(update_data)
+    return res
+
+# ============================================================================
+# 4. Job Discovery & ATS Radar API Endpoints
 # ============================================================================
 @router.get("/api/v2/jobs/metrics")
 def get_jobs_metrics():
-    """Returns HUD analytics: Discovered today, qualified, average ATS score, etc."""
+    """Returns HUD analytics: Jobs Found, New Jobs, Profile Matches, JD Matches, Top Match %, Remote Jobs."""
     return {"status": "success", "metrics": job_repository.get_job_metrics()}
 
 @router.get("/api/v2/jobs")
 def list_jobs(
     status: Optional[str] = Query(None, description="Filter by status e.g. QUALIFIED, REJECTED, MANUAL_REQUIRED, APPROVED"),
     source: Optional[str] = Query(None, description="Filter by source e.g. linkedin, greenhouse, lever, workday"),
-    min_score: Optional[float] = Query(None, description="Minimum ATS match score threshold"),
+    match_type: Optional[str] = Query(None, description="Filter by match type: PROFILE_MATCH, JD_MATCH"),
+    min_score: Optional[float] = Query(None, description="Minimum match score threshold"),
     limit: int = Query(50, ge=1, le=200)
 ):
-    jobs = job_repository.list_jobs(status=status, source=source, min_score=min_score, limit=limit)
+    jobs = job_repository.list_jobs(
+        status=status,
+        source=source,
+        match_type=match_type,
+        min_score=min_score,
+        limit=limit
+    )
     return {"status": "success", "count": len(jobs), "jobs": jobs}
 
 @router.get("/api/v2/jobs/{job_id}")

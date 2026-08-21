@@ -17,3 +17,21 @@ jobs:
       max_retry_duration: "300s"
       min_backoff_duration: "10s"
       max_backoff_duration: "60s"
+
+  - name: daily-job-discovery
+    description: "Daily automated job discovery via MCP server. Scans configured providers (Remotive, Himalayas, Adzuna, etc.) for real job listings, normalizes, deduplicates, and scores with AI."
+    schedule: "0 6 * * *" # Daily at 06:00 AM UTC
+    time_zone: "UTC"
+    http_target:
+      uri: "https://api.sathyanantham.dev/api/automation/jobs/discover"
+      http_method: "POST"
+      headers:
+        Content-Type: "application/json"
+        X-Service-Token: "sched-secret-token-2026"
+      body: '{"target_role": "Lead Frontend Architect", "triggered_by": "CLOUD_SCHEDULER"}'
+    retry_config:
+      retry_count: 3
+      max_retry_duration: "300s"
+      min_backoff_duration: "10s"
+      max_backoff_duration: "60s"
+

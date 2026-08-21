@@ -44,6 +44,50 @@ class ResumeRepository:
         self.db = db_helper
         self._in_memory_resumes: Dict[str, Dict[str, Any]] = {r["id"]: dict(r) for r in DEFAULT_MOCK_RESUMES}
 
+    def save_resume(self, resume_data: Dict[str, Any]) -> Dict[str, Any]:
+        res_id = resume_data.get("id") or f"resume-{uuid.uuid4().hex[:8]}"
+        resume_data["id"] = res_id
+        if "created_at" not in resume_data:
+            resume_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        
+        self._in_memory_resumes[res_id] = dict(resume_data)
+
+        if self.db.client:
+            try:
+                self.db.client.table("resume_versions").upsert(resume_data).execute()
+            except Exception as e:
+                print(f"[RESUME_REPO] Supabase save error: {e}")
+
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO resume_versions (id, name, role, score, status, created_at, download_url)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            role = EXCLUDED.role,
+                            score = EXCLUDED.score,
+                            status = EXCLUDED.status,
+                            download_url = EXCLUDED.download_url;
+                    """, (
+                        res_id,
+                        resume_data.get("name", "Tailored_Resume.pdf"),
+                        resume_data.get("role", "Lead Engineer"),
+                        resume_data.get("score", "95%"),
+                        resume_data.get("status", "ACTIVE"),
+                        resume_data.get("created_at"),
+                        resume_data.get("download_url", f"/downloads/{resume_data.get('name')}")
+                    ))
+                    pg_conn.commit()
+            except Exception as e:
+                pass
+            finally:
+                pg_conn.close()
+
+        return resume_data
+
     def list_resumes(self) -> List[Dict[str, Any]]:
         if self.db.client:
             try:
@@ -124,10 +168,13 @@ class ResumeRepository:
             try:
                 with pg_conn.cursor() as cur:
                     cur.execute("DELETE FROM resume_versions WHERE id::text = %s;", (str(resume_id),))
-                    if cur.rowcount > 0:
+                    deleted_count = cur.rowcount
+                    pg_conn.commit()
+                    if deleted_count > 0:
                         deleted = True
             except Exception as e:
-                pass
+                print(f"[RESUME_REPO] PG delete error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 

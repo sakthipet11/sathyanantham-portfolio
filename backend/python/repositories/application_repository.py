@@ -1,4 +1,5 @@
 import hashlib
+import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from backend.python.repositories.supabase_repo import db_helper
@@ -86,8 +87,8 @@ class ApplicationRepository:
             app_data["submitted_at"] = datetime.utcnow().isoformat()
 
         app_id = app_data.get("id")
-        if not app_id or not app_id.count("-") == 4:
-            key_to_hash = app_data.get('idempotency_key') or str(datetime.utcnow().timestamp())
+        if not app_id:
+            key_to_hash = app_data.get('idempotency_key') or app_data.get('job_id') or "default-app"
             app_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
         app_data["id"] = app_id
 
@@ -115,18 +116,20 @@ class ApplicationRepository:
                         RETURNING *;
                     """, (
                         app_data["id"],
-                        app_data.get("job_id", "JOB-101"),
-                        app_data.get("role", "Lead Frontend Architect"),
-                        app_data.get("company", "TechCorp Enterprise"),
-                        app_data.get("status", "Submitted")
+                        app_data.get("job_id", ""),
+                        app_data.get("role", ""),
+                        app_data.get("company", ""),
+                        app_data.get("status", "SUBMITTED")
                     ))
                     row = cur.fetchone()
+                    pg_conn.commit()
                     if row:
                         saved = dict(row)
                         self._in_memory_apps[saved["id"]] = saved
                         return saved
             except Exception as e:
                 print(f"[APP_REPO] PG save_application error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 
@@ -263,10 +266,13 @@ class ApplicationRepository:
             try:
                 with pg_conn.cursor() as cur:
                     cur.execute("DELETE FROM applications WHERE id::text = %s;", (str(app_id),))
-                    if cur.rowcount > 0:
+                    deleted_count = cur.rowcount
+                    pg_conn.commit()
+                    if deleted_count > 0:
                         deleted = True
             except Exception as e:
                 print(f"[APP_REPO] PG delete error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 

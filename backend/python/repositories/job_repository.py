@@ -1,3 +1,5 @@
+import decimal
+import uuid
 import hashlib
 import json
 from typing import Dict, Any, List, Optional
@@ -9,6 +11,44 @@ try:
     import psycopg2.extras
 except ImportError:
     psycopg2 = None
+
+def _sanitize_record(val: Any) -> Any:
+    if isinstance(val, decimal.Decimal):
+        return float(val)
+    if isinstance(val, dict):
+        return {k: _sanitize_record(v) for k, v in val.items()}
+    if isinstance(val, list):
+        return [_sanitize_record(v) for v in val]
+    return val
+
+def _normalize_score_details(score_data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not score_data:
+        return None
+
+    score = dict(_sanitize_record(score_data))
+
+    breakdown = {}
+    sb = score.get("score_breakdown")
+    if isinstance(sb, str):
+        try:
+            breakdown = json.loads(sb)
+        except Exception:
+            breakdown = {}
+    elif isinstance(sb, dict):
+        breakdown = sb
+
+    score["overall_score"] = float(score.get("overall_score") or breakdown.get("overall_score") or 0.0)
+    score["skills_match"] = float(score.get("skills_match") if score.get("skills_match") is not None else (score.get("skills_match_score") if score.get("skills_match_score") is not None else (breakdown.get("skills_match") if breakdown.get("skills_match") is not None else (score.get("keyword_match") or 0.0))))
+    score["experience_match"] = float(score.get("experience_match") if score.get("experience_match") is not None else (score.get("experience_match_score") if score.get("experience_match_score") is not None else (breakdown.get("experience_match") or 0.0)))
+    score["title_match"] = float(score.get("title_match") if score.get("title_match") is not None else (score.get("seniority_match_score") if score.get("seniority_match_score") is not None else (breakdown.get("title_match") or 0.0)))
+    score["recommendation"] = score.get("recommendation") or score.get("evaluation_summary") or breakdown.get("recommendation") or "Evaluation complete."
+    score["strengths"] = score.get("strengths") or breakdown.get("strengths") or []
+    score["gaps"] = score.get("gaps") or breakdown.get("gaps") or []
+    score["matching_keywords"] = score.get("matching_keywords") or score.get("matching_skills") or breakdown.get("matching_keywords") or []
+    score["missing_keywords"] = score.get("missing_keywords") or score.get("missing_skills") or breakdown.get("missing_keywords") or []
+    score["match_level"] = score.get("match_level") or breakdown.get("match_level") or "QUALIFIED MATCH"
+
+    return score
 
 class JobRepository:
     def __init__(self):
@@ -78,9 +118,9 @@ class JobRepository:
         if not job_data.get("discovered_at"):
             job_data["discovered_at"] = datetime.utcnow().isoformat()
 
-        key_to_hash = job_data.get('idempotency_key') or str(datetime.utcnow().timestamp())
+        key_to_hash = job_data.get('idempotency_key') or job_data.get('id') or str(datetime.utcnow().timestamp())
         job_id = job_data.get("id")
-        if not job_id or not job_id.count("-") == 4:
+        if not job_id:
             job_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
         job_data["id"] = job_id
 
@@ -99,13 +139,25 @@ class JobRepository:
             try:
                 with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute("""
-                        INSERT INTO jobs (id, title, company, location, apply_url, portal_type, status, idempotency_key, description_raw)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        INSERT INTO jobs (
+                            id, title, company, location, apply_url, portal_type, status,
+                            idempotency_key, description_raw, source, job_url, posted_date,
+                            fingerprint, tech_stack, salary_min, salary_max, match_type,
+                            reference_jd_summary, match_score, published_time
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (idempotency_key) DO UPDATE SET
                             title = EXCLUDED.title,
                             company = EXCLUDED.company,
                             location = EXCLUDED.location,
                             status = EXCLUDED.status,
+                            source = COALESCE(EXCLUDED.source, jobs.source),
+                            job_url = COALESCE(EXCLUDED.job_url, jobs.job_url),
+                            fingerprint = COALESCE(EXCLUDED.fingerprint, jobs.fingerprint),
+                            match_type = COALESCE(EXCLUDED.match_type, jobs.match_type),
+                            reference_jd_summary = COALESCE(EXCLUDED.reference_jd_summary, jobs.reference_jd_summary),
+                            match_score = COALESCE(EXCLUDED.match_score, jobs.match_score),
+                            published_time = COALESCE(EXCLUDED.published_time, jobs.published_time),
                             updated_at = NOW()
                         RETURNING *;
                     """, (
@@ -117,34 +169,48 @@ class JobRepository:
                         job_data.get("portal_type", "custom"),
                         job_data.get("status", "DISCOVERED"),
                         job_data.get("idempotency_key", str(job_id)),
-                        job_data.get("description_raw", job_data.get("description", ""))
+                        job_data.get("description_raw", job_data.get("description", "")),
+                        job_data.get("source"),
+                        job_data.get("job_url"),
+                        job_data.get("posted_date"),
+                        job_data.get("fingerprint"),
+                        job_data.get("tech_stack", []),
+                        job_data.get("salary_min"),
+                        job_data.get("salary_max"),
+                        job_data.get("match_type", "PROFILE_MATCH"),
+                        job_data.get("reference_jd_summary"),
+                        job_data.get("match_score"),
+                        job_data.get("published_time")
                     ))
                     row = cur.fetchone()
+                    pg_conn.commit()
 
                     try:
-                        cur.execute("""
-                            INSERT INTO job_listings (id, title, company, location, apply_url, portal_type, status, idempotency_key, description_raw)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            ON CONFLICT DO NOTHING;
-                        """, (
-                            job_data["id"],
-                            job_data.get("title", ""),
-                            job_data.get("company", ""),
-                            job_data.get("location", "Remote"),
-                            job_data.get("apply_url", "https://example.com"),
-                            job_data.get("portal_type", "custom"),
-                            job_data.get("status", "DISCOVERED"),
-                            job_data.get("idempotency_key", str(job_id)),
-                            job_data.get("description_raw", job_data.get("description", ""))
-                        ))
+                        with pg_conn.cursor() as cur2:
+                            cur2.execute("""
+                                INSERT INTO job_listings (id, title, company, location, tech_stack, source, discovered_by_agent)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                ON CONFLICT (id) DO NOTHING;
+                            """, (
+                                str(job_data["id"]),
+                                job_data.get("title", ""),
+                                job_data.get("company", ""),
+                                job_data.get("location", "Remote"),
+                                job_data.get("tech_stack", []),
+                                job_data.get("source", "mcp"),
+                                "job_discovery_mcp"
+                            ))
+                            pg_conn.commit()
                     except Exception:
                         pass
+
                     if row:
                         saved = dict(row)
                         self._in_memory_jobs[saved["id"]] = saved
                         return saved
             except Exception as e:
                 print(f"[JOB_REPO] PG save_job error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 
@@ -170,12 +236,14 @@ class JobRepository:
                 with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute("UPDATE jobs SET status = %s, updated_at = NOW() WHERE id::text = %s RETURNING *;", (status, str(job_id)))
                     row = cur.fetchone()
+                    pg_conn.commit()
                     if row:
                         res = dict(row)
                         self._in_memory_jobs[str(job_id)] = res
                         return res
             except Exception as e:
                 print(f"[JOB_REPO] PG update_job_status error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 
@@ -202,6 +270,56 @@ class JobRepository:
             except Exception as e:
                 print(f"[JOB_REPO] Error saving score to Supabase: {e}")
 
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    score_breakdown = {
+                        "responsibility_match": score_data.get("responsibility_match", 85.0),
+                        "education_match": score_data.get("education_match", 90.0),
+                        "location_match": score_data.get("location_match", 90.0),
+                        "keyword_match": score_data.get("keyword_match", 85.0),
+                        "strengths": score_data.get("strengths", []),
+                        "gaps": score_data.get("gaps", []),
+                        "match_type": score_data.get("match_type", "PROFILE_MATCH"),
+                        "reference_jd": score_data.get("reference_jd", "")
+                    }
+                    cur.execute("""
+                        INSERT INTO job_scores (
+                            job_id, overall_score, skills_match_score, experience_match_score,
+                            seniority_match_score, missing_skills, matching_skills,
+                            evaluation_summary, score_breakdown, llm_model_used, evaluated_at,
+                            match_type, reference_jd
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        RETURNING *;
+                    """, (
+                        score_data["job_id"],
+                        score_data.get("overall_score", 0.0),
+                        score_data.get("skills_match", score_data.get("skills_match_score", 0.0)),
+                        score_data.get("experience_match", score_data.get("experience_match_score", 0.0)),
+                        score_data.get("seniority_match", score_data.get("seniority_match_score", 0.0)),
+                        score_data.get("missing_keywords", score_data.get("missing_skills", [])),
+                        score_data.get("matching_keywords", score_data.get("matching_skills", [])),
+                        score_data.get("recommendation", score_data.get("evaluation_summary", "Evaluation complete")),
+                        json.dumps(score_breakdown),
+                        score_data.get("llm_model_used", "openrouter/nemotron"),
+                        score_data.get("evaluated_at"),
+                        score_data.get("match_type", "PROFILE_MATCH"),
+                        score_data.get("reference_jd", "")
+                    ))
+                    row = cur.fetchone()
+                    pg_conn.commit()
+                    if row:
+                        saved = dict(row)
+                        self._in_memory_scores[score_data["job_id"]] = saved
+                        return saved
+            except Exception as e:
+                print(f"[JOB_REPO] PG save_job_score error: {e}")
+                pg_conn.rollback()
+            finally:
+                pg_conn.close()
+
         self._in_memory_scores[score_data["job_id"]] = score_data
         return score_data
 
@@ -210,12 +328,33 @@ class JobRepository:
             try:
                 res = self.db.client.table("job_scores").select("*").eq("job_id", job_id).limit(1).execute()
                 if res.data and len(res.data) > 0:
-                    return res.data[0]
+                    return _normalize_score_details(res.data[0])
             except Exception as e:
                 print(f"[JOB_REPO] Error fetching job score: {e}")
-        return self._in_memory_scores.get(job_id)
 
-    def list_jobs(self, status: Optional[str] = None, source: Optional[str] = None, min_score: Optional[float] = None, limit: int = 50) -> List[Dict[str, Any]]:
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM job_scores WHERE job_id::text = %s ORDER BY evaluated_at DESC LIMIT 1;", (str(job_id),))
+                    row = cur.fetchone()
+                    if row:
+                        return _normalize_score_details(dict(row))
+            except Exception as e:
+                print(f"[JOB_REPO] PG get_job_score error: {e}")
+            finally:
+                pg_conn.close()
+
+        return _normalize_score_details(self._in_memory_scores.get(job_id))
+
+    def list_jobs(
+        self,
+        status: Optional[str] = None,
+        source: Optional[str] = None,
+        match_type: Optional[str] = None,
+        min_score: Optional[float] = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
         all_jobs: Optional[List[Dict[str, Any]]] = None
         if self.db.client:
             try:
@@ -224,8 +363,10 @@ class JobRepository:
                     query = query.eq("status", status)
                 if source and source != "ALL":
                     query = query.eq("portal_type", source)
+                if match_type and match_type != "ALL":
+                    query = query.eq("match_type", match_type)
                 res = query.execute()
-                all_jobs = res.data or []
+                all_jobs = [_sanitize_record(r) for r in (res.data or [])]
             except Exception as e:
                 print(f"[JOB_REPO] Error listing jobs from Supabase: {e}")
 
@@ -236,28 +377,72 @@ class JobRepository:
                     with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                         cur.execute("SELECT * FROM jobs ORDER BY discovered_at DESC LIMIT %s;", (limit,))
                         rows = cur.fetchall()
-                        all_jobs = [dict(r) for r in rows]
+                        all_jobs = [_sanitize_record(dict(r)) for r in rows]
                 except Exception as e:
                     print(f"[JOB_REPO] PG list_jobs error: {e}")
                 finally:
                     pg_conn.close()
 
         if all_jobs is None:
-            all_jobs = list(self._in_memory_jobs.values())
+            all_jobs = [_sanitize_record(j) for j in self._in_memory_jobs.values()]
 
         if status and status != "ALL" and (all_jobs and not self.db.client):
             all_jobs = [j for j in all_jobs if j.get("status") == status]
         if source and source != "ALL" and (all_jobs and not self.db.client):
             all_jobs = [j for j in all_jobs if (j.get("portal_type") or j.get("source")) == source]
+        if match_type and match_type != "ALL" and (all_jobs and not self.db.client):
+            all_jobs = [j for j in all_jobs if j.get("match_type") == match_type]
 
-        # Attach score data
+        # Batch fetch all scores for these jobs in a single query
+        job_ids = [str(j.get("id")) for j in all_jobs if j.get("id")]
+        scores_by_job_id: Dict[str, Dict[str, Any]] = {}
+
+        if job_ids:
+            if self.db.client:
+                try:
+                    score_res = self.db.client.table("job_scores").select("*").in_("job_id", job_ids).execute()
+                    for sc in (score_res.data or []):
+                        scores_by_job_id[str(sc.get("job_id"))] = _normalize_score_details(sc) or {}
+                except Exception as e:
+                    print(f"[JOB_REPO] Error batch-fetching scores: {e}")
+
+            if not scores_by_job_id:
+                pg_conn = self.db._get_pg_connection()
+                if pg_conn:
+                    try:
+                        with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                            cur.execute("SELECT * FROM job_scores WHERE job_id::text = ANY(%s);", (job_ids,))
+                            for r in cur.fetchall():
+                                scores_by_job_id[str(r.get("job_id"))] = _normalize_score_details(dict(r)) or {}
+                    except Exception as e:
+                        print(f"[JOB_REPO] PG batch get scores error: {e}")
+                    finally:
+                        pg_conn.close()
+
+            # Merge with in-memory scores if any
+            for jid in job_ids:
+                if jid not in scores_by_job_id and jid in self._in_memory_scores:
+                    scores_by_job_id[jid] = _normalize_score_details(self._in_memory_scores[jid]) or {}
+
+        # Attach score data in O(N) memory lookup
         results = []
         for job in all_jobs:
             job_id_str = str(job.get("id"))
-            score = self.get_job_score(job_id_str)
+            score = scores_by_job_id.get(job_id_str)
             job_copy = dict(job)
             job_copy["score_details"] = score
-            job_copy["match_score"] = score.get("overall_score") if score else 92.0
+            raw_match_score = job_copy.get("match_score")
+            if raw_match_score is not None:
+                job_copy["match_score"] = float(raw_match_score)
+            elif score and score.get("overall_score") is not None:
+                job_copy["match_score"] = float(score["overall_score"])
+            else:
+                job_copy["match_score"] = 0.0
+
+            if score and score.get("match_type"):
+                job_copy["match_type"] = score.get("match_type")
+            elif not job_copy.get("match_type"):
+                job_copy["match_type"] = "PROFILE_MATCH"
             
             if min_score is not None:
                 if not job_copy["match_score"] or job_copy["match_score"] < min_score:
@@ -267,23 +452,51 @@ class JobRepository:
         return results[:limit]
 
     def get_job_metrics(self) -> Dict[str, Any]:
-        jobs = self.list_jobs(limit=100)
+        jobs = self.list_jobs(limit=200)
         total_discovered = len(jobs)
         today_str = datetime.utcnow().strftime("%Y-%m-%d")
         discovered_today = sum(1 for j in jobs if (str(j.get("discovered_at") or j.get("created_at") or "")).startswith(today_str))
         
-        scores = list(self._in_memory_scores.values())
-        score_values = [s.get("overall_score", 0) for s in scores if s.get("overall_score") is not None]
-        avg_score = round(sum(score_values) / len(score_values), 1) if score_values else 92.5
-        excellent_matches = sum(1 for s in score_values if s >= 90) or total_discovered
-        strong_matches = sum(1 for s in score_values if 85 <= s < 90)
-        qualified_jobs = sum(1 for s in score_values if s >= 80) or total_discovered
+        scores = [_sanitize_record(s) for s in self._in_memory_scores.values()]
+        score_values: List[float] = [float(s.get("overall_score", 0.0)) for s in scores if s.get("overall_score") is not None]
+        for j in jobs:
+            if j.get("match_score") is not None:
+                val = float(j["match_score"])
+                if val not in score_values and val > 0:
+                    score_values.append(val)
+                
+        avg_score = round(sum(score_values) / len(score_values), 1) if score_values else 0.0
+        top_match = round(max(score_values), 1) if score_values else 0.0
+        
+        # Profile matches (ATS >= 75%)
+        profile_matches = sum(1 for j in jobs if (j.get("match_type") in ("PROFILE_MATCH", None) and float(j.get("match_score") or 0.0) >= 75.0))
+
+        # JD matches (Match >= 50%)
+        jd_matches = sum(1 for j in jobs if j.get("match_type") == "JD_MATCH" and float(j.get("match_score") or 0.0) >= 50.0)
+
+        # Remote jobs count
+        remote_jobs = sum(
+            1 for j in jobs
+            if (j.get("location_type") or "").lower() == "remote" or "remote" in (j.get("location") or "").lower()
+        )
+
+        excellent_matches = sum(1 for s in score_values if s >= 90.0)
+        strong_matches = sum(1 for s in score_values if 85.0 <= s < 90.0)
+        qualified_jobs = sum(1 for s in score_values if s >= 75.0)
         pending_approval = sum(1 for j in jobs if j.get("status") == "READY_FOR_REVIEW")
         submitted_apps = sum(1 for j in jobs if j.get("status") == "APPLIED")
 
         return {
             "total_jobs": total_discovered,
-            "jobs_discovered_today": discovered_today or total_discovered,
+            "jobs_found": total_discovered,
+            "new_jobs": discovered_today,
+            "jobs_discovered_today": discovered_today,
+            "profile_matches": profile_matches,
+            "jd_matches": jd_matches,
+            "top_match": top_match,
+            "top_match_score": top_match,
+            "remote_jobs": remote_jobs,
+            "remote_jobs_count": remote_jobs,
             "qualified_jobs": qualified_jobs,
             "average_ats_score": avg_score,
             "excellent_matches": excellent_matches,
@@ -349,6 +562,7 @@ class JobRepository:
         deleted = False
         if self.db.client:
             try:
+                self.db.client.table("job_scores").delete().eq("job_id", job_id).execute()
                 self.db.client.table("jobs").delete().eq("id", job_id).execute()
                 deleted = True
             except Exception as e:
@@ -358,19 +572,25 @@ class JobRepository:
         if pg_conn:
             try:
                 with pg_conn.cursor() as cur:
+                    cur.execute("DELETE FROM job_scores WHERE job_id::text = %s;", (str(job_id),))
+                    cur.execute("DELETE FROM job_source_records WHERE job_id::text = %s;", (str(job_id),))
                     cur.execute("DELETE FROM jobs WHERE id::text = %s;", (str(job_id),))
                     deleted_count = cur.rowcount
                     cur.execute("DELETE FROM job_listings WHERE id::text = %s;", (str(job_id),))
+                    pg_conn.commit()
                     if deleted_count > 0 or cur.rowcount > 0:
                         deleted = True
             except Exception as e:
                 print(f"[JOB_REPO] PG delete error: {e}")
+                pg_conn.rollback()
             finally:
                 pg_conn.close()
 
         if job_id in self._in_memory_jobs:
             del self._in_memory_jobs[job_id]
             deleted = True
+        if job_id in self._in_memory_scores:
+            del self._in_memory_scores[job_id]
 
         return deleted
 

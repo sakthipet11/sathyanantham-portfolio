@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Cpu, Code2, Database, Users, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { getApiHost } from '@/lib/utils';
 
 export interface SkillCategory {
   tag: string;
@@ -28,7 +29,8 @@ export function SkillsMatrix() {
   useEffect(() => {
     async function loadSkillsFromDB() {
       try {
-        const res = await fetch('/api/portfolio/skills');
+        const apiHost = getApiHost();
+        const res = await fetch(`${apiHost}/api/portfolio/skills`);
         if (res.ok) {
           const data = await res.json();
           if (data.skills && Array.isArray(data.skills) && data.skills.length > 0) {

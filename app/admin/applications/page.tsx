@@ -369,7 +369,7 @@ export default function AdminApplicationsPage() {
         <select
           value={selectedStatus}
           onChange={(e) => setSelectedStatus(e.target.value)}
-          className="px-3 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80"
+          className="px-3.5 py-2.5 bg-card/80 dark:bg-card/80 border border-border/80 rounded-xl text-xs text-foreground font-medium focus:outline-none focus:border-primary shadow-xs transition"
         >
           <option value="ALL">All Statuses</option>
           <option value="READY_FOR_REVIEW">Ready for Review</option>
