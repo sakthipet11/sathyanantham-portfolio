@@ -1,0 +1,12 @@
+Dear Talent Acquisition Team,
+
+I am excited to apply for the Senior UI Developer (Angular) position within vacancy global pro’s Risk Technology division. The opportunity to craft high‑impact user interfaces for risk‑management solutions aligns perfectly with my passion for building scalable, maintainable frontend platforms that empower enterprise teams.
+
+With over 13 years of experience leading enterprise web platforms, I have architected and delivered Micro Frontend ecosystems powered by Module Federation, enabling independent teams to ship features rapidly while maintaining a cohesive user experience. My work with React, TypeScript, and Next.js has consistently improved UI performance at scale, reduced bundle sizes by up to 40 %, and introduced automated design‑system governance. Additionally, I have integrated AI‑driven capabilities—such as Claude‑based assistants and IBM Watson services—directly into UI layers to enhance decision‑making workflows.
+
+I am eager to bring this architectural expertise to your Angular initiatives, driving hands‑on development, design, and code‑review practices while mentoring engineers across teams. My track record of leading UI engineering efforts, establishing reusable component libraries, and fostering cross‑functional collaboration will help accelerate your risk‑management UI roadmap and elevate the overall developer experience.
+
+Please find my portfolio at https://sathyanantham-portfolio-tv.vercel.app, which showcases recent projects and AI‑enhanced UI prototypes. I look forward to discussing how my background can contribute to vacancy global pro’s continued success.
+
+Sincerely  
+Sathyanantham V

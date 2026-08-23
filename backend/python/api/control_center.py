@@ -67,13 +67,18 @@ def get_pipeline_stages():
     apps = application_repository.list_applications(limit=500)
     emails = email_repository.list_emails(limit=500)
 
+    referrals = referral_repository.list_referrals(limit=500)
+    tailoring_count = sum(1 for a in apps if a.get("status") in ["TAILORING", "DRAFT"] or a.get("tailored_resume_path"))
+    if tailoring_count == 0:
+        tailoring_count = sum(1 for r in referrals if r.get("resume_attachment") or r.get("cover_letter_text"))
+
     stages = {
         "DISCOVERED": len(jobs),
         "SCORED": sum(1 for j in jobs if j.get("ats_score") is not None),
         "QUALIFIED": sum(1 for j in jobs if (j.get("ats_score") or 0) >= 80),
-        "TAILORING": 4, # Tailoring active
-        "READY_FOR_REVIEW": sum(1 for a in apps if a.get("status") == "READY_FOR_REVIEW"),
-        "APPROVED": sum(1 for a in apps if a.get("status") == "APPROVED"),
+        "TAILORING": tailoring_count,
+        "READY_FOR_REVIEW": sum(1 for a in apps if a.get("status") == "READY_FOR_REVIEW") + sum(1 for r in referrals if r.get("status") == "READY_FOR_REVIEW"),
+        "APPROVED": sum(1 for a in apps if a.get("status") == "APPROVED") + sum(1 for r in referrals if r.get("status") == "APPROVED"),
         "APPLYING": sum(1 for a in apps if a.get("status") == "SUBMITTING"),
         "APPLIED": sum(1 for a in apps if a.get("status") == "SUBMITTED"),
         "INTERVIEW": sum(1 for e in emails if e.get("classification") == "INTERVIEW_REQUEST")

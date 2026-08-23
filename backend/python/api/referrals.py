@@ -41,12 +41,19 @@ def get_referral_metrics():
     return {"status": "success", "metrics": referral_repository.get_metrics()}
 
 @router.get("")
-def list_referral_opportunities(
+async def list_referral_opportunities(
     company: Optional[str] = Query(None, description="Filter by company name"),
     status: Optional[str] = Query(None, description="Filter by status e.g. READY_FOR_REVIEW, SENT, QUALIFIED, NO_CONTACT_FOUND"),
     min_score: Optional[int] = Query(None, ge=0, le=100),
-    limit: int = Query(100, ge=1, le=200)
+    limit: int = Query(100, ge=1, le=200),
+    auto_sync: bool = Query(False, description="Whether to trigger discovery sync")
 ):
+    if auto_sync:
+        try:
+            await referral_discovery_service.discover_referral_opportunities(threshold=90)
+        except Exception as e:
+            print(f"[REFERRAL_API] Notice during auto-sync from qualified jobs: {e}")
+
     referrals = referral_repository.list_referrals(company=company, status=status, min_score=min_score, limit=limit)
     return {"status": "success", "count": len(referrals), "referrals": referrals}
 
