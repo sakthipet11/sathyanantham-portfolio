@@ -1,11 +1,14 @@
 import os
 import uuid
+import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 from backend.python.repositories.job_repository import job_repository
 from backend.python.repositories.referral_repository import referral_repository
+from backend.python.repositories.connection_repository import connection_repository
 from backend.python.services.company_normalization_service import company_normalization_service
 from backend.python.services.linkedin_contact_service import linkedin_contact_service
+from backend.python.services.apify_recruiter_service import apify_recruiter_service
 from backend.python.services.referral_ranking_service import referral_ranking_service
 from backend.python.services.referral_messaging_service import referral_messaging_service
 from backend.python.services.resume_matching_service import resume_matching_service
@@ -15,14 +18,14 @@ from backend.python.services.gmail_mcp_client import gmail_mcp_client
 class ReferralDiscoveryService:
     """
     Automated Referral Request Execution Platform:
-    Step 1: Filter qualified jobs (ATS score >= 90 / threshold). Discard weak-fit roles.
-    Step 2: Extract & normalize company identity (handle corporate aliases).
-    Step 3: Match against LinkedIn contacts with strict hierarchy (1st-degree > 2nd-degree > Public;
-            Engineering/Recruiting function priority; Seniority tiebreaker; graceful NO_CONTACT_FOUND).
-    Step 4: Enrich contact details (verified email, LinkedIn profile URL, role/title).
-    Step 5: Generate tailored materials (tailored resume PDF + tailored cover letter + draft outreach email).
-    Step 6: Human review gate (Populates READY_FOR_REVIEW queue with all details and attachments).
-    Step 7: Real dispatch via SMTP/Gmail with attachments + follow-up tracking.
+    Step 1: Filter qualified jobs (ATS score >= 90 / threshold).
+    Step 2: Extract & normalize company identity.
+    Step 3: Query real 1st-degree connection from connection_repository.
+    Step 4: If no 1st-degree connection exists: execute multi-company Apify Recruiter Discovery in BATCH.
+    Step 5: Persist any Apify discovered recruiter into connection_repository.
+    Step 6: Generate tailored materials (tailored resume PDF + tailored cover letter + outreach draft).
+    Step 7: Place in READY_FOR_REVIEW queue for human approval.
+    Step 8: Real dispatch via SMTP/Gmail with real attachments.
     """
 
     def __init__(self, referral_ats_threshold: int = 90):
@@ -31,38 +34,120 @@ class ReferralDiscoveryService:
     async def discover_referral_opportunities(self, threshold: Optional[int] = None) -> List[Dict[str, Any]]:
         target_threshold = threshold if threshold is not None else self.referral_ats_threshold
         
-        # Step 1: Filter qualified jobs from Job Discovery / Applications pipeline where ats_score >= threshold
-        all_jobs = job_repository.list_jobs(min_score=float(target_threshold), limit=100)
+        # Step 1: First fetch jobs from Job table/repository and filter where ATS/match score >= threshold
+        raw_jobs = job_repository.list_jobs(limit=200)
+        all_jobs = [
+            j for j in raw_jobs
+            if float(j.get("match_score") or (j.get("score_details") or {}).get("overall_score") or j.get("ats_score") or 0.0) >= float(target_threshold)
+        ]
         
-        discovered_referrals: List[Dict[str, Any]] = []
+        # Auto-ingest default CSV if connections empty
+        if not connection_repository.list_connections(limit=5):
+            try:
+                connection_repository.ingest_default_csv()
+            except Exception as e:
+                print(f"[REFERRAL_DISCOVERY] Auto-sync connections notice: {e}")
 
+        discovered_referrals: List[Dict[str, Any]] = []
+        jobs_needing_apify: List[Dict[str, Any]] = []
+        job_contact_map: Dict[str, Dict[str, Any]] = {}
+
+        # 1st Pass: Find 1st-degree connections from Connections DB
         for job in all_jobs:
             raw_company = job.get("company", "").strip()
             if not raw_company:
                 continue
 
-            # Step 2: Extract and normalize company identity (handle aliases)
             norm_company = company_normalization_service.normalize(raw_company)
             job_title = job.get("title", "Lead Frontend Architect")
-            ats_score = int(job.get("match_score") or job.get("ats_score") or 90)
+            job_id = job.get("id")
 
-            # Step 3: Match against LinkedIn contacts (Priority 1: 1st-Degree, Engineering/Recruiter, Seniority)
+            # Check if this job already has a referral record
+            existing_refs = referral_repository.list_referrals(company=norm_company)
+            existing_for_job = next((r for r in existing_refs if r.get("job_id") == job_id), None)
+            if existing_for_job:
+                discovered_referrals.append(existing_for_job)
+                continue
+
+            # Try finding 1st-degree connection from local network
             contact = await linkedin_contact_service.find_and_enrich_best_contact(
                 company_name=norm_company,
                 target_role=job_title
             )
 
-            # Check if this job already has a referral record
-            existing_refs = referral_repository.list_referrals(company=norm_company)
-            already_tracked = any(r.get("job_id") == job.get("id") for r in existing_refs)
-            if already_tracked:
-                continue
+            if contact and contact.get("connection_type") == "1ST_DEGREE_LINKEDIN":
+                job_contact_map[job_id] = {
+                    "job": job,
+                    "norm_company": norm_company,
+                    "contact": contact,
+                    "source": "1ST_DEGREE_LINKEDIN"
+                }
+            else:
+                # Queue for batch Apify recruiter extraction
+                jobs_needing_apify.append({
+                    "job_id": job_id,
+                    "job": job,
+                    "company": norm_company,
+                    "location": job.get("location") or "Remote",
+                    "job_url": job.get("apply_url") or job.get("job_url") or ""
+                })
+
+        # 2nd Pass: Execute Apify Batch Call for companies lacking 1st-degree connections
+        if jobs_needing_apify:
+            print(f"[REFERRAL_DISCOVERY] Running Apify batch recruiter discovery for {len(jobs_needing_apify)} jobs...")
+            try:
+                apify_batch_results = await apify_recruiter_service.batch_find_hr_contacts(jobs_needing_apify)
+                for item in jobs_needing_apify:
+                    j_id = item["job_id"]
+                    comp = item["company"]
+                    res = apify_batch_results.get(comp, {})
+                    recruiter = res.get("recruiter")
+                    
+                    if recruiter:
+                        job_contact_map[j_id] = {
+                            "job": item["job"],
+                            "norm_company": comp,
+                            "contact": {
+                                "person_name": recruiter.get("full_name") or recruiter.get("first_name", "Talent Partner"),
+                                "company": comp,
+                                "role": recruiter.get("position") or "Technical Recruiter",
+                                "connection_type": "APIFY_RECRUITER",
+                                "profile_url": recruiter.get("linkedin_url"),
+                                "contact_email": recruiter.get("email"),
+                                "verified_email": recruiter.get("email")
+                            },
+                            "source": "APIFY_RECRUITER"
+                        }
+                    else:
+                        job_contact_map[j_id] = {
+                            "job": item["job"],
+                            "norm_company": comp,
+                            "contact": None,
+                            "source": "NO_CONTACT_FOUND"
+                        }
+            except Exception as e:
+                print(f"[REFERRAL_DISCOVERY] Apify batch lookup notice: {e}")
+                for item in jobs_needing_apify:
+                    job_contact_map[item["job_id"]] = {
+                        "job": item["job"],
+                        "norm_company": item["company"],
+                        "contact": None,
+                        "source": "NO_CONTACT_FOUND"
+                    }
+
+        # 3rd Pass: Build Referral Records with Tailored Materials (Parallel Concurrency)
+        async def _process_single_mapping(j_id: str, mapping: Dict[str, Any]):
+            job = mapping["job"]
+            norm_company = mapping["norm_company"]
+            contact = mapping["contact"]
+            source = mapping["source"]
+            job_title = job.get("title", "Lead Frontend Architect")
+            ats_score = int(job.get("match_score") or job.get("ats_score") or 90)
 
             if not contact:
-                # Step 3 (Unmatched): Mark row "No referral contact found" and skip outreach without blocking pipeline
                 no_contact_record = {
                     "id": f"ref-{uuid.uuid4().hex[:12]}",
-                    "job_id": job.get("id"),
+                    "job_id": j_id,
                     "job_title": job_title,
                     "job_ats_score": ats_score,
                     "company": norm_company,
@@ -72,7 +157,7 @@ class ReferralDiscoveryService:
                     "profile_url": None,
                     "connection_type": "NO_CONTACT",
                     "referral_score": 0,
-                    "reason": f"No warm or 1st-degree LinkedIn contact currently found at {norm_company}. Outreach skipped.",
+                    "reason": f"No warm connection or contact found at {norm_company}.",
                     "relationship_evidence": "No network connection found.",
                     "message": "",
                     "cover_letter_text": "",
@@ -81,28 +166,23 @@ class ReferralDiscoveryService:
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }
-                saved_no_contact = referral_repository.save_referral(no_contact_record)
+                saved_nc = referral_repository.save_referral(no_contact_record)
                 referral_repository.log_audit(
-                    referral_id=saved_no_contact["id"],
+                    referral_id=saved_nc["id"],
                     event_type="REFERRAL_NO_CONTACT",
                     actor="REFERRAL_DISCOVERY_AGENT",
-                    details=f"No referral contact found at {norm_company}; marked row as NO_CONTACT_FOUND."
+                    details=f"No contact found at {norm_company}; marked as NO_CONTACT_FOUND."
                 )
-                discovered_referrals.append(saved_no_contact)
-                continue
+                return saved_nc
 
-            # Step 4: Enrich contact details (verified email, LinkedIn URL, role)
+            person_name = contact.get("person_name", "Valued Connection")
             contact_email = contact.get("contact_email") or contact.get("verified_email") or ""
             profile_url = contact.get("profile_url") or f"https://linkedin.com/company/{norm_company.lower()}"
-            person_name = contact.get("person_name", "Valued Connection")
             role = contact.get("role", "Engineering Leader")
             connection_type = contact.get("connection_type", "1ST_DEGREE_LINKEDIN")
 
-            # Rank contact
             ranking_result = referral_ranking_service.rank_contact(job, contact)
 
-            # Step 5: Generate tailored materials
-            # 5a. Pull (or match) tailored resume PDF
             matched_resume = resume_matching_service.match_resume_for_email({
                 "subject": f"Referral inquiry for {job_title} at {norm_company}",
                 "body": job.get("description_raw") or job.get("description") or "",
@@ -110,17 +190,15 @@ class ReferralDiscoveryService:
                 "company": norm_company
             })
 
-            # 5b. Generate personalized tailored cover letter
-            cover_letter_res = await cover_letter_service.generate_cover_letter(job=job, contact=contact)
-
-            # 5c. Draft personalized referral-request email message referencing role, company, and attachments
-            msg_res = await referral_messaging_service.generate_message(
+            # Run cover letter and messaging concurrently for this contact
+            cl_task = cover_letter_service.generate_cover_letter(job=job, contact=contact)
+            msg_task = referral_messaging_service.generate_message(
                 job=job,
                 contact=contact,
                 include_twin_demo=True
             )
+            cover_letter_res, msg_res = await asyncio.gather(cl_task, msg_task)
 
-            # Build list of attachments
             attachments = [
                 {
                     "type": "RESUME_PDF",
@@ -136,10 +214,9 @@ class ReferralDiscoveryService:
                 }
             ]
 
-            # Step 6: Human review gate — populate record in READY_FOR_REVIEW queue
             ref_record = {
                 "id": f"ref-{uuid.uuid4().hex[:12]}",
-                "job_id": job.get("id"),
+                "job_id": j_id,
                 "job_title": job_title,
                 "job_ats_score": ats_score,
                 "company": norm_company,
@@ -149,8 +226,8 @@ class ReferralDiscoveryService:
                 "profile_url": profile_url,
                 "connection_type": connection_type,
                 "referral_score": ranking_result.get("referral_score", 95),
-                "reason": ranking_result.get("reason", "Strong 1st-degree engineering contact match."),
-                "relationship_evidence": ranking_result.get("relationship_evidence", "Verified 1st-Degree LinkedIn connection."),
+                "reason": ranking_result.get("reason", "Verified contact match."),
+                "relationship_evidence": ranking_result.get("relationship_evidence", f"Source: {source}"),
                 "subject": msg_res.get("subject", f"Referral inquiry — {job_title} at {norm_company}"),
                 "message": msg_res.get("body", ""),
                 "cover_letter_text": cover_letter_res.get("cover_letter_text", ""),
@@ -172,9 +249,17 @@ class ReferralDiscoveryService:
                 referral_id=saved["id"],
                 event_type="REFERRAL_DISCOVERED",
                 actor="REFERRAL_DISCOVERY_AGENT",
-                details=f"Discovered contact {person_name} ({connection_type}) at {norm_company}. Tailored materials generated."
+                details=f"Discovered contact {person_name} ({connection_type}) at {norm_company} via {source}. Tailored materials generated."
             )
-            discovered_referrals.append(saved)
+            return saved
+
+        pass3_tasks = [_process_single_mapping(j_id, m) for j_id, m in job_contact_map.items()]
+        pass3_results = await asyncio.gather(*pass3_tasks, return_exceptions=True)
+        for res in pass3_results:
+            if isinstance(res, dict):
+                discovered_referrals.append(res)
+            elif isinstance(res, Exception):
+                print(f"[REFERRAL_DISCOVERY] Error generating referral materials: {res}")
 
         return discovered_referrals
 
@@ -200,8 +285,7 @@ class ReferralDiscoveryService:
         sent_by: str = "HUMAN_ADMIN"
     ) -> Dict[str, Any]:
         """
-        Step 7: Send & track.
-        On human approval, sends real MIME email via Gmail MCP / SMTP with both attachments
+        Dispatches real MIME email via Gmail MCP / SMTP with both attachments
         (tailored resume PDF + tailored cover letter), moves record to SENT, and schedules follow-up tracker.
         """
         ref = referral_repository.get_referral_by_id(referral_id)
@@ -221,7 +305,7 @@ class ReferralDiscoveryService:
         now_iso = now_dt.isoformat()
         follow_up_due_iso = (now_dt + timedelta(days=5)).isoformat()
 
-        # Resolve attachments (both tailored resume PDF and cover letter)
+        # Resolve attachments
         attachments_to_send = []
         if ref.get("attachments") and isinstance(ref.get("attachments"), list):
             for att in ref.get("attachments"):
@@ -241,7 +325,7 @@ class ReferralDiscoveryService:
             attachments=attachments_to_send
         )
 
-        # Update status to SENT and track follow-up
+        # Update status to SENT
         updated = referral_repository.update_referral_status(
             referral_id=referral_id,
             status="SENT",
@@ -256,7 +340,7 @@ class ReferralDiscoveryService:
             referral_id=referral_id,
             event_type="REFERRAL_OUTREACH_DISPATCHED",
             actor=sent_by,
-            details=f"Email successfully dispatched to {recipient_email} with attachments {smtp_res.get('attachments', [])} via SMTP. Follow-up scheduled for 5 days."
+            details=f"Email successfully dispatched to {recipient_email} with attachments {smtp_res.get('attachments', [])} via SMTP."
         )
 
         return {
@@ -271,9 +355,6 @@ class ReferralDiscoveryService:
         }
 
     async def nudge_referral(self, referral_id: str, custom_nudge_message: Optional[str] = None, sent_by: str = "HUMAN_ADMIN") -> Dict[str, Any]:
-        """
-        Sends a polite follow-up nudge if contact has not replied within N days.
-        """
         ref = referral_repository.get_referral_by_id(referral_id)
         if not ref:
             raise ValueError(f"Referral {referral_id} not found")

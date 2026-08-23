@@ -1,14 +1,14 @@
-# Enterprise Architectural Blueprint & Refactored Repository Structure
+# Enterprise Architectural Blueprint & Implementation Details
 
 ## Overview
 
 This repository is structured as a clean, production-grade **Multi-Agent Portfolio & Recruiter Operating System** platform. Next.js 15 App Router (`app/`, `components/`, `lib/`, `hooks/`, `public/`) lives directly at the root of the workspace without any wrapping `frontend/` or `src/` subfolders. The Python AI Multi-Agent engine lives in `backend/python/`, supported by `database/` and `infrastructure/`.
 
-All data points across the portfolio (enterprise projects, work experience, technical skills, candidate profile) and Recruiter OS (job listings, evaluations, applications, recruiter emails, referrals) query live database records via local PostgreSQL (`postgresql://postgres:postgres@127.0.0.1:5432/postgres`) or Supabase Cloud.
+All data points across the portfolio (enterprise projects, work experience, technical skills, candidate profile) and Recruiter OS (job listings, evaluations, applications, recruiter emails, referrals, connections, analytics telemetry) query live database records via local PostgreSQL (`postgresql://postgres:postgres@127.0.0.1:5432/postgres`) or Supabase Cloud.
 
 ---
 
-## 📁 Clean Repository Folder Structure
+## 📁 Repository Folder Structure
 
 ```
 Sathyanantham-AI-Studio/
@@ -18,137 +18,131 @@ Sathyanantham-AI-Studio/
 │   ├── layout.tsx                       # Root Layout & Font/Theme Providers
 │   ├── globals.css                      # Global Tailwind CSS Styles
 │   ├── api/                             # Next.js API Proxy Routes
-│   │   └── portfolio/                   # DB Portfolio Endpoints (/projects, /experience, /skills)
+│   │   ├── portfolio/                   # DB Portfolio Endpoints (/projects, /experience, /skills)
+│   │   └── admin/                       # Admin Proxy Routes (/gdrive-sync, etc.)
 │   └── admin/                           # Recruiter OS & Admin Command Center
 │       ├── page.tsx                     # Core Telemetry & Live Visitor Handoff Console
-│       ├── dashboard/                   # Executive Multi-Agent Control Center
+│       ├── dashboard/                   # 100% Dynamic Executive Control Center (10 KPIs & 9-Stage Pipeline)
+│       ├── analytics/                   # Real-Time Telemetry Hub (Views, AI Chats, 14-Day Charts, Feed)
 │       ├── jobs/                        # Job Discovery & Match Evaluation Engine
 │       ├── applications/                # Application Pipeline & Auto-Tracker
 │       ├── resumes/                     # Resume Customizer & Version Manager
-│       ├── referrals/                   # Candidate Referral & Outreach Network
+│       ├── referrals/                   # Candidate Referral & Outreach Network (Human Review Gate)
+│       ├── connections/                 # 731-Row LinkedIn Network Ingestion & Management (7 Columns)
 │       ├── recruiter-inbox/             # Live Handoff Visitor & Recruiter Chat
 │       ├── automation/                  # Multi-Agent Workflow Trigger Control
-│       ├── analytics/                   # Deep Visitor & Portfolio Analytics
-│       └── settings/                    # API Keys, Supabase & MCP Server Configs
+│       ├── agent/                       # Autonomous AI Job Copilot Chatbot
+│       └── settings/                    # API Keys, Supabase & Candidate Truth Store
 │
-├── components/                          # UI Component Modules (ai, canvas, layout, providers, sections, ui)
+├── components/                          # UI Component Modules (admin, ai, canvas, layout, providers, sections, ui)
 │   └── sections/                        # Dynamic DB Portfolio Sections (ProjectsSection, ExperienceSection, SkillsMatrix)
 │
-├── lib/                                 # Shared Utilities, Constants, Store, Supabase Client
-├── hooks/                               # Custom React Hooks (useAITwin, useScrollReveal, useReducedMotion)
-├── public/                              # Public Static Assets & Images
+├── lib/                                 # Shared Utilities, Constants, Store, Supabase Client (getApiHost, fetchWithTimeout)
+├── hooks/                               # Custom React Hooks (useAITwin, useScrollReveal, useReducedMotion, useLockBodyScroll)
+├── public/                              # Public Static Assets, Resume PDFs & Generated Cover Letters
+│   └── downloads/                       # Tailored Resume PDFs (Sathyanantham_V_Frontend_Architect_2026.pdf)
 │
 ├── backend/                             # Python Backend Engine
 │   └── python/
-│       ├── main.py                      # FastAPI Entry Point (WebSockets, Routes, MCP)
+│       ├── main.py                      # FastAPI Entry Point (WebSockets, Routes, Startup CSV Ingest)
 │       ├── requirements.txt             # Python Dependencies
 │       │
 │       ├── api/                         # FastAPI Router Endpoints
+│       │   ├── analytics.py             # 100% Dynamic Portfolio & Telemetry API (/api/v2/analytics/overview)
+│       │   ├── control_center.py        # Executive Control Center & Dynamic Pipeline (/api/v2/control-center/*)
+│       │   ├── connections.py           # Connections CRUD & Sync APIs (/api/v2/connections/*)
+│       │   ├── referrals.py             # Referral Network Outreach & Review APIs (/api/v2/referrals/*)
+│       │   ├── jobs_v2.py               # Job Discovery, ATS Scoring & Pipeline APIs (/api/v2/jobs/*)
+│       │   ├── applications.py          # Application Pipeline Management APIs (/api/v2/applications/*)
+│       │   ├── recruiter_inbox.py       # Visitor & Recruiter Live Handoff Chat APIs (/api/v2/recruiter-inbox/*)
+│       │   ├── resumes.py               # Resume Versioning APIs (/api/v2/resumes/*)
+│       │   ├── copilot.py               # AI Copilot Multi-Agent Chat APIs (/api/v2/copilot/*)
 │       │   ├── portfolio.py             # DB Portfolio APIs (/projects, /experience, /skills, /profile)
-│       │   ├── admin.py                 # Auth, Analytics, Presence, CMS APIs
-│       │   ├── chat.py                  # Visitor Chat Streaming & Knowledge Base Search
-│       │   ├── contact.py               # Contact Submissions & Event Logging
-│       │   ├── jobs_v2.py               # Job Discovery, ATS Scoring & Pipeline APIs
-│       │   ├── applications.py          # Application Pipeline Management APIs
-│       │   ├── referrals.py             # Referral Network Outreach APIs
-│       │   ├── recruiter_inbox.py       # Visitor & Recruiter Live Handoff Chat APIs
-│       │   ├── control_center.py        # Executive Control Center APIs
+│       │   ├── admin.py                 # Auth, Presence, CMS APIs (/api/admin/*)
 │       │   └── hardening.py             # Security, Rate Limiting & Validation APIs
 │       │
-│       ├── agents/                      # Autonomous AI Agents
-│       │   ├── job_discovery_agent/     # Scans platforms for target roles
-│       │   ├── job_scoring_agent/       # Evaluates candidate profile match scores
-│       │   ├── resume_agent/            # Tailors custom PDF & LaTeX resumes
-│       │   ├── application_agent/       # Automates application submissions
-│       │   ├── email_agent/             # Handles recruiter email outreach & follow-ups
-│       │   └── referral_agent/          # Identifies contacts & drafts referral requests
-│       │
 │       ├── services/                    # Core Business Services
-│       │   ├── ai_providers.py          # OpenRouter streaming LLM integration
-│       │   ├── rag_service.py           # Document vector retrieval & knowledge base
-│       │   ├── notifications.py         # Resend & email alert services
-│       │   └── websocket_service.py     # Real-time WebSocket connection manager
+│       │   ├── apify_recruiter_service.py       # Apify Google Maps Contact Discovery Scraper
+│       │   ├── referral_discovery_service.py    # Job-First ATS ≥ 90% Referral Discovery Engine
+│       │   ├── company_normalization_service.py # Legal entity & alias normalizer
+│       │   ├── cover_letter_service.py          # Candidate grounded cover letter generator
+│       │   ├── referral_messaging_service.py    # Personalized outreach copy generator
+│       │   ├── gmail_mcp_client.py              # Multi-attachment MIME SMTP transmission
+│       │   ├── ai_job_copilot_service.py        # Interactive AI Copilot assistant
+│       │   └── ai_providers.py                  # Centralized LLM Provider (NVIDIA / Gemini)
 │       │
 │       ├── repositories/                # Database Layer Abstractions (Supabase + PostgreSQL Direct)
-│       │   ├── supabase_repo.py         # Core Supabase & PostgreSQL helper (`get_portfolio_content`, `get_user_profile`)
+│       │   ├── connection_repository.py # 7-Column Connection Table Persistence & CSV Ingestion
+│       │   ├── referral_repository.py   # PostgreSQL `referrals` queries with committed transactions & UUIDs
 │       │   ├── job_repository.py        # PostgreSQL `jobs` & `job_scores` queries
 │       │   ├── application_repository.py# PostgreSQL `applications` & `application_events` queries
 │       │   ├── email_repository.py      # PostgreSQL `emails` queries
-│       │   └── referral_repository.py   # PostgreSQL `referrals` queries
+│       │   └── supabase_repo.py         # Core Supabase & PostgreSQL helper
 │       │
-│       ├── workflows/                   # Multi-Agent Orchestrations
-│       │   └── multi_agent_workflow.py  # End-to-end pipeline orchestrator
-│       │
-│       ├── mcp/                         # Model Context Protocol Servers
-│       │   ├── browserbase/             # Browser automation MCP server
-│       │   ├── google_drive/            # Resume & doc storage MCP server
-│       │   ├── gmail/                   # Recruiter outreach MCP server
-│       │   └── postgres/                # Vector DB MCP server
-│       │
-│       └── models/                      # Pydantic Data Models
-│           └── pydantic_models.py       # Request/Response schemas
+│       └── tests/                       # Automated Test Suites
+│           ├── test_connections_pipeline.py    # 5/5 Full Connections & Referral Test Suite
+│           └── test_automated_referral_pipeline.py # 7-Step referral pipeline tests
 │
 ├── database/                            # Database Layer (PostgreSQL / Supabase)
 │   ├── setup_local_db.py                # Automated Database Migration & Seeding Execution Script
-│   ├── migrations/                      # SQL Migrations
-│   │   ├── 001_initial_schema.sql       # Profiles, skills, projects, experience, chat, analytics
-│   │   ├── 002_multi_agent_tables.sql   # Job listings, evaluations, applications, referrals
-│   │   └── 003_job_automation_schema.sql # V2 Multi-Agent Recruiter OS schema
-│   │
-│   └── seeds/                           # SQL Seed Data
-│       ├── 001_seed_portfolio_data.sql  # 6 Enterprise Projects, 3 Experiences, 30 Skills, MCA/B.Sc Education, Certificates
-│       ├── 002_seed_jobs_and_agents.sql # Seed job listings & agent defaults
-│       └── 003_user_profile_seed.sql    # Candidate Truth Store & automation settings
+│   └── migrations/                      # SQL Migrations
+│       ├── 001_initial_schema.sql       # Profiles, skills, projects, experience, chat, analytics
+│       ├── 002_multi_agent_tables.sql   # Job listings, evaluations, applications, referrals
+│       ├── 003_job_automation_schema.sql # V2 Multi-Agent Recruiter OS schema
+│       └── 007_connections_and_referral_enrichment.sql # Connections table & 7-column schema
 │
-└── infrastructure/                      # Infrastructure & Deployment
-    ├── cloud-scheduler/
-    │   └── cron_jobs.yaml               # Cron jobs for automated job scans & email sync
-    ├── pubsub/
-    │   └── topics.yaml                  # Pub/Sub topic definitions for agent events
-    └── deployment/
-        ├── Dockerfile.backend           # Docker container for FastAPI backend
-        └── docker-compose.yml           # Container orchestration config
+└── docs/                                # Project Documentation & Reference Data
+    └── Connections.csv                  # 731-Row LinkedIn Network Export
 ```
 
 ---
 
-## ⚡ Local Setup & Execution Guide
+## 🤝 Key Implementation Details
 
-### 1. Database Setup & Seeding (Local PostgreSQL)
-```bash
-# Setup PostgreSQL tables and seed authoritative portfolio & recruiter data
-python database/setup_local_db.py
-```
+### 1. 100% Dynamic Telemetry & Analytics Hub
+- **Endpoint**: `GET /api/v2/analytics/overview` (in [backend/python/api/analytics.py](file:///e:/Projects/Own%20projects/protofolio/Sathyanantham-AI-Studio/backend/python/api/analytics.py)).
+- **Metrics Computed**:
+  - `portfolio_views` & `unique_visitors` from `visitor_events`.
+  - `views_growth_percent` (30-day calculation vs total views).
+  - `resume_downloads` & `conversion_rate_percent`.
+  - `ai_twin_conversations`, `ai_twin_messages`, and `avg_messages_per_conversation` from `chat_sessions` & `chat_messages`.
+  - `total_jobs_analyzed`, `average_ats_fit`, and `high_match_jobs_90_plus` from `jobs`.
+  - `active_referral_campaigns` & `total_network_connections` from `referrals` and `connections`.
+  - `device_breakdown` (Desktop vs Mobile percentage).
+  - `top_locations` from `visitor_events.city` / `visitor_events.country`.
+  - `daily_activity` (14-day timeseries of views, chats, and job matches).
+  - `recent_events` (Live telemetry feed with browser, OS, and timestamps).
+- **Zero Static Numbers**: No hardcoded fallbacks in `/admin/dashboard` or `/admin/analytics`.
 
-### 2. Frontend Next.js App Setup (Root Level)
+### 2. Job-First Referral Ingestion & Contact Matching
+- **Source**: Directly queries local Job DB (`job_repository.list_jobs(limit=200)` / `/api/v2/jobs?min_score=90`) without re-running external scrapers.
+- **1st-Degree Priority**: Resolves warm connections from `connections` table via `company_normalization_service`.
+- **Apify Contact Discovery**: For companies missing warm connections, queries `lukaskrivka/google-maps-with-contact-details` using search terms:
+  ```python
+  search_terms = [f"{company} office {location.split(',')[0]}" for company in companies]
+  ```
+- **7 Connection Columns**:
+  1. `First Name`
+  2. `Last Name`
+  3. `URL`
+  4. `Email Address`
+  5. `Company`
+  6. `Position`
+  7. `Connected On`
+- **Parallel Material Generation**: Concurrently drafts cover letters and attaches tailored PDF resume (`Sathyanantham_V_Frontend_Architect_2026.pdf`) using `asyncio.gather`.
+- **Committed Transactions**: Explicit `pg_conn.commit()` and UUID validation in `referral_repository.py`.
+
+---
+
+## ⚡ Execution & Verification Commands
+
 ```bash
-# Run Next.js Development Server directly from workspace root
+# 1. Run Complete Connections & Referral Pipeline Test Suite (100% Pass)
+python -m pytest backend/python/tests/test_connections_pipeline.py -v
+
+# 2. Start FastAPI Backend Engine (Port 8000)
+python -m uvicorn backend.python.main:app --host 127.0.0.1 --port 8000 --reload
+
+# 3. Start Next.js 15 Frontend (Port 3000)
 npm run dev
 ```
-- **Public Portfolio**: [http://localhost:3000](http://localhost:3000)
-- **Admin OS Console**: [http://localhost:3000/admin](http://localhost:3000/admin)
-- **Executive Admin OS Dashboard**: [http://localhost:3000/admin/dashboard](http://localhost:3000/admin/dashboard)
-
-### 3. Backend Python FastAPI Setup
-```bash
-# Activate Python Virtual Environment
-.venv\Scripts\activate
-
-# Install Backend Dependencies
-pip install -r backend/python/requirements.txt
-
-# Start FastAPI API Server
-python -m uvicorn backend.python.main:app --host 0.0.0.0 --port 8000 --reload
-```
-- **API Root**: [http://localhost:8000](http://localhost:8000)
-- **Swagger Interactive API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-
----
-
-## 🛠️ Verification Commands
-
-- **Database Repository Query Test**:
-  `python -c "from backend.python.repositories.supabase_repo import db_helper; print('Projects:', len(db_helper.get_portfolio_content('projects')))"`
-- **Type-Check Frontend**: `npm run type-check`
-- **Verify Python Compilation**: `python -m py_compile backend/python/main.py`
-- **Run Multi-Agent Pipeline Test**: `python -c "from backend.python.workflows.multi_agent_workflow import multi_agent_workflow; print(multi_agent_workflow.run_end_to_end_pipeline())"`

@@ -91,10 +91,10 @@ export default function AdminRecruiterInboxPage() {
     try {
       setLoading(true);
       const [emailsRes, metricsRes, resumesRes, settingsRes] = await Promise.all([
-        fetchWithTimeout(`${apiHost}/api/v2/recruiter-inbox?limit=200`, {}, 2000),
-        fetchWithTimeout(`${apiHost}/api/v2/recruiter-inbox/metrics`, {}, 2000),
-        fetchWithTimeout(`${apiHost}/api/v2/resumes`, {}, 2000),
-        fetchWithTimeout(`${apiHost}/api/v2/recruiter-inbox/settings/policy`, {}, 2000)
+        fetchWithTimeout(`${apiHost}/api/v2/recruiter-inbox?limit=200`, {}, 5000),
+        fetchWithTimeout(`${apiHost}/api/v2/recruiter-inbox/metrics`, {}, 5000),
+        fetchWithTimeout(`${apiHost}/api/v2/resumes`, {}, 5000),
+        fetchWithTimeout(`${apiHost}/api/v2/recruiter-inbox/settings/policy`, {}, 5000)
       ]);
 
       if (emailsRes.ok) {

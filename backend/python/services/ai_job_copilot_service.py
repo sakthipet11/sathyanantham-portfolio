@@ -284,16 +284,45 @@ class AIJobCopilotService:
 
         company = target_job.get("company", "Figma")
         title = target_job.get("title", "Lead UI Platform Architect")
-        hr_email = target_job.get("hr_email") or f"careers@{company.lower().replace(' ', '')}.com"
+        
+        # Dynamically resolve HR / Recruiter contact
+        from backend.python.services.linkedin_contact_service import linkedin_contact_service
+        recruiter_contact = await linkedin_contact_service.find_and_enrich_best_contact(company, title)
+        
+        recruiter_name = recruiter_contact.get("person_name") if recruiter_contact else "Talent Acquisition Team"
+        hr_email = (recruiter_contact.get("contact_email") or recruiter_contact.get("verified_email")) if recruiter_contact else f"careers@{company.lower().replace(' ', '')}.com"
 
-        email_id = make_uuid(f"hr-mail-{company.lower()}")
+        # Get candidate profile data dynamically
+        cand_data = self.profile_service.get_candidate_data()
+        cand_name = cand_data.get("name", "Sathyanantham V")
+        cand_years = cand_data.get("years_experience", "13.5 Years")
+        cand_portfolio = cand_data.get("portfolio_url", "https://sathyanantham-portfolio-tv.vercel.app")
+        cand_phone = cand_data.get("phone", "+91 8870956756")
+        cand_email = cand_data.get("email", "v.sathyanantham@gmail.com")
+        file_name = f"{cand_name.replace(' ', '_')}_Resume_{company.replace(' ', '_')}.pdf"
+
+        email_id = make_uuid(f"hr-mail-{company.lower()}-{datetime.utcnow().strftime('%Y%m%d')}")
         email_record = {
             "id": email_id,
-            "gmail_message_id": f"msg-hr-{company.lower()}-01",
+            "gmail_message_id": f"msg-hr-{company.lower()}-{uuid.uuid4().hex[:6]}",
             "sender": hr_email,
+            "sender_name": recruiter_name,
             "company": company,
-            "subject": f"Application: {title} - Sathyanantham V (Tailored CV attached)",
-            "body_raw": f"Dear HR Team at {company},\n\nI am submitting my application for the {title} position. Please find my tailored resume and portfolio details attached.\n\nBest regards,\nSathyanantham V",
+            "subject": f"Application: {title} - {cand_name} ({cand_years} Experience, Tailored Resume Attached)",
+            "body_raw": (
+                f"Dear {recruiter_name} at {company},\n\n"
+                f"I am writing to express my strong interest in the {title} opportunity at {company}. "
+                f"With over {cand_years} of engineering leadership specializing in Micro Frontends, React Platform Architecture, and AI Agent Orchestration, "
+                f"I have delivered high-scale platforms across global enterprises.\n\n"
+                f"Key Highlights:\n"
+                f"- Interactive AI Twin & Demo: {cand_portfolio}?openTwin=true\n"
+                f"- Primary Tech Stack: React, TypeScript, Next.js, Micro Frontends, FastAPI, Python\n\n"
+                f"Please find my tailored resume attached. I would welcome the opportunity to discuss how my background aligns with {company}'s technical vision.\n\n"
+                f"Best regards,\n"
+                f"{cand_name}\n"
+                f"{cand_phone} | {cand_email}\n"
+                f"{cand_portfolio}"
+            ),
             "status": "SENT",
             "received_at": datetime.utcnow().isoformat()
         }
@@ -304,19 +333,20 @@ class AIJobCopilotService:
             ai_agent="RecruiterAutomationAgent",
             action="HR_EMAIL_DISPATCHED",
             tool="GmailMcpClient",
-            result=f"Dispatched job application email to {hr_email} for {company}.",
+            result=f"Dispatched job application email to {hr_email} ({recruiter_name}) for {company}.",
             status="SUCCESS"
         )
 
         return {
             "type": "SEND_HR_EMAIL_RESULT",
-            "reply": f"Application email with tailored CV successfully sent to HR at **{company}** ({hr_email})!",
+            "reply": f"Application email with tailored CV successfully composed and dispatched to **{recruiter_name}** at **{company}** ({hr_email})!",
             "details": {
                 "company": company,
+                "recruiter_name": recruiter_name,
                 "hr_email": hr_email,
-                "subject": f"Application: {title} - Sathyanantham V",
+                "subject": f"Application: {title} - {cand_name}",
                 "status": "SENT",
-                "attached_file": f"Sathyanantham_V_Resume_{company.replace(' ', '_')}.pdf"
+                "attached_file": file_name
             },
             "actions": [
                 {"label": "Open Recruiter Inbox", "link": "/admin/recruiter-inbox", "primary": True},
@@ -608,46 +638,161 @@ class AIJobCopilotService:
 
     async def _handle_referral_discovery_intent_async(self, prompt: str) -> Dict[str, Any]:
         """
-        Discovers 1st-degree referral contacts, saves to DB, and returns personalized outreach drafts.
+        Discovers verified 1st-degree referral contacts and Apify-enriched recruiters dynamically
+        from the connections database and active jobs.
         """
-        referrals = self.ref_repo.list_referrals(limit=10)
+        from backend.python.services.referral_discovery_service import referral_discovery_service
+        from backend.python.repositories.connection_repository import connection_repository
+        from backend.python.services.resume_matching_service import resume_matching_service
+        from backend.python.services.cover_letter_service import cover_letter_service
+        
+        # 1. Determine target companies
+        prompt_lower = prompt.lower()
+        active_jobs = self.repo.list_jobs(limit=10)
+        
+        target_companies = []
+        for j in active_jobs:
+            comp = j.get("company", "").strip()
+            if comp and comp.lower() in prompt_lower:
+                target_companies.append((comp, j.get("title", "Lead Frontend Architect"), j))
+
+        # Also extract capitalized company keywords explicitly mentioned in prompt
+        words = [w.strip(" ,.!?") for w in prompt.split() if len(w) > 3]
+        for w in words:
+            if w.lower() not in ["find", "referrals", "referral", "target", "companies", "company", "about", "show", "please", "with", "these"]:
+                if not any(comp.lower() == w.lower() for comp, _, _ in target_companies):
+                    target_companies.append((w, "Lead Frontend Architect", {"company": w, "title": "Lead Frontend Architect"}))
+
+        if not target_companies:
+            for j in active_jobs[:3]:
+                comp = j.get("company", "").strip()
+                if comp:
+                    target_companies.append((comp, j.get("title", "Lead Frontend Architect"), j))
+
+        if not target_companies:
+            target_companies = [("Nextuple", "Lead UI Platform Architect", {"company": "Nextuple", "title": "Lead UI Platform Architect"})]
 
         formatted_refs = []
-        for r in referrals[:3]:
-            formatted_refs.append({
-                "contact_id": r.get("id") or r.get("contact_id") or make_uuid("ref-01"),
-                "name": r.get("contact_name") or r.get("name") or "Alex Chen",
-                "role": r.get("role", "Staff Engineer"),
-                "company": r.get("company", "Figma"),
-                "connection_degree": r.get("connection_degree", "1ST_DEGREE_LINKEDIN"),
-                "relationship_note": r.get("relationship_note", "1st degree connection"),
-                "recommended_action": "SEND_MESSAGE",
-                "draft_message": r.get("draft_message") or (
-                    f"Hi! I noticed {r.get('company')} is hiring. Check out my AI Twin at https://sathyanantham-portfolio-tv.vercel.app?openTwin=true."
-                )
-            })
+        seen_contacts = set()
 
-        if not formatted_refs:
-            formatted_refs = [
-                {
-                    "contact_id": make_uuid("ref-01"),
-                    "name": "Alex Chen",
-                    "role": "Staff Platform Engineer",
-                    "company": "Figma",
-                    "connection_degree": "1ST_DEGREE_LINKEDIN",
-                    "relationship_note": "1st-Degree LinkedIn connection",
-                    "recommended_action": "SEND_MESSAGE",
-                    "draft_message": "Hi Alex! I saw Figma is expanding its UI Platform Architect team. Given my background scaling enterprise micro-frontends and agentic systems, I'd love your perspective on the role. You can explore my live AI Twin at https://sathyanantham-portfolio-tv.vercel.app?openTwin=true."
+        for comp_name, role_title, job_obj in target_companies:
+            # Query connections table for 1st-degree connection
+            conns = connection_repository.find_connections_by_company(comp_name)
+            first_degree = [c for c in conns if c.get("connection_degree") == "1st"]
+            selected_contact = first_degree[0] if first_degree else (conns[0] if conns else None)
+
+            # If no contact found in DB, try Apify
+            if not selected_contact:
+                try:
+                    from backend.python.services.apify_recruiter_service import apify_recruiter_service
+                    apify_res = await apify_recruiter_service.get_precise_hr_details(
+                        company_name=comp_name,
+                        location=job_obj.get("location", "Remote"),
+                        job_url=job_obj.get("apply_url") or job_obj.get("job_url")
+                    )
+                    selected_contact = apify_res.get("recruiter")
+                except Exception as e:
+                    print(f"[COPILOT] Apify discovery notice for {comp_name}: {e}")
+
+            if selected_contact:
+                person_name = selected_contact.get("full_name") or selected_contact.get("first_name", "Valued Contact")
+                if person_name in seen_contacts:
+                    continue
+                seen_contacts.add(person_name)
+
+                contact_role = selected_contact.get("position") or "Engineering / Talent Partner"
+                degree = selected_contact.get("connection_degree") or "1st"
+                ref_id = make_uuid(f"ref-{comp_name.lower()}-{person_name.lower().replace(' ', '-')}")
+
+                # Match tailored resume & cover letter
+                matched_resume = resume_matching_service.match_resume_for_email({
+                    "subject": f"Referral inquiry for {role_title} at {comp_name}",
+                    "body": f"{role_title} at {comp_name}",
+                    "job_title": role_title,
+                    "company": comp_name
+                })
+                cover_letter_res = await cover_letter_service.generate_cover_letter(
+                    job={"title": role_title, "company": comp_name, "id": job_obj.get("id")},
+                    contact={"person_name": person_name, "company": comp_name, "role": contact_role}
+                )
+
+                draft_msg = (
+                    f"Hi {person_name.split()[0]}! I noticed {comp_name} is expanding its {role_title} team. "
+                    f"Given my 13+ years building enterprise micro-frontends, high-performance UI systems, and AI agent workflows, "
+                    f"I'd love your referral for this role. I have attached my tailored resume ({matched_resume['file_name']}) "
+                    f"and cover letter. You can also explore my live interactive AI Twin at https://sathyanantham-portfolio-tv.vercel.app?openTwin=true."
+                )
+
+                attachments = [
+                    {
+                        "type": "RESUME_PDF",
+                        "name": matched_resume["file_name"],
+                        "path": matched_resume["file_path"],
+                        "download_url": matched_resume["download_url"]
+                    },
+                    {
+                        "type": "COVER_LETTER_TXT",
+                        "name": cover_letter_res["file_name"],
+                        "path": cover_letter_res["file_path"],
+                        "download_url": f"/downloads/cover_letters/{cover_letter_res['file_name']}"
+                    }
+                ]
+
+                ref_record = {
+                    "id": ref_id,
+                    "job_id": job_obj.get("id"),
+                    "job_title": role_title,
+                    "company": comp_name,
+                    "person_name": person_name,
+                    "contact_name": person_name,
+                    "role": contact_role,
+                    "connection_type": "1ST_DEGREE_LINKEDIN" if degree == "1st" else ("APIFY_RECRUITER" if degree == "Recruiter" else degree),
+                    "connection_degree": degree,
+                    "profile_url": selected_contact.get("linkedin_url", f"https://linkedin.com/company/{comp_name.lower()}"),
+                    "contact_email": selected_contact.get("email"),
+                    "subject": f"Referral inquiry — {role_title} at {comp_name}",
+                    "message": draft_msg,
+                    "draft_message": draft_msg,
+                    "cover_letter_text": cover_letter_res.get("cover_letter_text", ""),
+                    "cover_letter_path": cover_letter_res.get("file_path"),
+                    "resume_id": matched_resume.get("resume_id"),
+                    "resume_file_name": matched_resume.get("file_name"),
+                    "attachments": attachments,
+                    "status": "READY_FOR_REVIEW",
+                    "created_at": datetime.now(timezone.utc).isoformat()
                 }
-            ]
+                
+                # Persist to database
+                self.ref_repo.save_referral(ref_record)
+
+                formatted_refs.append({
+                    "contact_id": ref_id,
+                    "name": person_name,
+                    "role": contact_role,
+                    "company": comp_name,
+                    "connection_degree": "1st-Degree Network" if degree == "1st" else "Apify Discovered Recruiter",
+                    "relationship_note": f"Verified {degree} Connection ({selected_contact.get('source', 'DB')})",
+                    "recommended_action": "SEND_MESSAGE",
+                    "draft_message": draft_msg,
+                    "resume_file": matched_resume["file_name"],
+                    "email": selected_contact.get("email")
+                })
+
+        count = len(formatted_refs)
+        dispatch_label = (
+            "Approve & Dispatch Referral Message" if count == 1 
+            else f"Approve & Dispatch Both Referral Messages" if count == 2 
+            else f"Approve & Dispatch All {count} Referral Messages"
+        )
 
         return {
             "type": "REFERRAL_DISCOVERY_RESULT",
-            "reply": f"Retrieved {len(formatted_refs)} top-priority 1st-degree LinkedIn connections from DB. Personalized outreach drafts with your live AI Twin demo link are ready for review:",
+            "reply": f"Retrieved {count} referral & recruiter contacts from DB/Apify with tailored resume attachments. Ready for human review:",
             "referrals": formatted_refs,
             "actions": [
-                {"label": "Approve & Dispatch Messages", "action_id": "SEND_ALL_REFERRALS", "primary": True},
-                {"label": "Edit Messages in Referral Hub", "link": "/admin/referrals", "primary": False}
+                {"label": dispatch_label, "action_id": "SEND_ALL_REFERRALS", "primary": True},
+                {"label": "Edit in Referral Hub", "link": "/admin/referrals", "primary": False},
+                {"label": "Manage Connections DB", "link": "/admin/connections", "primary": False}
             ]
         }
 

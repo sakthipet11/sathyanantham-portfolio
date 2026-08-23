@@ -1,0 +1,12 @@
+Dear Talent Acquisition Lead,
+
+I am excited to apply for the Lead Frontend Architect position at Figma. With a proven track record of scaling enterprise‑grade web platforms, I am eager to bring my expertise in Micro Frontends, Module Federation, and AI‑enhanced UI systems to a company that defines collaborative design at global scale.
+
+Over 13.5+ years, I have architected and delivered high‑performance React and TypeScript applications leveraging Micro Frontend patterns and Webpack Module Federation to enable independent team velocity while maintaining a cohesive user experience. My work has consistently reduced bundle sizes by 30‑40%, improved TTI under 2 seconds on million‑user traffic, and integrated AI agents (Claude‑powered assistants and IBM Watson services) to automate component generation and accessibility audits.
+
+At Figma, I see an opportunity to elevate your frontend foundation—designing extensible plugin architectures, optimizing real‑time canvas rendering, and fostering a platform where designers and engineers co‑innovate seamlessly. My background in enterprise scale systems aligns with Figma’s ambition to handle increasingly complex design workflows without compromising speed or reliability.
+
+Please review my portfolio at https://sathyanantham-portfolio-tv.vercel.app for detailed case studies and a live AI Twin demo. I look forward to discussing how I can contribute to Figma’s next frontier of collaborative creativity.
+
+Sincerely  
+Sathyanantham V

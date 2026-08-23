@@ -1,0 +1,13 @@
+Dear Krishna B,
+
+I am excited to apply for the Lead React & Micro Frontend Architect position at Nextuple. Your commitment to building scalable, high‑performance web platforms resonates with my passion for architecting enterprise‑grade front‑end systems that drive both user experience and business value.
+
+With over 13.5 years of experience leading enterprise web platforms, I have designed and implemented Micro Frontend architectures powered by Module Federation, delivering modular, independently deployable React and Next.js applications that consistently improve UI performance at scale. I have also integrated AI agent capabilities—leveraging Claude Skills and IBM AI—to create intelligent, adaptive interfaces that enhance developer productivity and end‑user engagement.
+
+At Nextuple, I would bring this expertise to elevate your frontend strategy, establish robust Micro Frontend practices, and mentor engineering teams to accelerate feature delivery while maintaining architectural integrity. My focus on performance‑first design and AI‑augmented development aligns directly with your goal of scaling innovative solutions efficiently.
+
+Please review my portfolio at https://sathyanantham-portfolio-tv.vercel
+
+Sincerely,
+**Sathyanantham V**
+Lead Frontend Architect
