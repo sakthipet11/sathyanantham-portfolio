@@ -12,13 +12,16 @@ Job seekers — especially senior/lead-level professionals — spend hours manua
 ## Solution
 
 An autonomous AI agent platform that runs the entire job search and referral loop on the candidate's behalf:
-1. Discovers and scores jobs against the candidate profile (ATS $\ge$ 90%).
-2. Queries the local Job DB directly without re-running external scrapers.
-3. Matches warm 1st-degree connections from the candidate's 731-row LinkedIn network.
-4. Enriches corporate contacts via Apify Google Maps (`lukaskrivka/google-maps-with-contact-details`) for verified HR emails and phones.
-5. Formats all contacts across the standard 7 Connection columns (`First Name`, `Last Name`, `URL`, `Email Address`, `Company`, `Position`, `Connected On`).
-6. Generates candidate-grounded cover letters and pairs tailored physical PDF resumes (`public/downloads/`) in parallel via `asyncio.gather`.
-7. Staging and human review gate on `/admin/referrals` before 1-click SMTP dispatch with physical attachments and 5-day follow-up tracking.
+1. **Job Discovery & Scoring**: Discovers and scores jobs against the candidate profile (ATS ≥ 90%) via JSearch, Naukri, LinkedIn, and Instahyre scrapers.
+2. **Local Job Database**: Queries the local Job DB directly (`job_repository`) without re-running external scrapers.
+3. **1st-Degree Network Matching**: Matches warm 1st-degree connections from the 731-row LinkedIn network ingested from `docs/Connections.csv`.
+4. **Contact Enrichment**: Enriches corporate contacts via Apify Google Maps (`lukaskrivka/google-maps-with-contact-details`) for verified HR emails and phones.
+5. **7-Column Connection Format**: Formats all contacts across the standard 7 Connection columns (`First Name`, `Last Name`, `URL`, `Email Address`, `Company`, `Position`, `Connected On`).
+6. **Parallel Document Generation**: Generates candidate-grounded cover letters and pairs tailored physical PDF resumes (`public/downloads/`) in parallel via `asyncio.gather`.
+7. **Human Review Gate**: Staging and human review gate on `/admin/referrals` before 1-click SMTP dispatch with physical attachments and 5-day follow-up tracking.
+8. **Email Classification**: Automatically classifies incoming recruiter emails and generates AI-powered responses.
+9. **Application Tracking**: Full application pipeline tracking with automated status updates and follow-up scheduling.
+10. **Resume Version Management**: Multi-version resume management with tailored PDFs per job category.
 
 ---
 
@@ -28,23 +31,28 @@ The platform operates on a clean 4-tier decoupled architecture:
 
 ```
 [ Frontend: Next.js 15 App Router ]  <-- NEXT_PUBLIC_API_URL -->  [ Backend: FastAPI (Python 3.12 / 3.14) ]
-  ├── Public Candidate Portfolio (React 19)                         ├── 6 Autonomous AI Agents
-  └── Recruiter / Admin OS (/admin/*)                               ├── Job Discovery Engine
+  ├── Public Candidate Portfolio (React 19)                         ├── 10+ Autonomous AI Services
+  └── Recruiter / Admin OS (/admin/*)                               ├── Job Discovery Engine (Multi-Provider)
       ├── /admin/dashboard (100% Dynamic 10 KPIs)                   ├── 7-Column Connection Table Persistence
       ├── /admin/analytics (Live Telemetry & 14-Day Trends)         ├── Apify Google Maps Contact Scraper
+      ├── /admin/jobs (Job Discovery & ATS Scoring)                 ├── Email Classification & Auto-Response
+      ├── /admin/applications (Pipeline & Automation)               ├── GDrive Resume Sync Scheduler
       ├── /admin/referrals (Job-First ATS ≥ 90% Flow)               ├── Parallel Document Generation (asyncio.gather)
-      ├── /admin/connections (731 LinkedIn Contacts)                └── Live Handoff & Visitor Telemetry
-      └── /admin/agent (AI Job Copilot Chatbot)                                    │
-                                                                       [ Database & Cache Layer ]
-                                                                        ├── PostgreSQL (Local) / Supabase (Prod)
-                                                                        └── Redis / In-Memory TTL Cache
+      ├── /admin/connections (731 LinkedIn Contacts)                ├── RAG Knowledge Base Ingestion
+      ├── /admin/recruiter-inbox (Live Handoff Chat)                └── Live Handoff & Visitor Telemetry
+      ├── /admin/resumes (Version Manager & GDrive Sync)                           │
+      ├── /admin/automation (Retention & Lifecycle)                  [ Database & Cache Layer ]
+      ├── /admin/agent (AI Job Copilot Chatbot)                      ├── PostgreSQL (Local) / Supabase (Prod)
+      └── /admin/settings (Candidate Profile & API Keys)             └── Redis / In-Memory TTL Cache
 ```
 
-1. **Frontend (`app/`, `components/`, `lib/`)**: Next.js 15 App Router. Public portfolio and Admin OS (`/admin/dashboard`, `/admin/analytics`, `/admin/jobs`, `/admin/applications`, `/admin/referrals`, `/admin/connections`, `/admin/recruiter-inbox`, `/admin/resumes`, `/admin/automation`, `/admin/agent`, `/admin/settings`). All frontend API calls resolve dynamically through `getApiHost()` via `NEXT_PUBLIC_API_URL`.
-2. **Backend Engine (`backend/python/`)**: FastAPI server housing 6 autonomous AI agents, centralized LLM evaluation, background scheduler loop, and WebSocket presence handoff.
-3. **Analytics & Telemetry Engine (`backend/python/api/analytics.py`)**: Exposes `GET /api/v2/analytics/overview` aggregating `visitor_events`, `chat_sessions`, `chat_messages`, `jobs`, `applications`, `referrals`, and `connections` with zero static numbers.
-4. **Connections & Referral Engine (`backend/python/services/`)**: Apify Google Maps contact scraper, 7-column schema mappings, 1st-degree LinkedIn matching, candidate truth grounding, and multi-attachment SMTP client.
-5. **Database & Data Lifecycle Layer (`backend/python/repositories/`)**: Dual-engine persistence supporting Local PostgreSQL in development and Supabase in production with cascade transactions, explicit `pg_conn.commit()`, and UUID formatting.
+1. **Frontend (`app/`, `components/`, `lib/`, `hooks/`)**: Next.js 15 App Router with React 19. Public portfolio and Admin OS with 11 admin pages. All API calls resolve via `getApiHost()` using `NEXT_PUBLIC_API_URL`.
+2. **Backend Engine (`backend/python/`)**: FastAPI v2.0.0 server with 16 API routers, 29 service modules, 8 repository layers, WebSocket support, and Google Drive sync scheduler.
+3. **Analytics & Telemetry Engine (`backend/python/api/analytics.py`)**: 100% dynamic metrics from `visitor_events`, `chat_sessions`, `chat_messages`, `jobs`, `applications`, `referrals`, `connections`, and `emails`.
+4. **Job Discovery Services**: Multi-provider integration (JSearch, Naukri, LinkedIn, Instahyre) with deduplication, normalization, ATS scoring, and automated matching.
+5. **Referral & Connection Engine**: 1st-degree LinkedIn matching, Apify contact discovery, company normalization, parallel cover letter + resume generation, and Gmail SMTP with 5-day follow-up.
+6. **Email Intelligence Layer**: Classification service, auto-response generation, recruiter inbox management, and structured email parsing.
+7. **Database & Data Lifecycle**: PostgreSQL/Supabase dual support with 8 migration files, explicit transaction commits, UUID handling, and automated data retention policies.
 
 ---
 
@@ -108,15 +116,62 @@ Every contact discovered or ingested is formatted and persisted across the 7 sta
 ## 🚀 Key Operational & Test Commands
 
 ```bash
-# 1. Run Complete Connections & Referral Pipeline Test Suite (100% Pass)
+# Backend Server
+python -m uvicorn backend.python.main:app --host 127.0.0.1 --port 8000 --reload
+
+# Frontend Server
+npm run dev  # Runs on http://localhost:3000
+
+# Test Suites
 python -m pytest backend/python/tests/test_connections_pipeline.py -v
-
-# 2. Run Automated Referral Pipeline Tests
 python -m pytest backend/python/tests/test_automated_referral_pipeline.py -v
+python -m pytest backend/python/tests/test_phase1_pipeline.py -v
+python -m pytest backend/python/tests/test_phase8_copilot.py -v
 
-# 3. Trigger High-Fit Job-First Referral Discovery
-curl -X POST "http://127.0.0.1:8000/api/v2/referrals/discover?threshold=90"
-
-# 4. Fetch Live Telemetry Overview
-curl "http://127.0.0.1:8000/api/v2/analytics/overview"
+# Key API Endpoints
+curl "http://127.0.0.1:8000/api/v2/analytics/overview"                      # Live telemetry
+curl "http://127.0.0.1:8000/api/v2/jobs?min_score=90"                       # High-fit jobs
+curl -X POST "http://127.0.0.1:8000/api/v2/referrals/discover?threshold=90" # Referral discovery
+curl "http://127.0.0.1:8000/api/v2/connections"                             # LinkedIn network
+curl "http://127.0.0.1:8000/api/v2/applications"                            # Application pipeline
+curl "http://127.0.0.1:8000/api/v2/control-center/pipeline"                 # 9-stage pipeline view
 ```
+
+## 📊 Core Services & Repositories
+
+### Services (`backend/python/services/`)
+- **Job Discovery & Matching**: `job_discovery_service.py`, `job_scoring_service.py`, `job_normalization_service.py`, `job_deduplication_service.py`, `resume_matching_service.py`
+- **Referral & Networking**: `referral_discovery_service.py`, `referral_messaging_service.py`, `referral_ranking_service.py`, `linkedin_contact_service.py`, `apify_recruiter_service.py`
+- **Communication**: `gmail_mcp_client.py`, `email_classification_service.py`, `cover_letter_service.py`, `websocket_service.py`, `notifications.py`
+- **Infrastructure**: `ai_providers.py` (NVIDIA/Gemini LLM), `rag_service.py`, `gdrive_sync_service.py`, `gdrive_sync_scheduler.py`, `resilience_service.py`
+- **Automation**: `application_automation_service.py`, `recruiter_automation_service.py`, `retention_service.py`, `kill_switch_service.py`
+- **Security**: `prompt_security_service.py`, `audit_governance_service.py`
+- **Candidate Management**: `candidate_profile_service.py`, `company_normalization_service.py`, `website_contacts_enrichment_service.py`
+- **AI Copilot**: `ai_job_copilot_service.py`
+
+### Repositories (`backend/python/repositories/`)
+- `job_repository.py` - Jobs & job scores (PostgreSQL + Supabase)
+- `application_repository.py` - Applications & application events
+- `referral_repository.py` - Referral campaigns with committed transactions
+- `connection_repository.py` - 7-column connection schema + CSV ingestion
+- `email_repository.py` - Email storage & classification results
+- `resume_repository.py` - Resume versions & GDrive sync metadata
+- `retention_repository.py` - Data lifecycle & retention policies
+- `supabase_repo.py` - Core DB helper with dual PostgreSQL/Supabase support
+
+### API Routers (`backend/python/api/`)
+- `analytics.py` - Live telemetry & metrics aggregation
+- `jobs_v2.py` - Job discovery, scoring, and pipeline
+- `applications.py` - Application tracking & automation
+- `referrals.py` - Referral discovery & outreach management
+- `connections.py` - LinkedIn network CRUD & sync
+- `recruiter_inbox.py` - Live visitor handoff & chat
+- `resumes.py` - Resume version management & GDrive sync
+- `control_center.py` - Executive dashboard & 9-stage pipeline
+- `copilot.py` - AI job search assistant chat
+- `portfolio.py` - Dynamic portfolio data (projects, experience, skills, profile)
+- `chat.py` - AI Twin conversational interface
+- `contact.py` - Contact form submissions
+- `admin.py` - Auth, presence, and admin utilities
+- `hardening.py` - Security, rate limiting, validation
+- `data_lifecycle.py` - Retention policies & data cleanup
