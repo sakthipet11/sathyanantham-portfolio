@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
@@ -42,6 +42,7 @@ import {
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
+import { ApplicationProgressModal } from '@/components/admin/ApplicationProgressModal';
 import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 const ZERO_METRICS = {
@@ -84,7 +85,12 @@ export default function AdminJobsPage() {
   const [jdSearchModalOpen, setJdSearchModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
-  useLockBodyScroll(!!selectedJob || jdSearchModalOpen || settingsModalOpen || deleteModalOpen);
+  // Auto-Apply State
+  const [autoApplyModalOpen, setAutoApplyModalOpen] = useState(false);
+  const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
+  const [applyingJobs, setApplyingJobs] = useState(false);
+
+  useLockBodyScroll(!!selectedJob || jdSearchModalOpen || settingsModalOpen || deleteModalOpen || autoApplyModalOpen);
 
   // JD Search Form State
   const [jdInputText, setJdInputText] = useState(
@@ -118,7 +124,7 @@ export default function AdminJobsPage() {
     setTimeout(() => setToastMsg(null), 4000);
   };
 
-  const fetchJobsAndMetrics = async () => {
+  const fetchJobsAndMetrics = useCallback(async () => {
     try {
       setLoading(true);
       const timestamp = Date.now();
@@ -153,7 +159,89 @@ export default function AdminJobsPage() {
     } finally {
       setLoading(false);
     }
+  }, [apiHost]);
+
+  // Open selected jobs directly in new browser tabs
+  const handleOpenSelectedInTabs = () => {
+    const selectedJobs = jobs.filter((j: any) => selectedIds.includes(j.id) && j.apply_url);
+    if (selectedJobs.length === 0) {
+      showToast("No valid apply URLs found for selected jobs.");
+      return;
+    }
+    selectedJobs.forEach((job: any) => {
+      window.open(job.apply_url, '_blank', 'noopener,noreferrer');
+    });
+    showToast(`Opened ${selectedJobs.length} job portal${selectedJobs.length > 1 ? 's' : ''} in new tabs`);
   };
+
+  // Handle bulk auto-apply
+  const handleBulkAutoApply = async () => {
+    if (selectedIds.length === 0) {
+      showToast("Please select jobs to apply to");
+      return;
+    }
+
+    setApplyingJobs(true);
+
+    try {
+      // Step 1: Create batch
+      const prepareRes = await fetch(`${apiHost}/api/v2/applications/bulk-prepare`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_ids: selectedIds,
+          user_profile_id: '00000000-0000-0000-0000-000000000001',
+          auto_submit: false // Require human review for first-time portals
+        })
+      });
+
+      if (!prepareRes.ok) {
+        const errorData = await prepareRes.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to prepare batch');
+      }
+
+      const prepareData = await prepareRes.json();
+      const batchId = prepareData.data.batch_id;
+
+      // Step 2: Start auto-apply (with visible automated browser window)
+      const applyRes = await fetch(`${apiHost}/api/v2/applications/auto-apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batch_id: batchId,
+          user_profile_id: '00000000-0000-0000-0000-000000000001',
+          rate_limit_seconds: 30,
+          headless: false
+        })
+      });
+
+      if (!applyRes.ok) {
+        const errorData = await applyRes.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to start auto-apply');
+      }
+
+      // Step 3: Open progress modal
+      setCurrentBatchId(batchId);
+      setAutoApplyModalOpen(true);
+      showToast(`Started bulk application for ${selectedIds.length} jobs`);
+
+    } catch (err: any) {
+      console.error('[AUTO_APPLY] Error:', err);
+      showToast(err.message || 'Failed to start auto-apply. Please try again.');
+    } finally {
+      setApplyingJobs(false);
+    }
+  };
+
+  const handleAutoApplyComplete = useCallback((results: any) => {
+    showToast(
+      `Batch complete: ${results.success_count} submitted, ${results.failed_count} failed, ${results.needs_review_count} need review`
+    );
+    // Refresh jobs list
+    fetchJobsAndMetrics();
+    // Clear selection
+    setSelectedIds([]);
+  }, [fetchJobsAndMetrics]);
 
   const fetchSettings = async () => {
     try {
@@ -647,6 +735,8 @@ export default function AdminJobsPage() {
             setItemsToDelete(selectedIds);
             setDeleteModalOpen(true);
           }}
+          onTriggerBulkApply={handleBulkAutoApply}
+          applyingJobs={applyingJobs}
           pipelineName="jobs"
         />
 
@@ -1430,6 +1520,17 @@ export default function AdminJobsPage() {
         pipelineName="jobs"
         isDeleting={isDeleting}
       />
+
+      {/* Application Progress Modal */}
+      {autoApplyModalOpen && currentBatchId && (
+        <ApplicationProgressModal
+          isOpen={autoApplyModalOpen}
+          batchId={currentBatchId}
+          apiHost={apiHost}
+          onClose={() => setAutoApplyModalOpen(false)}
+          onComplete={handleAutoApplyComplete}
+        />
+      )}
     </div>
   );
 }
