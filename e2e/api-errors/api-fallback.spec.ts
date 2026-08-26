@@ -11,12 +11,12 @@ test.describe('API Error Handling & Graceful Degradation', () => {
       });
     });
 
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // Page must still render without breaking or white screening
     const body = page.locator('body');
     await expect(body).toBeVisible();
+    await expect(page.locator('h1')).toBeVisible();
   });
 
   test('should survive network timeout on API requests', async ({ page }) => {
@@ -25,11 +25,11 @@ test.describe('API Error Handling & Graceful Degradation', () => {
       await route.abort('timedout');
     });
 
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     // Verify main view remains intact and interactive
     const heading = page.locator('h1, h2').first();
     await expect(heading).toBeVisible();
   });
 });
+

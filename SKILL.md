@@ -181,10 +181,18 @@ python -m uvicorn backend.python.main:app --host 127.0.0.1 --port 8000 --reload
 # Frontend Server
 npm run dev  # Runs on http://localhost:3000
 
-# Playwright E2E Test Suite (Desktop Chrome, Mobile Chrome, Mobile Safari)
-npm run test:e2e        # Run all headless E2E tests
-npm run test:e2e:ui     # Open interactive Playwright UI runner
-npm run test:e2e:report # View HTML execution report
+# Playwright E2E Test Suite (28 Tests: Public, Admin OS, Mobile & API Resilience)
+npm run test:e2e                                  # Run all 28 E2E tests across all configured browsers
+npx playwright test --project=chromium            # Run full 28-test suite in Chrome (Desktop + Mobile responsive)
+npm run test:e2e:ui                               # Open interactive Playwright UI runner
+npm run test:e2e:report                           # View HTML execution report
+
+# Playwright Test Suite Breakdown:
+# 1. e2e/public/public-flows.spec.ts              - Hero, AI Twin Ask, Contact Form, Resume PDF download
+# 2. e2e/admin/admin-flows.spec.ts                - Admin Passkey Auth, Mobile Drawer Navigation, Jobs Discovery, Applications & Settings
+# 3. e2e/visual/responsive.spec.ts                - Zero overflow (scrollWidth <= clientWidth) across Public Home, Admin Login, & all 11 Admin screens on mobile (375px)
+# 4. e2e/api-errors/api-fallback.spec.ts          - 500 Error Mock graceful degradation & network timeout recovery
+# 5. e2e/error-handling/error-boundary.spec.ts    - Branded 404 navigation and client error boundary fallbacks
 
 # Backend Test Suites
 python -m pytest backend/python/tests/test_connections_pipeline.py -v

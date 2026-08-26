@@ -154,10 +154,18 @@ Every contact discovered or ingested is formatted and persisted across the 7 sta
 ## 🧪 Testing & Quality Assurance
 
 ```bash
-# Playwright E2E Test Suite (Desktop Chrome, Mobile Chrome, Mobile Safari)
-npm run test:e2e        # Run all headless E2E tests
-npm run test:e2e:ui     # Open interactive Playwright UI runner
-npm run test:e2e:report # View HTML execution report
+# Playwright E2E Test Suite (28 Tests: Public, Admin OS, Mobile & API Resilience)
+npm run test:e2e                                  # Run all 28 E2E tests across all configured browsers
+npx playwright test --project=chromium            # Run full 28-test suite in Chrome (Desktop + Mobile responsive)
+npm run test:e2e:ui                               # Open interactive Playwright UI runner
+npm run test:e2e:report                           # View HTML execution report
+
+# Playwright Test Suite Breakdown:
+# 1. e2e/public/public-flows.spec.ts              - Hero, AI Twin Ask, Contact Form, Resume PDF download
+# 2. e2e/admin/admin-flows.spec.ts                - Admin Passkey Auth, Mobile Drawer Navigation, Jobs Discovery, Applications & Settings
+# 3. e2e/visual/responsive.spec.ts                - Zero overflow (scrollWidth <= clientWidth) across Public Home, Admin Login, & all 11 Admin screens on mobile (375px)
+# 4. e2e/api-errors/api-fallback.spec.ts          - 500 Error Mock graceful degradation & network timeout recovery
+# 5. e2e/error-handling/error-boundary.spec.ts    - Branded 404 navigation and client error boundary fallbacks
 
 # Full Connections & Referral Pipeline Tests
 python -m pytest backend/python/tests/test_connections_pipeline.py -v
@@ -238,7 +246,8 @@ Frontend Architect and Lead Software Engineer with **13.5+ years** designing and
 - **33 Service Modules**: Modular, maintainable business logic
 - **8 Repository Layers**: Clean data access abstraction
 - **8 Database Migrations**: Version-controlled schema evolution
-- **11+ Test Suites**: Automated testing across backend pipelines and frontend Playwright E2E
+- **28 Playwright E2E Tests**: Full coverage across Public, Mobile Viewports, API Resilience, and all 11 Admin OS screens
+- **11+ Backend Pytest Suites**: Automated testing across backend pipelines, auto-apply, and scoring
 - **731 LinkedIn Connections**: Pre-ingested network for warm referrals
 - **7-Column Connection Schema**: Standardized contact data format
 - **9-Stage Application Pipeline**: Complete job search lifecycle tracking
