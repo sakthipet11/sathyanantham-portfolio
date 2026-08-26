@@ -7,8 +7,11 @@ import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
   itemCount: number;
-  pipelineName: string;
-  onClose: () => void;
+  pipelineName?: string;
+  itemLabel?: string;
+  entityName?: string;
+  onClose?: () => void;
+  onCancel?: () => void;
   onConfirm: () => void;
   isDeleting?: boolean;
 }
@@ -17,11 +20,16 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   isOpen,
   itemCount,
   pipelineName,
+  itemLabel,
+  entityName,
   onClose,
+  onCancel,
   onConfirm,
   isDeleting = false
 }) => {
   const [confirmInput, setConfirmInput] = useState('');
+  const label = itemLabel || entityName || pipelineName || 'item';
+  const handleModalClose = onClose || onCancel || (() => {});
   useLockBodyScroll(isOpen);
 
   if (!isOpen) return null;
@@ -37,7 +45,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
 
   const handleClose = () => {
     setConfirmInput('');
-    onClose();
+    handleModalClose();
   };
 
   return (
@@ -52,7 +60,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
               <h3 className="text-sm font-bold text-foreground uppercase tracking-wider font-mono">
                 {isBulk ? `Confirm Bulk Hard-Delete (${itemCount})` : `Confirm Single Hard-Delete`}
               </h3>
-              <p className="text-xs text-muted-foreground font-mono mt-0.5">Target Pipeline: {pipelineName}</p>
+              <p className="text-xs text-muted-foreground font-mono mt-0.5">Target: {label}</p>
             </div>
           </div>
           <button

@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 try:
-    from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, connections, control_center, hardening, copilot, portfolio, data_lifecycle, resumes, analytics
+    from backend.python.api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, connections, control_center, hardening, copilot, portfolio, data_lifecycle, resumes, analytics, auto_apply
     from backend.python.services.websocket_service import ws_manager
     from backend.python.repositories.supabase_repo import db_helper
     from backend.python.repositories.connection_repository import connection_repository
@@ -26,7 +26,7 @@ try:
     from backend.python.services.ai_providers import GenericLLMProvider, llm_provider
     from backend.python.services.rag_service import kb
 except ModuleNotFoundError:
-    from api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, connections, control_center, hardening, copilot, portfolio, data_lifecycle, resumes, analytics
+    from api import admin, chat, contact, jobs, jobs_v2, applications, recruiter_inbox, referrals, connections, control_center, hardening, copilot, portfolio, data_lifecycle, resumes, analytics, auto_apply
     from services.websocket_service import ws_manager
     from repositories.supabase_repo import db_helper
     from repositories.connection_repository import connection_repository
@@ -55,6 +55,7 @@ app.include_router(contact.router)
 app.include_router(jobs.router)
 app.include_router(jobs_v2.router)
 app.include_router(applications.router)
+app.include_router(auto_apply.router)  # AI-Powered Multi-Job Auto-Apply
 app.include_router(recruiter_inbox.router)
 app.include_router(referrals.router)
 app.include_router(connections.router)
