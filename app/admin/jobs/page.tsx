@@ -233,6 +233,46 @@ export default function AdminJobsPage() {
     }
   };
 
+  // Handle single job auto-apply (Direct Chromium CLI with auto-submit & DB update)
+  const handleSingleAutoApply = async (jobId: string) => {
+    setApplyingJobs(true);
+    try {
+      showToast('🚀 Launching Chromium Auto-Apply in visible window...');
+      
+      const res = await fetch(`${apiHost}/api/v2/applications/apply-single`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_id: jobId,
+          auto_submit: true,
+          headless: false
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to trigger Chromium auto-apply');
+      }
+
+      const result = await res.json();
+      showToast(`✨ Auto-Apply running in Chromium. Status will update to 'Applied' in DB.`);
+      
+      // Poll/refresh jobs list after a short delay so the user sees the updated status
+      setTimeout(() => {
+        fetchJobsAndMetrics();
+      }, 5000);
+      setTimeout(() => {
+        fetchJobsAndMetrics();
+      }, 15000);
+
+    } catch (err: any) {
+      console.error('[AUTO_APPLY] Error:', err);
+      showToast(err.message || 'Failed to start auto-apply. Please try again.');
+    } finally {
+      setApplyingJobs(false);
+    }
+  };
+
   const handleAutoApplyComplete = useCallback((results: any) => {
     showToast(
       `Batch complete: ${results.success_count} submitted, ${results.failed_count} failed, ${results.needs_review_count} need review`
@@ -895,6 +935,16 @@ export default function AdminJobsPage() {
                         <span>ATS Radar</span>
                       </button>
 
+                      <button
+                        onClick={() => handleSingleAutoApply(job.id)}
+                        disabled={applyingJobs}
+                        className="px-2.5 py-1.5 rounded-xl bg-primary/10 border border-primary/25 hover:bg-primary hover:text-primary-foreground text-primary text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        title="Auto-Apply with Chromium Automation"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Auto-Apply</span>
+                      </button>
+
                       {job.apply_url && (
                         <a
                           href={job.apply_url}
@@ -1491,14 +1541,27 @@ export default function AdminJobsPage() {
                 >
                   Close
                 </button>
+                <button
+                  onClick={() => {
+                    const jobId = selectedJob.id;
+                    setSelectedJob(null);
+                    handleSingleAutoApply(jobId);
+                  }}
+                  disabled={applyingJobs}
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-primary/20 hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Auto-Apply (Playwright)</span>
+                </button>
                 {selectedJob.apply_url && (
                   <a
                     href={selectedJob.apply_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-primary/20 hover:opacity-90"
+                    className="px-3.5 py-2 rounded-xl bg-muted border border-border/80 text-foreground text-xs font-semibold transition flex items-center gap-1.5 hover:bg-muted/80"
+                    title="Open Original Job Link"
                   >
-                    <span>Apply on Portal</span>
+                    <span>Link</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}

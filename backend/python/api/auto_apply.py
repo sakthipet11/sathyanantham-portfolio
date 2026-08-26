@@ -39,6 +39,14 @@ class AutoApplyRequest(BaseModel):
     headless: bool = Field(False, description="If False, opens visible automated Chromium window")
 
 
+class SingleApplyRequest(BaseModel):
+    """Request to directly launch single job auto-apply via Chromium CLI"""
+    job_id: Optional[str] = Field(None, description="Job UUID in database")
+    job_url: Optional[str] = Field(None, description="Direct URL of job application")
+    auto_submit: bool = Field(True, description="If True, automatically submits the application")
+    headless: bool = Field(False, description="If False, launches visible Chromium window")
+
+
 class RetryApplicationRequest(BaseModel):
     """Request to retry a failed application"""
     use_manual_mode: bool = Field(False, description="If True, open browser for human intervention")
@@ -181,6 +189,64 @@ async def auto_apply(request: AutoApplyRequest, background_tasks: BackgroundTask
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start batch: {str(e)}")
+
+
+@router.post("/apply-single")
+async def apply_single(request: SingleApplyRequest, background_tasks: BackgroundTasks):
+    """
+    Launch direct single-job auto-apply with visible Chromium browser automation.
+    Navigates to URL, fills form fields with verified candidate data, attaches resume, submits, and updates DB.
+    """
+    from backend.python.repositories.job_repository import job_repository
+    from backend.python.cli.chromium_apply import ChromiumJobApplier
+
+    job_url = request.job_url
+    job_id = request.job_id
+
+    if not job_url and job_id:
+        job = job_repository.get_job_by_id(job_id)
+        if job:
+            job_url = job.get("apply_url") or job.get("job_url")
+
+    if not job_url:
+        raise HTTPException(status_code=400, detail="Valid job_id or job_url is required")
+
+    async def _run_applier_task(target_url: str, j_id: Optional[str], auto_sub: bool, is_headless: bool):
+        applier = ChromiumJobApplier(
+            headless=is_headless,
+            slow_mo=100,
+            auto_submit=auto_sub,
+            timeout=35000
+        )
+        try:
+            print(f"[AUTO_APPLY_SINGLE] Launching Chromium Applier for {target_url} (auto_submit={auto_sub})")
+            await applier.open_and_apply(target_url)
+            if j_id and auto_sub:
+                job_repository.update_job_status(j_id, "APPLIED")
+        except Exception as err:
+            print(f"[AUTO_APPLY_SINGLE] Task error: {err}")
+        finally:
+            if is_headless or auto_sub:
+                await applier.close()
+
+    background_tasks.add_task(
+        _run_applier_task,
+        target_url=job_url,
+        j_id=job_id,
+        auto_sub=request.auto_submit,
+        is_headless=request.headless
+    )
+
+    return {
+        "success": True,
+        "message": f"Chromium Auto-Apply launched for {job_url}",
+        "data": {
+            "job_id": job_id,
+            "job_url": job_url,
+            "auto_submit": request.auto_submit,
+            "status": "PROCESSING"
+        }
+    }
 
 
 @router.get("/batch/{batch_id}/status", response_model=BatchStatusResponse)
