@@ -523,12 +523,17 @@ class ApplicationQueueService:
                     submitted_at=now,
                     screenshot_url=f"data:image/png;base64,{screenshot_b64_post[:200]}..." if screenshot_b64_post else None
                 )
+                # Synchronize main job repository status to APPLIED
+                try:
+                    self.job_repository.update_job_status(job_id, 'APPLIED')
+                except Exception as db_err:
+                    print(f"[QUEUE] Warning updating job repository: {db_err}")
 
                 # Update cache statistics
                 if self.cache_service:
                     await self.cache_service.update_success_count(portal_identifier)
 
-                print(f"[QUEUE] [OK] Application {app_id} submitted successfully")
+                print(f"[QUEUE] [OK] Application {app_id} submitted successfully and job {job_id} marked as APPLIED")
             else:
                 raise Exception(f"Submission failed: {submit_message}")
 
@@ -756,7 +761,7 @@ class ApplicationQueueService:
 
     async def _get_candidate_data(self, user_profile_id: str) -> Dict[str, Any]:
         """
-        Fetch candidate profile data.
+        Fetch candidate profile data from truth store.
 
         Args:
             user_profile_id: User profile UUID
@@ -764,34 +769,47 @@ class ApplicationQueueService:
         Returns:
             Candidate data dictionary
         """
-        if self.user_profile_repository:
-            profile = await self.user_profile_repository.get_by_id(user_profile_id)
-            if profile:
-                return {
-                    'full_name': profile.get('full_name'),
-                    'email': profile.get('email'),
-                    'phone': profile.get('phone'),
-                    'location': profile.get('location'),
-                    'linkedin': profile.get('portfolio_urls', {}).get('linkedin'),
-                    'github': profile.get('portfolio_urls', {}).get('github'),
-                    'portfolio_url': profile.get('portfolio_urls', {}).get('website'),
-                    'years_of_experience': profile.get('years_of_experience'),
-                    'current_company': profile.get('experience_history', [{}])[0].get('company') if profile.get('experience_history') else None,
-                    'work_authorization': profile.get('work_authorization'),
-                    'primary_skills': profile.get('primary_skills', []),
-                    'resume_path': '/path/to/resume.pdf'  # TODO: Get actual resume path
-                }
+        from pathlib import Path
+        from backend.python.services.candidate_profile_service import candidate_profile_service
 
-        # Fallback mock data for testing
+        try:
+            cand = candidate_profile_service.get_candidate_data()
+        except Exception:
+            cand = {}
+
+        # Resolve verified local resume PDF
+        project_root = Path(__file__).resolve().parents[3]
+        resume_candidates = [
+            project_root / "public" / "downloads" / "Sathyanantham_V_Resume.pdf",
+            project_root / "public" / "resume.pdf",
+            project_root / "public" / "downloads" / "Sathyanantham_V_AI_FullStack_Lead.pdf",
+        ]
+        resolved_resume = None
+        for r in resume_candidates:
+            if r.exists():
+                resolved_resume = str(r.resolve())
+                break
+
+        full_name = cand.get('name') or 'Sathyanantham V'
+        parts = full_name.split()
+        first_name = parts[0] if parts else 'Sathyanantham'
+        last_name = " ".join(parts[1:]) if len(parts) > 1 else 'V'
+
         return {
-            'full_name': 'Sathyanantham V',
-            'email': 'sakthi@example.com',
-            'phone': '+1234567890',
-            'location': 'Coimbatore, India',
-            'linkedin': 'https://linkedin.com/in/sathyanantham',
-            'years_of_experience': 8,
-            'work_authorization': 'Indian Citizen',
-            'resume_path': '/path/to/resume.pdf'
+            'full_name': full_name,
+            'first_name': first_name,
+            'last_name': last_name,
+            'email': cand.get('email') or 'v.sathyanantham@gmail.com',
+            'phone': cand.get('phone') or '+91 8870956756',
+            'location': cand.get('location') or 'Coimbatore, Tamil Nadu, India',
+            'linkedin': cand.get('linkedin_url') or 'https://www.linkedin.com/in/sathyanantham-v-646b911b',
+            'github': cand.get('github_url') or 'https://github.com/sakthipet11',
+            'portfolio_url': cand.get('portfolio_url') or 'https://sathyanantham-portfolio-tv.vercel.app',
+            'years_of_experience': cand.get('years_experience') or '13',
+            'current_company': 'Lead Frontend Architect',
+            'work_authorization': cand.get('work_authorization') or 'Authorized to work in India; Open to Remote & Relocation',
+            'primary_skills': cand.get('skills') or ['React', 'TypeScript', 'Next.js', 'AI'],
+            'resume_path': resolved_resume
         }
 
     async def get_batch_status(self, batch_id: str) -> Optional[Dict[str, Any]]:
