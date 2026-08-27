@@ -11,17 +11,18 @@ Job seekers — especially senior/lead-level professionals — spend hours manua
 
 ## Solution
 
-An autonomous AI agent platform that runs the entire job search, referral loop, and auto-application lifecycle on the candidate's behalf:
-1. **Job Discovery & Scoring**: Discovers and scores jobs against the candidate profile (ATS ≥ 90%) via JSearch, Naukri, LinkedIn, and Instahyre scrapers.
-2. **Local Job Database**: Queries the local Job DB directly (`job_repository`) without re-running external scrapers.
-3. **1st-Degree Network Matching**: Matches warm 1st-degree connections from the 731-row LinkedIn network ingested from `docs/Connections.csv`.
-4. **Contact Enrichment**: Enriches corporate contacts via Apify Google Maps (`lukaskrivka/google-maps-with-contact-details`) for verified HR emails and phones.
-5. **7-Column Connection Format**: Formats all contacts across the standard 7 Connection columns (`First Name`, `Last Name`, `URL`, `Email Address`, `Company`, `Position`, `Connected On`).
-6. **Parallel Document Generation**: Generates candidate-grounded cover letters and pairs tailored physical PDF resumes (`public/downloads/`) in parallel via `asyncio.gather`.
-7. **Human Review Gate**: Staging and human review gate on `/admin/referrals` before 1-click SMTP dispatch with physical attachments and 5-day follow-up tracking.
-8. **Autonomous Multi-Job Auto-Apply**: Headless Playwright browser automation + LLM-powered dynamic form mapping (Greenhouse, Lever, Workday, Ashby, custom portals) with rate limiting, retry backoff, and screenshot audit trails.
-9. **Email Classification & Auto-Response**: Automatically classifies incoming recruiter emails and generates AI-powered responses.
-10. **Application Lifecycle & Resilient UI**: Full application pipeline tracking with automated status updates, opt-in API resilience, theme-aware error boundaries, branded 404, and Playwright E2E test suites.
+1. **Job Discovery & Scoring**: Discovers and scores jobs against the candidate profile via JSearch, Naukri, LinkedIn, and Instahyre scrapers with ATS match evaluation.
+2. **Selective Auto-Staging Policy**: Jobs with ATS match score $\ge 75\%$ are automatically marked `QUALIFIED` and auto-staged into `applications_v2` in `READY_FOR_REVIEW` status with tailored resume and cover letter. Jobs $< 75\%$ remain in `READY_FOR_REVIEW` in the job tracker without auto-staging, giving the user full manual staging control.
+3. **Interactive 1-Click Staging UI**: Un-staged jobs present an active **Stage** button on `/admin/jobs` and in the Radar modal; once staged (auto or manually), the button transitions to a disabled **Staged** state to prevent redundant duplicate staging.
+4. **Local Job Database**: Queries the local Job DB directly (`job_repository`) without re-running external scrapers.
+5. **1st-Degree Network Matching**: Matches warm 1st-degree connections from the 731-row LinkedIn network ingested from `docs/Connections.csv`.
+6. **Contact Enrichment**: Enriches corporate contacts via Apify Google Maps (`lukaskrivka/google-maps-with-contact-details`) for verified HR emails and phones.
+7. **7-Column Connection Format**: Formats all contacts across the standard 7 Connection columns (`First Name`, `Last Name`, `URL`, `Email Address`, `Company`, `Position`, `Connected On`).
+8. **Parallel Document Generation**: Generates candidate-grounded cover letters and pairs tailored physical PDF resumes (`public/downloads/`) in parallel via `asyncio.gather`.
+9. **Human Review Gate**: Staging and human review gate on `/admin/referrals` and `/admin/applications` before 1-click SMTP dispatch with physical attachments and 5-day follow-up tracking.
+10. **Autonomous Multi-Job Auto-Apply**: Headless Playwright browser automation + LLM-powered dynamic form mapping (Greenhouse, Lever, Workday, Ashby, custom portals) with rate limiting, retry backoff, and screenshot audit trails.
+11. **Email Classification & Auto-Response**: Automatically classifies incoming recruiter emails and generates AI-powered responses.
+12. **Application Lifecycle & Resilient UI**: Full application pipeline tracking with automated status updates, opt-in API resilience, theme-aware error boundaries, branded 404, and Playwright E2E test suites.
 
 ---
 
