@@ -2,7 +2,7 @@ import os
 import secrets
 import hashlib
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, HTTPException, Header, Depends, Query, Request
+from fastapi import APIRouter, HTTPException, Header, Depends, Query, Request, File, UploadFile
 from backend.python.models.pydantic_models import (
     AdminLoginRequest, CmsUpsertRequest, CmsDeleteRequest, PresenceToggleRequest,
     UserProfileUpdate, AutomationSettingsUpdate, AuditLogEntry
@@ -147,13 +147,53 @@ async def toggle_admin_presence(req: PresenceToggleRequest):
     }
 
 # ============================================================================
+# ============================================================================
 # Google Drive Excel -> Database Sync Job Endpoints
 # ============================================================================
 @router.post("/gdrive-sync/run")
-def trigger_gdrive_sync_run_now(date_str: Optional[str] = Query(None, description="Optional target date YYYY-MM-DD")):
-    """Run Now button trigger for instant Google Drive Excel ingestion."""
+def trigger_gdrive_sync_run_now(
+    date_str: Optional[str] = Query(None, description="Optional target date YYYY-MM-DD"),
+    folder_url: Optional[str] = Query(None, description="Optional Google Drive folder URL or ID")
+):
+    """Run Now button trigger for instant Google Drive Folder Excel ingestion."""
     from backend.python.services.gdrive_sync_service import gdrive_sync_service
-    res = gdrive_sync_service.run_sync(date_str=date_str, triggered_by="MANUAL_RUN_NOW_UI")
+    res = gdrive_sync_service.run_sync(date_str=date_str, folder_url=folder_url, triggered_by="MANUAL_RUN_NOW_UI")
+    return res
+
+@router.post("/gdrive-sync/upload")
+async def upload_gdrive_sync_file(
+    file: UploadFile = File(...)
+):
+    """Directly uploads and processes an Excel (.xlsx, .csv) or ZIP archive into the database."""
+    import zipfile
+    from backend.python.services.gdrive_sync_service import gdrive_sync_service
+    
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    downloads_dir = os.path.join(repo_root, "public", "downloads")
+    scratch_dir = os.path.join(repo_root, "scratch", "gdrive_downloads")
+    os.makedirs(downloads_dir, exist_ok=True)
+    os.makedirs(scratch_dir, exist_ok=True)
+
+    dest_path = os.path.join(downloads_dir, file.filename)
+    contents = await file.read()
+    with open(dest_path, "wb") as f:
+        f.write(contents)
+
+    # Also save to scratch
+    scratch_path = os.path.join(scratch_dir, file.filename)
+    with open(scratch_path, "wb") as f:
+        f.write(contents)
+
+    if file.filename.endswith(".zip"):
+        try:
+            with zipfile.ZipFile(dest_path, 'r') as zip_ref:
+                zip_ref.extractall(downloads_dir)
+                zip_ref.extractall(scratch_dir)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to extract zip archive: {e}")
+
+    # Trigger dynamic sync on the uploaded file
+    res = gdrive_sync_service.run_sync(triggered_by="DIRECT_FILE_UPLOAD")
     return res
 
 @router.get("/gdrive-sync/status")
@@ -164,6 +204,8 @@ def get_gdrive_sync_status():
     today_file = f"job_tracker_{datetime.now().strftime('%Y-%m-%d')}.xlsx"
     return {
         "status": "success",
+        "folder_url": settings.get("gdrive_folder_url", "https://drive.google.com/drive/u/1/folders/1AtZo2n7TYsavZrw6cG1quek3je0K3hkO"),
+        "folder_id": settings.get("gdrive_folder_id", "1AtZo2n7TYsavZrw6cG1quek3je0K3hkO"),
         "enabled": settings.get("gdrive_sync_enabled", True),
         "schedule_time": settings.get("gdrive_sync_schedule_time", "07:00 AM IST"),
         "frequency": settings.get("gdrive_sync_frequency", "DAILY"),
@@ -172,4 +214,5 @@ def get_gdrive_sync_status():
         "last_file": settings.get("gdrive_sync_last_file", today_file),
         "last_jobs_count": settings.get("gdrive_sync_last_jobs_count", 0)
     }
+
 

@@ -213,7 +213,12 @@ class SearchService:
                     company=params.company,
                     tech_stack=params.tech_stack,
                     job_requirements=params.job_requirements,
-                    radius=params.radius,
+                    country=params.country,
+                    language=params.language,
+                    work_from_home=params.work_from_home,
+                    exclude_job_publishers=params.exclude_job_publishers,
+                    fields=params.fields,
+                    cursor=params.cursor,
                     page=params.page,
                     num_pages=params.num_pages,
                 ),
@@ -229,9 +234,11 @@ class SearchService:
         except asyncio.TimeoutError:
             latency_ms = (time.time() - start) * 1000
             provider.record_failure(f"Timeout after {latency_ms:.0f}ms")
+            print(f"[JOB_DISCOVERY] [ERROR] Provider '{provider_name}' timed out after {latency_ms:.0f}ms", flush=True)
             raise
         except Exception as e:
             provider.record_failure(str(e))
+            print(f"[JOB_DISCOVERY] [ERROR] Provider '{provider_name}' error: {e}", flush=True)
             raise
 
     async def search_for_profile(self, params: ProfileSearchParams) -> SearchResult:

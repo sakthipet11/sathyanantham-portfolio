@@ -87,4 +87,18 @@ class ResumeMatchingService:
             "confidence": 0.96 if best_score > 0 else 0.85
         }
 
+    def match_resume_for_job(self, job_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Evaluates job title, company, requirements, and description
+        to select the best tailored candidate resume PDF.
+        """
+        job_title = str(job_data.get("title", ""))
+        desc = str(job_data.get("description_raw") or job_data.get("requirements_clean") or "")
+        return self.match_resume_for_email({
+            "subject": job_title,
+            "body": desc,
+            "job_title": job_title
+        })
+
 resume_matching_service = ResumeMatchingService()
+

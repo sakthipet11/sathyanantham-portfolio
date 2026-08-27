@@ -77,6 +77,7 @@ class NormalizedJob(BaseModel):
     # ── URLs ─────────────────────────────────────────────────────────────
     job_url: Optional[str] = None
     apply_url: str = Field(description="Direct application URL")
+    company_domain: Optional[str] = Field(default=None, description="Resolved official company domain, e.g. google.com")
 
     # ── Metadata ─────────────────────────────────────────────────────────
     portal_type: str = Field(default="custom", description="greenhouse, lever, workday, custom, etc.")
@@ -114,6 +115,7 @@ class NormalizedJob(BaseModel):
             "external_job_id": self.source_job_id,
             "title": self.title,
             "company": self.company,
+            "company_domain": self.company_domain,
             "location": self.location,
             "location_type": self.location_type.value if isinstance(self.location_type, LocationType) else self.location_type,
             "employment_type": self.employment_type.value if isinstance(self.employment_type, EmploymentType) else self.employment_type,

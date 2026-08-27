@@ -375,6 +375,282 @@ class ApplicationV2Repository:
 
         return []
 
+    def list_applications(
+        self,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """List applications enriched with job details and ATS scores."""
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    query = """
+                        SELECT 
+                            a.id, a.job_id, a.resume_version_id, a.status, a.form_payload,
+                            a.submission_method, a.external_confirmation_id, a.screenshot_url,
+                            a.manual_reason, a.human_reviewer_notes, a.submitted_at,
+                            a.idempotency_key, a.created_at, a.updated_at, a.batch_id,
+                            a.portal_mapping_id, a.automation_metadata,
+                            j.title AS job_title, j.company, j.location, j.apply_url,
+                            j.description_raw, j.tech_stack,
+                            s.overall_score AS match_score,
+                            r.version_name AS resume_version_name, r.role AS resume_role, r.download_url AS resume_download_url
+                        FROM applications_v2 a
+                        LEFT JOIN jobs j ON a.job_id = j.id
+                        LEFT JOIN (
+                            SELECT DISTINCT ON (job_id) job_id, overall_score 
+                            FROM job_scores 
+                            ORDER BY job_id, evaluated_at DESC
+                        ) s ON a.job_id = s.job_id
+                        LEFT JOIN resume_versions r ON a.resume_version_id = r.id
+                    """
+                    conds = []
+                    params = []
+
+                    if status and status != "ALL":
+                        conds.append("a.status = %s")
+                        params.append(status)
+
+                    if search:
+                        conds.append("(j.title ILIKE %s OR j.company ILIKE %s OR j.location ILIKE %s OR a.status ILIKE %s)")
+                        s_param = f"%{search}%"
+                        params.extend([s_param, s_param, s_param, s_param])
+
+                    if conds:
+                        query += " WHERE " + " AND ".join(conds)
+
+                    query += " ORDER BY a.updated_at DESC LIMIT %s OFFSET %s;"
+                    params.extend([limit, offset])
+
+                    cur.execute(query, tuple(params))
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
+            except Exception as e:
+                print(f"[APP_V2_REPO] List applications query error: {e}")
+            finally:
+                pg_conn.close()
+
+        # Fallback Supabase
+        if self.db.client:
+            try:
+                sb_query = self.db.client.table("applications_v2").select("*")
+                if status and status != "ALL":
+                    sb_query = sb_query.eq("status", status)
+                res = sb_query.order("updated_at", desc=True).range(offset, offset + limit - 1).execute()
+                if res.data:
+                    return res.data
+            except Exception as e:
+                print(f"[APP_V2_REPO] Supabase list error: {e}")
+
+        return []
+
+    def get_application_with_details(self, app_id: str) -> Optional[Dict[str, Any]]:
+        """Get single application joined with job and resume info."""
+        clean_app_id = _clean_uuid(app_id)
+        if not clean_app_id:
+            return None
+
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT 
+                            a.id, a.job_id, a.resume_version_id, a.status, a.form_payload,
+                            a.submission_method, a.external_confirmation_id, a.screenshot_url,
+                            a.manual_reason, a.human_reviewer_notes, a.submitted_at,
+                            a.idempotency_key, a.created_at, a.updated_at, a.batch_id,
+                            a.portal_mapping_id, a.automation_metadata,
+                            j.title AS job_title, j.company, j.location, j.apply_url,
+                            j.description_raw, j.tech_stack,
+                            s.overall_score AS match_score,
+                            r.version_name AS resume_version_name, r.role AS resume_role, r.download_url AS resume_download_url
+                        FROM applications_v2 a
+                        LEFT JOIN jobs j ON a.job_id = j.id
+                        LEFT JOIN (
+                            SELECT DISTINCT ON (job_id) job_id, overall_score 
+                            FROM job_scores 
+                            ORDER BY job_id, evaluated_at DESC
+                        ) s ON a.job_id = s.job_id
+                        LEFT JOIN resume_versions r ON a.resume_version_id = r.id
+                        WHERE a.id = %s LIMIT 1;
+                    """, (clean_app_id,))
+                    row = cur.fetchone()
+                    if row:
+                        return dict(row)
+            except Exception as e:
+                print(f"[APP_V2_REPO] Get application details error: {e}")
+            finally:
+                pg_conn.close()
+
+        return self.get_application(clean_app_id)
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Calculates aggregated metrics for Applications HUD."""
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT 
+                            COUNT(*) AS total_applications,
+                            COUNT(*) FILTER (WHERE status = 'READY_FOR_REVIEW') AS ready_for_review_count,
+                            COUNT(*) FILTER (WHERE status IN ('SUBMITTED', 'EMAIL_SENT')) AS submitted_count,
+                            COUNT(*) FILTER (WHERE status IN ('QUEUED', 'PROCESSING')) AS in_progress_count,
+                            COUNT(*) FILTER (WHERE status = 'FAILED') AS failed_count,
+                            COUNT(*) FILTER (WHERE automation_metadata->>'email_sent_to' IS NOT NULL) AS email_sent_count
+                        FROM applications_v2;
+                    """)
+                    row = cur.fetchone()
+                    if row:
+                        return dict(row)
+            except Exception as e:
+                print(f"[APP_V2_REPO] Metrics error: {e}")
+            finally:
+                pg_conn.close()
+
+        return {
+            "total_applications": 0,
+            "ready_for_review_count": 0,
+            "submitted_count": 0,
+            "in_progress_count": 0,
+            "failed_count": 0,
+            "email_sent_count": 0
+        }
+
+    def delete_application(self, app_id: str) -> bool:
+        """Deletes an application by ID."""
+        clean_app_id = _clean_uuid(app_id)
+        if not clean_app_id:
+            return False
+
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor() as cur:
+                    cur.execute("DELETE FROM application_events WHERE application_id = %s;", (clean_app_id,))
+                    cur.execute("DELETE FROM applications_v2 WHERE id = %s;", (clean_app_id,))
+                    pg_conn.commit()
+                    return True
+            except Exception as e:
+                pg_conn.rollback()
+                print(f"[APP_V2_REPO] Delete application error: {e}")
+            finally:
+                pg_conn.close()
+
+        if self.db.client:
+            try:
+                try:
+                    self.db.client.table("application_events").delete().eq("application_id", clean_app_id).execute()
+                except Exception:
+                    pass
+                self.db.client.table("applications_v2").delete().eq("id", clean_app_id).execute()
+                return True
+            except Exception as e:
+                print(f"[APP_V2_REPO] Supabase delete error: {e}")
+
+        return False
+
+    def bulk_delete_applications(self, app_ids: List[str]) -> int:
+        """Bulk deletes multiple applications."""
+        clean_ids = [_clean_uuid(aid) for aid in app_ids if _clean_uuid(aid)]
+        if not clean_ids:
+            return 0
+
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor() as cur:
+                    cur.execute("DELETE FROM application_events WHERE application_id = ANY(%s);", (clean_ids,))
+                    cur.execute("DELETE FROM applications_v2 WHERE id = ANY(%s);", (clean_ids,))
+                    deleted_count = cur.rowcount
+                    pg_conn.commit()
+                    return deleted_count
+            except Exception as e:
+                pg_conn.rollback()
+                print(f"[APP_V2_REPO] Bulk delete error: {e}")
+            finally:
+                pg_conn.close()
+
+        if self.db.client:
+            try:
+                try:
+                    self.db.client.table("application_events").delete().in_("application_id", clean_ids).execute()
+                except Exception:
+                    pass
+                self.db.client.table("applications_v2").delete().in_("id", clean_ids).execute()
+                return len(clean_ids)
+            except Exception as e:
+                print(f"[APP_V2_REPO] Supabase bulk delete error: {e}")
+
+        return 0
+
+    def log_event(
+        self,
+        app_id: str,
+        event_type: str,
+        message: str,
+        previous_status: Optional[str] = None,
+        new_status: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """Logs an event to application_events table."""
+        clean_app_id = _clean_uuid(app_id)
+        if not clean_app_id:
+            return False
+
+        event_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat()
+        meta_json = json.dumps(metadata or {})
+
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO application_events
+                        (id, application_id, event_type, previous_status, new_status, message, metadata, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                    """, (
+                        event_id, clean_app_id, event_type, previous_status, new_status, message, meta_json, now
+                    ))
+                    pg_conn.commit()
+                    return True
+            except Exception as e:
+                pg_conn.rollback()
+                print(f"[APP_V2_REPO] Log event error: {e}")
+            finally:
+                pg_conn.close()
+
+        return False
+
+    def get_application_events(self, app_id: str) -> List[Dict[str, Any]]:
+        """Fetch timeline events for an application."""
+        clean_app_id = _clean_uuid(app_id)
+        if not clean_app_id:
+            return []
+
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT * FROM application_events
+                        WHERE application_id = %s
+                        ORDER BY created_at DESC;
+                    """, (clean_app_id,))
+                    rows = cur.fetchall()
+                    return [dict(r) for r in rows]
+            except Exception as e:
+                print(f"[APP_V2_REPO] Get events error: {e}")
+            finally:
+                pg_conn.close()
+
+        return []
+
 
 # Singleton instance
 application_v2_repository = ApplicationV2Repository()

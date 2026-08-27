@@ -13,11 +13,12 @@
 | **Architecture & Design** | ✅ Complete | 100% | `docs/auto-apply-architecture.md` (30 pages) |
 | **Backend Auto-Apply Services** | ✅ Complete | 100% | Playwright + LLM Mapping + Queue Service |
 | **Database Schema** | ✅ Complete | 100% | `database/migrations/008_auto_apply_schema.sql` |
-| **Backend API Endpoints** | ✅ Complete | 100% | `backend/python/api/auto_apply.py` (9 endpoints) |
+| **Backend API Endpoints** | ✅ Complete | 100% | `backend/python/api/auto_apply.py` & `applications.py` |
+| **Selective Staging Engine** | ✅ Complete | 100% | Auto-stage $\ge 75\%$, review $< 75\%$, deduplicated `applications_v2` |
 | **Frontend UI Primitives & Error Handling** | ✅ Complete | 100% | Special root pages (`loading`, `error`, `not-found`), `GlobalErrorFallback`, `NotFound` |
 | **Frontend Resilient API Layer** | ✅ Complete | 100% | `lib/api.ts` (fetchApi) & `hooks/useApiError.ts` |
 | **Playwright E2E Test Suite** | ✅ Complete | 100% | 28 Tests Passing: Public, All 11 Admin Screens, Mobile Viewports, API Resilience |
-| **Admin Jobs Bulk Apply Modal UI** | ⏳ In Progress | 40% | `BulkActionBar` ready, `ApplicationProgressModal` staged |
+| **Admin Jobs & Radar Staging UI** | ✅ Complete | 100% | `BulkActionBar`, `ApplicationProgressModal`, dynamic `Stage`/`Staged` buttons |
 | **End-to-End Live Integration Testing** | ✅ Complete | 100% | 28 Playwright E2E tests + pytest test runners passing |
 
 ---
@@ -161,16 +162,22 @@
 
 ---
 
-## 📝 Remaining Integration Steps
+## 🎯 Selective Discovery Staging & Auto-Apply Integration (Completed)
 
-1. **Frontend Modal Hookup** (`components/admin/ApplicationProgressModal.tsx`):
+1. **Selective Discovery Staging Engine** (`backend/python/services/job_discovery_service.py`):
+   - Jobs with ATS Match Score $\ge 75\%$ automatically transition to `QUALIFIED` and are auto-staged into `applications_v2` in `READY_FOR_REVIEW` status with tailored PDF resumes and cover letters.
+   - Jobs with ATS Match Score $< 75\%$ are recorded in `READY_FOR_REVIEW` status in `jobs` without automatic staging into `applications_v2`, providing human review and discretionary staging.
+
+2. **Deduplicated Applications Repository** (`backend/python/repositories/application_v2_repository.py` & `backend/python/api/applications.py`):
+   - Cleaned up PostgreSQL table joins with `DISTINCT ON (job_id)` with `evaluated_at DESC` to eliminate duplicate rows.
+   - Removed legacy all-jobs fallback in `/api/v2/applications` so only genuinely staged packages appear in Applications and on the Discovery board.
+
+3. **Interactive 1-Click Staging Controls** (`app/admin/jobs/page.tsx`):
+   - Dynamic **Stage** (<Bot className="w-3.5 h-3.5" /> `Stage`) button for un-staged jobs with single and bulk staging actions.
+   - Immediate transition to a disabled **Staged** state (<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> `Staged`) upon staging.
+   - Integrated Stage/Staged controls into the ATS Radar evaluation modal.
+
+4. **Frontend Modal & Batch Progress** (`components/admin/ApplicationProgressModal.tsx` & `BulkActionBar.tsx`):
    - Real-time progress bar polling `GET /api/v2/applications/batch/{batch_id}/status`.
-   - Per-job status tags (QUEUED, PROCESSING, SUBMITTED, NEEDS_REVIEW, FAILED).
-   - Screenshot modal popup on click for failure analysis.
+   - Per-job status tags (QUEUED, PROCESSING, SUBMITTED, NEEDS_REVIEW, FAILED) and screenshot audit viewer.
 
-2. **Connect Active Database Repositories**:
-   - Verify `008_auto_apply_schema.sql` applied on local/Supabase database.
-   - Wire application persistence with `applications_v2` table.
-
-3. **End-to-End Test Run**:
-   - Run multi-job batch on live Greenhouse/Lever test portals.

@@ -135,6 +135,8 @@ class SupabaseHelper:
             "blacklisted_companies": ["Revature", "CyberCoders"],
             "blacklisted_keywords": ["Unpaid", "Volunteer", "Junior Intern"],
             "is_active": True,
+            "gdrive_folder_url": "https://drive.google.com/drive/u/1/folders/1AtZo2n7TYsavZrw6cG1quek3je0K3hkO",
+            "gdrive_folder_id": "1AtZo2n7TYsavZrw6cG1quek3je0K3hkO",
             "gdrive_sync_enabled": True,
             "gdrive_sync_schedule_time": "07:00 AM IST",
             "gdrive_sync_frequency": "DAILY",
@@ -384,7 +386,7 @@ class SupabaseHelper:
                         RETURNING *;
                     """, (
                         actor_type, actor_id, action, entity_type, str(entity_id),
-                        json.dumps(before_state or {}), json.dumps(after_state or {}),
+                        json.dumps(before_state or {}, default=str), json.dumps(after_state or {}, default=str),
                         justification or "", ip_address or "127.0.0.1"
                     ))
                     row = cur.fetchone()

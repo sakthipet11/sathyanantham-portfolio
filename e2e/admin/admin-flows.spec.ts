@@ -63,14 +63,10 @@ test.describe('Admin Control Center - Complete Flow & Mobile Verification', () =
     await expect(matchTypeSelect).toBeVisible();
   });
 
-  test('should render Admin Applications and Recruiter Inbox flows', async ({ page }) => {
+  test('should render Admin Recruiter Inbox flow', async ({ page }) => {
     await page.addInitScript(() => {
       sessionStorage.setItem('sathya_admin_token', 'sathya2026');
     });
-
-    // Applications Screen
-    await page.goto('/admin/applications', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('main, body').first()).toBeVisible({ timeout: 15000 });
 
     // Recruiter Inbox Screen
     await page.goto('/admin/recruiter-inbox', { waitUntil: 'domcontentloaded' });

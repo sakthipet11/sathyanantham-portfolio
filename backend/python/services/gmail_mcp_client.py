@@ -281,4 +281,25 @@ class GmailMCPClient:
             "sent_at": datetime.now(timezone.utc).isoformat()
         }
 
+    async def send_email(
+        self,
+        to: str,
+        subject: str,
+        body: str,
+        thread_id: Optional[str] = None,
+        in_reply_to: Optional[str] = None,
+        attachment_path: Optional[str] = None,
+        attachments: Optional[List[Dict[str, Any]]] = None
+    ) -> Dict[str, Any]:
+        """Alias for send_message."""
+        return await self.send_message(
+            to=to,
+            subject=subject,
+            body=body,
+            thread_id=thread_id,
+            in_reply_to=in_reply_to,
+            attachment_path=attachment_path,
+            attachments=attachments
+        )
+
 gmail_mcp_client = GmailMCPClient()

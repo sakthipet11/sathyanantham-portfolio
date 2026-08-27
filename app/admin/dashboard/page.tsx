@@ -245,14 +245,14 @@ function AdminDashboardContent() {
         presenceRes,
         chatSessionsRes
       ] = await Promise.all([
-        fetchWithTimeout(`${apiHost}/api/v2/control-center/overview`, { headers }, 3000).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/control-center/pipeline`, { headers }, 3000).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/control-center/automation-status`, { headers }, 3000).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/control-center/approval-queue`, { headers }, 3000).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/jobs?limit=100`, { headers }, 3000).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/analytics/overview`, { headers }, 3000).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/presence`, { headers }, 3000).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/admin/chat/sessions`, { headers }, 3000).catch(() => null)
+        fetchWithTimeout(`${apiHost}/api/v2/control-center/overview`, { headers }, 12000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/control-center/pipeline`, { headers }, 12000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/control-center/automation-status`, { headers }, 12000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/control-center/approval-queue`, { headers }, 12000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/jobs?limit=100`, { headers }, 12000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/analytics/overview`, { headers }, 12000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/presence`, { headers }, 12000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/admin/chat/sessions`, { headers }, 12000).catch(() => null)
       ]);
 
       if (overviewRes?.ok) {

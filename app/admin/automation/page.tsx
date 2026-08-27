@@ -6,6 +6,8 @@ import { Zap, ArrowLeft, Play, Workflow, ShieldAlert, FileSpreadsheet, Clock, Re
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function AdminAutomationPage() {
+  const [folderUrl, setFolderUrl] = useState('https://drive.google.com/drive/u/1/folders/1AtZo2n7TYsavZrw6cG1quek3je0K3hkO');
+  const [folderId, setFolderId] = useState('1AtZo2n7TYsavZrw6cG1quek3je0K3hkO');
   const [syncEnabled, setSyncEnabled] = useState(true);
   const [scheduleTime, setScheduleTime] = useState('07:00 AM IST');
   const [frequency, setFrequency] = useState('DAILY');
@@ -25,6 +27,18 @@ export default function AdminAutomationPage() {
 
   const [toastMsg, setToastMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  const showToast = (type: 'success' | 'error', text: string) => {
+    setToastMsg({ type, text });
+    setTimeout(() => {
+      setToastMsg(null);
+    }, 6000);
+  };
+
+  const toast = {
+    success: (msg: string) => showToast('success', msg),
+    error: (msg: string) => showToast('error', msg)
+  };
+
   const adminToken = typeof window !== 'undefined' ? localStorage.getItem('sathya_admin_token') || 'sathya123' : 'sathya123';
 
   // Fetch current Google Drive sync status and settings on mount
@@ -40,6 +54,8 @@ export default function AdminAutomationPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'success') {
+          if (data.folder_url) setFolderUrl(data.folder_url);
+          if (data.folder_id) setFolderId(data.folder_id);
           setSyncEnabled(data.enabled ?? true);
           setScheduleTime(data.schedule_time || '07:00 AM IST');
           setFrequency(data.frequency || 'DAILY');
@@ -65,13 +81,14 @@ export default function AdminAutomationPage() {
           'X-Admin-Token': adminToken
         },
         body: JSON.stringify({
+          gdrive_folder_url: folderUrl,
           gdrive_sync_enabled: syncEnabled,
           gdrive_sync_schedule_time: scheduleTime,
           gdrive_sync_frequency: frequency
         })
       });
       if (res.ok) {
-        setToastMsg({ type: 'success', text: `Schedule updated to ${scheduleTime} (${frequency}). Background job updated!` });
+        setToastMsg({ type: 'success', text: `Google Drive Folder & Schedule updated to ${scheduleTime} (${frequency}). Background job synced!` });
       } else {
         setToastMsg({ type: 'error', text: 'Error updating schedule settings' });
       }
@@ -88,21 +105,34 @@ export default function AdminAutomationPage() {
     try {
       const res = await fetch('/api/admin/gdrive-sync/run', {
         method: 'POST',
-        headers: { 'X-Admin-Token': adminToken }
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken 
+        },
+        body: JSON.stringify({ folder_url: folderUrl })
       });
       if (res.ok) {
         const data = await res.json();
         if (data.status === 'SUCCESS') {
-          setToastMsg({ type: 'success', text: `Run Now Successful! Ingested ${data.jobs_processed} jobs from ${data.file_name} directly into Database.` });
+          setToastMsg({ type: 'success', text: `Sync Complete: Ingested ${data.jobs_processed} real jobs from ${data.file_name} directly into database.` });
           setLastRun(data.last_run);
           setLastStatus('SUCCESS');
           setLastFile(data.file_name);
           setJobsCount(data.jobs_processed);
+          if (data.folder_id) setFolderId(data.folder_id);
+        } else if (data.status === 'NOT_FOUND') {
+          setToastMsg({ type: 'error', text: data.message });
+          setLastRun(data.last_run);
+          setLastStatus('NO_FILE_FOUND');
+          setLastFile(data.file_name);
+          setJobsCount(0);
+          if (data.folder_id) setFolderId(data.folder_id);
         } else {
           setToastMsg({ type: 'error', text: data.message || 'Error during Run Now ingestion' });
         }
       } else {
-        setToastMsg({ type: 'error', text: 'Run Now request failed' });
+        const errData = await res.json().catch(() => ({}));
+        setToastMsg({ type: 'error', text: errData.message || 'Run Now request failed' });
       }
     } catch (err: any) {
       setToastMsg({ type: 'error', text: err.message || 'Failed to trigger Run Now' });
@@ -165,7 +195,7 @@ export default function AdminAutomationPage() {
                 Google Drive → Database Sync Job
               </h2>
               <p className="text-xs text-muted-foreground font-mono">
-                Automated ingestion for <code className="px-1.5 py-0.5 rounded bg-muted text-primary">job_tracker_YYYY-MM-DD.xlsx</code> into <code className="px-1.5 py-0.5 rounded bg-muted text-foreground">jobs</code> DB table.
+                Automated dynamic ingestion for Excel / CSV tracker files from Google Drive into <code className="px-1.5 py-0.5 rounded bg-muted text-foreground">jobs</code> DB table.
               </p>
             </div>
           </div>
@@ -178,7 +208,32 @@ export default function AdminAutomationPage() {
           </div>
         </div>
 
-        {/* Two Dedicated Action & Config Options */}
+        {/* Google Drive Folder Source URL Configuration & Permissions Notice */}
+        <div className="mb-6 p-4 rounded-xl bg-muted/40 border border-border/70 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-foreground font-mono block">
+              Google Drive Folder URL / ID Source:
+            </label>
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 inline-block w-fit">
+              Folder Access: Set to <strong>&ldquo;Anyone with the link (Viewer)&rdquo;</strong> in Google Drive
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={folderUrl}
+              onChange={(e) => setFolderUrl(e.target.value)}
+              placeholder="https://drive.google.com/drive/u/1/folders/1AtZo2n7TYsavZrw6cG1quek3je0K3hkO"
+              className="flex-1 px-3 py-2 rounded-lg bg-card border border-border/80 text-xs font-mono text-foreground focus:outline-none focus:border-primary"
+            />
+            <div className="text-[11px] font-mono text-muted-foreground self-center px-2">
+              Folder ID: <span className="text-primary font-semibold">{folderId}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action & Config Options */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           
           {/* Option 1: Schedule Configuration */}
@@ -230,30 +285,69 @@ export default function AdminAutomationPage() {
               className="w-full py-2 bg-primary/90 hover:bg-primary text-primary-foreground text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
             >
               {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
-              <span>Save Schedule Settings</span>
+              <span>Save Folder & Schedule Settings</span>
             </button>
           </div>
 
-          {/* Option 2: Run Now Action */}
+          {/* Option 2: Run Now Action & Direct File Ingestion */}
           <div className="p-5 rounded-xl bg-muted/40 border border-border/70 space-y-4 flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 border-b border-border/60 pb-2 mb-3">
                 <Play className="w-4 h-4 text-emerald-500" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground font-mono">Option 2: Run Now (Instant Manual Ingestion)</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground font-mono">Option 2: Run Now & Direct Ingest</h3>
               </div>
               <p className="text-xs text-muted-foreground font-mono leading-relaxed mb-4">
-                Trigger immediate Google Drive scan and Excel parsing for <code className="text-primary font-bold">job_tracker_{new Date().toISOString().split('T')[0]}.xlsx</code> to test database insertion instantly without waiting for the scheduled time.
+                Fetch from Google Drive folder <code className="text-primary font-bold">{folderId}</code> or upload directly to parse all 21 headline columns into <code className="text-foreground">jobs</code> and <code className="text-foreground">job_scores</code> tables.
               </p>
             </div>
 
-            <button
-              onClick={handleRunNow}
-              disabled={isRunningNow}
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-sm"
-            >
-              {isRunningNow ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-              <span>RUN NOW (TEST INSTANT INGESTION)</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handleRunNow}
+                disabled={isRunningNow}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+              >
+                {isRunningNow ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                <span>RUN NOW (SYNC FROM GOOGLE DRIVE)</span>
+              </button>
+
+              <label className="w-full py-2 border border-dashed border-border/80 hover:border-primary/80 bg-card/60 hover:bg-card text-muted-foreground hover:text-foreground font-mono text-[11px] rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 text-center">
+                <RefreshCw className="w-3.5 h-3.5 text-primary" />
+                <span>Or Upload / Drop Excel (.xlsx / .csv / .zip)</span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.zip"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setIsRunningNow(true);
+                    try {
+                      const formData = new FormData();
+                      formData.append('file', file);
+                      const res = await fetch('/api/admin/gdrive-sync/upload', {
+                        method: 'POST',
+                        body: formData
+                      });
+                      const data = await res.json();
+                      if (data.status === 'SUCCESS') {
+                        setLastStatus('SUCCESS');
+                        setJobsCount(data.jobs_processed || 0);
+                        setLastRun(data.last_run || new Date().toISOString());
+                        toast.success(`Ingested ${data.jobs_processed} jobs from ${file.name} directly into database!`);
+                      } else {
+                        toast.error(data.message || 'Upload processing failed');
+                      }
+                    } catch (err: any) {
+                      toast.error(`Upload failed: ${err?.message || err}`);
+                    } finally {
+                      setIsRunningNow(false);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </label>
+            </div>
           </div>
 
         </div>
@@ -261,8 +355,8 @@ export default function AdminAutomationPage() {
         {/* Sync Status HUD Footer */}
         <div className="p-3.5 rounded-xl bg-card border border-border/60 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
           <div>
-            <span className="text-muted-foreground block text-[10px]">Target File:</span>
-            <span className="text-foreground font-bold truncate block">{lastFile}</span>
+            <span className="text-muted-foreground block text-[10px]">Folder ID:</span>
+            <span className="text-primary font-bold truncate block">{folderId}</span>
           </div>
 
           <div>

@@ -100,9 +100,27 @@ class JobScoringService:
             "llm_model_used": "deterministic-heuristic-engine"
         }
 
-    async def score_job(self, job_data: Dict[str, Any], custom_profile: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def score_job(
+        self,
+        job_data: Dict[str, Any],
+        custom_profile: Optional[Dict[str, Any]] = None,
+        force_deep_llm: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Two-Tier Hybrid ATS Scoring Engine:
+        - Tier 1: Instant deterministic heuristic gate (0ms latency, 0 API tokens).
+        - Tier 2: Deep LLM Reasoning & Synthesis for high-fit roles (score >= 70% or force_deep_llm).
+        """
         profile = custom_profile or db_helper.get_user_profile()
-        
+        fast_eval = self.deterministic_fallback_score(job_data, profile)
+
+        # Tier 1 Gate: If fast heuristic indicates low fit (< 70%) and not forced, return immediately
+        fast_score = fast_eval.get("overall_score", 0.0)
+        if fast_score < 70.0 and not force_deep_llm:
+            fast_eval["evaluation_tier"] = "TIER_1_DETERMINISTIC_GATE"
+            return fast_eval
+
+        # Tier 2: Deep LLM Evaluation for High-Fit Opportunities
         system_prompt = f"""You are a strict, objective ATS (Applicant Tracking System) Evaluation Engine.
 Your task is to compare a job description against the verified candidate truth store.
 Candidate: {profile.get('full_name')}
@@ -157,16 +175,18 @@ Requirements:
             json_match = re.search(r'\{[\s\S]*\}', full_response)
             if json_match:
                 parsed = json.loads(json_match.group(0))
-                overall = float(parsed.get("overall_score", 85.0))
+                overall = float(parsed.get("overall_score", fast_score))
                 parsed["overall_score"] = overall
                 parsed["match_level"] = self.classify_match_level(overall)
                 parsed["match_type"] = "PROFILE_MATCH"
+                parsed["evaluation_tier"] = "TIER_2_DEEP_LLM"
                 parsed["llm_model_used"] = self.ai_provider.model
                 return parsed
         except Exception as err:
-            print(f"[JOB_SCORING] LLM scoring encountered issue, using deterministic fallback: {err}")
+            print(f"[JOB_SCORING] Deep LLM scoring encountered issue, using deterministic fallback: {err}")
 
-        return self.deterministic_fallback_score(job_data, profile)
+        fast_eval["evaluation_tier"] = "TIER_1_FALLBACK"
+        return fast_eval
 
     # =========================================================================
     # 2. Reference JD ↔ Discovered Job Matching (Use Case 2: Default >= 50%)
@@ -266,14 +286,24 @@ Requirements:
         self,
         job_data: Dict[str, Any],
         reference_jd_text: str,
-        extracted_reqs: Optional[Dict[str, Any]] = None
+        extracted_reqs: Optional[Dict[str, Any]] = None,
+        force_deep_llm: bool = False
     ) -> Dict[str, Any]:
         """
-        AI-powered JD ↔ Discovered Job Semantic Comparison.
-        Compares reference Job Description against discovered opportunity.
+        Two-Tier Hybrid Reference JD ↔ Discovered Job Matching:
+        - Tier 1: Instant deterministic keyword and role overlap gate.
+        - Tier 2: Deep LLM Reasoning & Semantic synthesis for relevant roles (score >= 50% or force_deep_llm).
         """
         reqs = extracted_reqs or self.extract_jd_requirements(reference_jd_text)
+        fast_jd_eval = self.deterministic_fallback_jd_score(job_data, reference_jd_text, reqs)
 
+        # Tier 1 Gate
+        fast_score = fast_jd_eval.get("overall_score", 0.0)
+        if fast_score < 50.0 and not force_deep_llm:
+            fast_jd_eval["evaluation_tier"] = "TIER_1_DETERMINISTIC_GATE"
+            return fast_jd_eval
+
+        # Tier 2 Deep LLM
         system_prompt = f"""You are a specialized Job Matching & Requirement Similarity Engine.
 Your task is to compare a discovered job posting against a REFERENCE Job Description provided by a user seeking similar roles.
 
@@ -332,17 +362,19 @@ Requirements:
             json_match = re.search(r'\{[\s\S]*\}', full_response)
             if json_match:
                 parsed = json.loads(json_match.group(0))
-                overall = float(parsed.get("overall_score", 75.0))
+                overall = float(parsed.get("overall_score", fast_score))
                 parsed["overall_score"] = overall
                 parsed["match_level"] = self.classify_match_level(overall)
                 parsed["match_type"] = "JD_MATCH"
                 parsed["reference_jd"] = reference_jd_text[:400]
+                parsed["evaluation_tier"] = "TIER_2_DEEP_LLM"
                 parsed["llm_model_used"] = self.ai_provider.model
                 return parsed
         except Exception as err:
             print(f"[JOB_SCORING] LLM JD scoring error, using deterministic fallback: {err}")
 
-        return self.deterministic_fallback_jd_score(job_data, reference_jd_text, reqs)
+        fast_jd_eval["evaluation_tier"] = "TIER_1_FALLBACK"
+        return fast_jd_eval
 
 
 job_scoring_service = JobScoringService()

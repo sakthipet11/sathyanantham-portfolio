@@ -4,13 +4,13 @@ v.sathyanantham@gmail.com | +91 8870956756 | https://sathyanantham-portfolio-tv.
 
 August 27, 2026
 
-Dear Krishna B,
+Dear Hiring Team,
 
-I am writing to express my strong interest in the **Lead Frontend Architect** opportunity at **Nextuple**. With over 13.5 years of specialized experience architecting large-scale enterprise web applications, Micro Frontends, and high-performance React/TypeScript platforms, I am eager to contribute to Nextuple's technical vision.
+I am writing to express my strong interest in the **Lead Frontend Architect** opportunity at **Stripe**. With over 13.5 years of specialized experience architecting large-scale enterprise web applications, Micro Frontends, and high-performance React/TypeScript platforms, I am eager to contribute to Stripe's technical vision.
 
 Throughout my career, I have spearheaded the design and delivery of mission-critical platform architectures, implementing Module Federation, modular design systems, and robust state management that empower multi-team scalability. My expertise spans modern web standards, Core Web Vitals optimization, and enterprise AI-augmented developer tooling.
 
-I would welcome the opportunity to discuss how my technical leadership and hands-on architectural experience align with the engineering goals of Nextuple. You can review my architecture case studies and live interactive AI Twin at https://sathyanantham-portfolio-tv.vercel.app.
+I would welcome the opportunity to discuss how my technical leadership and hands-on architectural experience align with the engineering goals of Stripe. You can review my architecture case studies and live interactive AI Twin at https://sathyanantham-portfolio-tv.vercel.app.
 
 Thank you for your time and consideration.
 

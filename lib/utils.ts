@@ -174,10 +174,16 @@ export function getApiHost(): string {
 export async function fetchWithTimeout(
   resource: string | Request | URL,
   options: RequestInit = {},
-  timeoutMs: number = 1500
+  timeoutMs: number = 15000
 ): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
+  
+  // If caller provided their own signal, listen to it as well
+  if (options.signal) {
+    options.signal.addEventListener('abort', () => controller.abort());
+  }
+
   try {
     const response = await fetch(resource, {
       ...options,

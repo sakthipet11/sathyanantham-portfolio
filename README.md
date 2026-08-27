@@ -15,17 +15,18 @@ Job seekers — especially senior/lead-level professionals — spend hours manua
 An autonomous AI agent platform that runs the entire job search, referral loop, and auto-application lifecycle on the candidate's behalf:
 
 1. **Multi-Provider Job Discovery**: Discovers relevant openings across JSearch, Naukri, LinkedIn, and Instahyre, with automated deduplication and normalization.
-2. **ATS Scoring Engine**: Scores jobs against the candidate profile (ATS ≥ 90%) using advanced resume matching algorithms.
-3. **1st-Degree Network Matching**: Matches warm connections from the candidate's 731-row LinkedIn network stored in the local database.
-4. **Apify Contact Discovery**: Falls back to Apify Google Maps (`lukaskrivka/google-maps-with-contact-details`) for verified corporate emails and HR contacts when no warm connection exists.
-5. **Parallel Document Generation**: Generates tailored PDF resumes (`public/downloads/`) and candidate-grounded cover letters concurrently via `asyncio.gather`.
-6. **Autonomous Multi-Job Auto-Apply**: Headless Playwright browser automation + LLM-powered dynamic form mapping (Greenhouse, Lever, Workday, Ashby, custom portals) with rate limiting, retry backoff, and screenshot audit trails.
-7. **Email Intelligence**: Automatically classifies incoming recruiter emails and generates AI-powered response drafts.
-8. **Application Pipeline**: Tracks applications through a 9-stage pipeline with automated status updates and follow-up scheduling.
-9. **Human Review Gate**: Centralized approval gate on `/admin/referrals` before dispatching multi-attachment referral packages via Gmail SMTP with 5-day follow-up tracking.
-10. **Resume Version Management**: Multi-version resume system with Google Drive sync for tailored PDFs per job category.
-11. **Live Analytics Dashboard**: Real-time telemetry showing portfolio views, AI conversations, job matches, and network activity.
-12. **Resilient UI Architecture**: Next.js App Router root special files (`loading.tsx`, `error.tsx`, `not-found.tsx`), branded error fallbacks (`GlobalErrorFallback`), and opt-in API resilience.
+2. **ATS Scoring & Selective Auto-Staging**: Scores jobs against candidate profile. Automatically stages jobs with ATS score $\ge 75\%$ as `QUALIFIED` into `applications_v2` in `READY_FOR_REVIEW` status; leaves jobs $< 75\%$ in review status for discretionary manual staging.
+3. **Interactive 1-Click Staging UI**: Direct `Stage` / `Staged` buttons on the Discovery board and Radar modal with disabled states upon staging to avoid redundant operations.
+4. **1st-Degree Network Matching**: Matches warm connections from the candidate's 731-row LinkedIn network stored in the local database.
+5. **Apify Contact Discovery**: Falls back to Apify Google Maps (`lukaskrivka/google-maps-with-contact-details`) for verified corporate emails and HR contacts when no warm connection exists.
+6. **Parallel Document Generation**: Generates tailored PDF resumes (`public/downloads/`) and candidate-grounded cover letters concurrently via `asyncio.gather`.
+7. **Autonomous Multi-Job Auto-Apply**: Headless Playwright browser automation + LLM-powered dynamic form mapping (Greenhouse, Lever, Workday, Ashby, custom portals) with rate limiting, retry backoff, and screenshot audit trails.
+8. **Email Intelligence**: Automatically classifies incoming recruiter emails and generates AI-powered response drafts.
+9. **Application Pipeline**: Tracks applications through a 9-stage pipeline with automated status updates and follow-up scheduling.
+10. **Human Review Gate**: Centralized approval gate on `/admin/referrals` and `/admin/applications` before dispatching multi-attachment referral packages via Gmail SMTP with 5-day follow-up tracking.
+11. **Resume Version Management**: Multi-version resume system with Google Drive sync for tailored PDFs per job category.
+12. **Live Analytics Dashboard**: Real-time telemetry showing portfolio views, AI conversations, job matches, and network activity.
+13. **Resilient UI Architecture**: Next.js App Router root special files (`loading.tsx`, `error.tsx`, `not-found.tsx`), branded error fallbacks (`GlobalErrorFallback`), and opt-in API resilience.
 
 ---
 

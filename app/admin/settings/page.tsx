@@ -161,11 +161,11 @@ function AdminSettingsContent() {
     setLoading(true);
     try {
       const [swRes, costRes, dlqRes, audRes, metRes] = await Promise.all([
-        fetchWithTimeout(`${apiHost}/api/v2/hardening/kill-switch`, {}, 1500).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/hardening/cost-tracking`, {}, 1500).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/hardening/dlq`, {}, 1500).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/hardening/audit-logs?limit=50`, {}, 1500).catch(() => null),
-        fetchWithTimeout(`${apiHost}/api/v2/hardening/system-metrics`, {}, 1500).catch(() => null)
+        fetchWithTimeout(`${apiHost}/api/v2/hardening/kill-switch`, {}, 10000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/hardening/cost-tracking`, {}, 10000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/hardening/dlq`, {}, 10000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/hardening/audit-logs?limit=50`, {}, 10000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/hardening/system-metrics`, {}, 10000).catch(() => null)
       ]);
 
       if (swRes?.ok) {

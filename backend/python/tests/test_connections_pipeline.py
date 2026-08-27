@@ -112,6 +112,17 @@ async def test_apify_recruiter_service_token_validation():
     assert "HR/Recruiter" in saved["tags"]
 
 @pytest.mark.asyncio
+async def test_apify_recruiter_service_domain_extraction_and_actor():
+    """Verify domain extraction logic and actor settings for HR discovery."""
+    assert apify_recruiter_service.actor_id == "supportive_fusilli/find-hr-director-and-people-lead-emails-by-domain"
+    
+    # Test domain extractions
+    assert apify_recruiter_service.extract_domain("personio.com") == "personio.com"
+    assert apify_recruiter_service.extract_domain("https://www.factorialhr.com/about") == "factorialhr.com"
+    assert apify_recruiter_service.extract_domain("Personio") == "personio.com"
+    assert apify_recruiter_service.extract_domain("Factorial HR") == "factorialhr.com"
+
+@pytest.mark.asyncio
 async def test_referral_discovery_with_connections_and_fallback():
     """Verify referral discovery pairs high-ATS jobs with real connections and generates tailored materials."""
     job_uuid = str(uuid.uuid4())

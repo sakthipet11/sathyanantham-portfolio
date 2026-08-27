@@ -407,6 +407,14 @@ class ConnectionRepository:
 
         return matched
 
+    def search_by_company(
+        self,
+        company_name: str,
+        connection_degree: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Alias for find_connections_by_company."""
+        return self.find_connections_by_company(company_name, connection_degree)
+
     def parse_linkedin_csv(self, csv_content_or_path: str) -> List[Dict[str, Any]]:
         """
         Parses LinkedIn Connections.csv, skipping leading notes rows.

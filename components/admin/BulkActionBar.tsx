@@ -12,6 +12,8 @@ interface BulkActionBarProps {
   onDeleteSelected?: () => void;
   onTriggerBulkApply?: () => void;
   applyingJobs?: boolean;
+  onTriggerBulkStage?: () => void;
+  isStaging?: boolean;
 }
 
 export const BulkActionBar: React.FC<BulkActionBarProps> = ({
@@ -22,7 +24,9 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   onTriggerBulkDelete,
   onDeleteSelected,
   onTriggerBulkApply,
-  applyingJobs = false
+  applyingJobs = false,
+  onTriggerBulkStage,
+  isStaging = false
 }) => {
   const label = itemLabel || pipelineName || 'item';
   const handleDelete = onTriggerBulkDelete || onDeleteSelected || (() => {});
@@ -40,6 +44,19 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
       <div className="h-4 w-px bg-border/80 hidden sm:block" />
 
       <div className="flex items-center gap-2 flex-wrap">
+        {/* 1-Click Stage Package (Resume + Cover Letter + Referrals) */}
+        {onTriggerBulkStage && (
+          <button
+            onClick={onTriggerBulkStage}
+            disabled={isStaging}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-all cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Stage Application Package (Pair Resume, Synthesize Cover Letter, Link Referrals)"
+          >
+            <Bot className={`w-3.5 h-3.5 ${isStaging ? 'animate-spin' : ''}`} />
+            <span>{isStaging ? 'Staging Package...' : `Stage Package (${selectedCount})`}</span>
+          </button>
+        )}
+
         {/* Automated Auto-Apply via Playwright */}
         {onTriggerBulkApply && (
           <button

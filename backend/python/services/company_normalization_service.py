@@ -103,17 +103,123 @@ class CompanyNormalizationService:
 
         return stripped or clean
 
-    def resolve_company_domain(self, company_name: str) -> str:
+    def extract_domain_from_url(self, url: Optional[str]) -> Optional[str]:
+        """Extract clean hostname/domain from a URL, stripping subdomains and paths."""
+        if not url or not isinstance(url, str):
+            return None
+        url_clean = url.strip()
+        if not url_clean.startswith(('http://', 'https://')):
+            url_clean = f"https://{url_clean}"
+        try:
+            from urllib.parse import urlparse
+            netloc = urlparse(url_clean).netloc.lower()
+            if not netloc:
+                return None
+            # Strip port and www.
+            netloc = re.sub(r':\d+$', '', netloc)
+            netloc = re.sub(r'^www\d*\.', '', netloc)
+            # Filter out generic job boards/aggregators
+            aggregators = [
+                'linkedin.com', 'indeed.com', 'glassdoor.com', 'monster.com',
+                'ziprecruiter.com', 'google.com', 'naukri.com', 'hirist.com',
+                'shine.com', 'timesjobs.com', 'simplyhired.com', 'talent.com',
+                'openwebninja.com', 'rapidapi.com'
+            ]
+            if any(netloc == agg or netloc.endswith(f".{agg}") for agg in aggregators):
+                return None
+            if '.' in netloc and len(netloc) > 3:
+                return netloc
+        except Exception:
+            pass
+        return None
+
+    def resolve_company_domain(self, company_name: str, employer_website: Optional[str] = None, apply_url: Optional[str] = None) -> str:
         """
-        Resolves the primary domain for a given company name.
+        Synchronous resolution: extracts from response if available, checks dictionary, or creates clean slug domain.
         """
+        # 1. Direct from API employer_website
+        dom = self.extract_domain_from_url(employer_website)
+        if dom:
+            return dom
+
+        # 2. From direct apply_url if non-aggregator
+        dom = self.extract_domain_from_url(apply_url)
+        if dom:
+            return dom
+
+        # 3. Known dictionary
         canonical = self.normalize(company_name).lower()
         if canonical in self.COMPANY_DOMAINS:
             return self.COMPANY_DOMAINS[canonical]
         
-        # Clean slug
+        # 4. Clean slug fallback
         clean_slug = re.sub(r'[^a-zA-Z0-9]', '', canonical)
-        return f"{clean_slug}.com"
+        return f"{clean_slug}.com" if clean_slug else "company.com"
+
+    async def resolve_company_domain_llm(
+        self,
+        company_name: str,
+        employer_website: Optional[str] = None,
+        apply_url: Optional[str] = None
+    ) -> str:
+        """
+        Determines the official company domain.
+        Priority:
+        1. Direct extraction from API response (employer_website or direct apply_url)
+        2. Known Enterprise alias dictionary
+        3. LLM resolution (Gemini/Nemotron/OpenAI) for unknown/custom companies
+        4. Fallback slug domain (e.g. company.com)
+        """
+        if not company_name:
+            return "company.com"
+
+        # 1. Check direct response
+        dom = self.extract_domain_from_url(employer_website)
+        if dom:
+            return dom
+
+        dom = self.extract_domain_from_url(apply_url)
+        if dom:
+            return dom
+
+        # 2. Check known dictionary
+        canonical = self.normalize(company_name).lower()
+        if canonical in self.COMPANY_DOMAINS:
+            return self.COMPANY_DOMAINS[canonical]
+
+        # 3. LLM Resolution
+        try:
+            from backend.python.services.ai_providers import GenericLLMProvider
+            llm = GenericLLMProvider()
+            if llm.is_configured():
+                messages = [
+                    {
+                        "role": "system",
+                        "content": "You are a company domain lookup service. Respond with ONLY the official primary website domain (e.g. 'stripe.com' or 'infosys.com'). Do not add any punctuation, markdown, or explanation."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Company: {company_name}"
+                    }
+                ]
+                llm_response = ""
+                async for chunk in llm.chat_completion(messages=messages, stream=False, temperature=0.1, max_tokens=20, timeout=4.0):
+                    llm_response += chunk
+                
+                llm_clean = llm_response.strip().lower().replace("http://", "").replace("https://", "").replace("www.", "").rstrip("/")
+                # Extract first word/domain if multiple
+                match = re.search(r'[a-zA-Z0-9-]+\.[a-zA-Z]{2,}', llm_clean)
+                if match:
+                    resolved = match.group(0)
+                    # Cache in memory
+                    self.COMPANY_DOMAINS[canonical] = resolved
+                    return resolved
+        except Exception:
+            pass
+
+        # 4. Clean slug fallback
+        clean_slug = re.sub(r'[^a-zA-Z0-9]', '', canonical)
+        return f"{clean_slug}.com" if clean_slug else "company.com"
 
     def match_company(self, company_a: str, company_b: str) -> bool:
         """
