@@ -128,8 +128,6 @@ INSERT INTO automation_settings (
 ) ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO job_sources (id, name, base_url, source_type, is_active) VALUES
-    ('00000000-0000-0000-0000-000000000011', 'linkedin', 'https://www.linkedin.com/jobs', 'mcp_browserbase', true),
-    ('00000000-0000-0000-0000-000000000012', 'greenhouse', 'https://boards.greenhouse.io', 'api', true),
-    ('00000000-0000-0000-0000-000000000013', 'lever', 'https://jobs.lever.co', 'api', true),
-    ('00000000-0000-0000-0000-000000000014', 'workday', 'https://myworkdayjobs.com', 'mcp_browserbase', true)
-ON CONFLICT (name) DO NOTHING;
+    ('00000000-0000-0000-0000-000000000010', 'jsearch', 'https://api.openwebninja.com/jsearch/search-v2', 'api', true)
+ON CONFLICT (name) DO UPDATE SET base_url = EXCLUDED.base_url, is_active = true;
+

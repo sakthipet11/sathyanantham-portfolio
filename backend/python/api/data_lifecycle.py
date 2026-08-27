@@ -16,8 +16,11 @@ router = APIRouter(prefix="/api/v2", tags=["Data Lifecycle & Retention Purge"])
 SERVICE_TOKEN = os.getenv("RETENTION_SERVICE_TOKEN", "sched-secret-token-2026")
 MAX_BULK_DELETE_BATCH = 500
 
+from backend.python.repositories.application_v2_repository import application_v2_repository
+
 class BulkDeletePayload(BaseModel):
-    ids: List[str] = Field(..., min_items=1, description="List of record IDs to hard delete")
+    ids: Optional[List[str]] = None
+    application_ids: Optional[List[str]] = None
 
 class PolicyUpdatePayload(BaseModel):
     enabled: bool = False
@@ -49,21 +52,36 @@ def get_repository_by_pipeline(pipeline: str):
 @router.post("/{pipeline}/bulk-delete")
 def bulk_delete_items(
     pipeline: str,
-    payload: BulkDeletePayload,
+    payload: Dict[str, Any] = Body(default_factory=dict),
     x_admin_token: Optional[str] = Header(None)
 ):
-    repo = get_repository_by_pipeline(pipeline)
-    if len(payload.ids) > MAX_BULK_DELETE_BATCH:
+    raw_ids = payload.get("ids") or payload.get("application_ids") or []
+    if isinstance(raw_ids, str):
+        raw_ids = [raw_ids]
+    ids = [str(x) for x in raw_ids if x]
+    
+    if len(ids) > MAX_BULK_DELETE_BATCH:
         raise HTTPException(
             status_code=400,
-            detail=f"Bulk delete batch size exceeds limit of {MAX_BULK_DELETE_BATCH} IDs. Received {len(payload.ids)}."
+            detail=f"Bulk delete batch size exceeds limit of {MAX_BULK_DELETE_BATCH} IDs. Received {len(ids)}."
         )
 
-    deleted_count = repo.delete_bulk(payload.ids, actor="admin_user", action="MANUAL_DELETE")
+    if pipeline == "applications":
+        del_v2 = application_v2_repository.bulk_delete_applications(ids)
+        del_v1 = application_repository.delete_bulk(ids, actor="admin_user", action="MANUAL_DELETE")
+        return {
+            "status": "success",
+            "pipeline": pipeline,
+            "requested_count": len(ids),
+            "deleted_count": del_v2 or del_v1
+        }
+
+    repo = get_repository_by_pipeline(pipeline)
+    deleted_count = repo.delete_bulk(ids, actor="admin_user", action="MANUAL_DELETE")
     return {
         "status": "success",
         "pipeline": pipeline,
-        "requested_count": len(payload.ids),
+        "requested_count": len(ids),
         "deleted_count": deleted_count
     }
 
@@ -74,10 +92,15 @@ def delete_single_item(
     item_id: str,
     x_admin_token: Optional[str] = Header(None)
 ):
+    if pipeline == "applications":
+        del_v2 = application_v2_repository.delete_application(item_id)
+        if not del_v2:
+            del_v1 = application_repository.delete_by_id(item_id, actor="admin_user", action="MANUAL_DELETE")
+        return {"status": "success", "message": f"Item '{item_id}' hard-deleted from '{pipeline}'.", "deleted": True}
+
     repo = get_repository_by_pipeline(pipeline)
     deleted = repo.delete_by_id(item_id, actor="admin_user", action="MANUAL_DELETE")
     if not deleted:
-        # Idempotent requirement: Deleting a non-existent ID returns 200/204, not 500
         return {"status": "success", "message": f"Item '{item_id}' not found or already deleted from '{pipeline}'.", "deleted": False}
     
     return {"status": "success", "message": f"Item '{item_id}' hard-deleted from '{pipeline}'.", "deleted": True}

@@ -1,0 +1,12 @@
+Dear Hiring Team,
+
+I am excited to apply for the Lead Frontend Engineer / Architect role at Shorthills AI, where I can leverage my 13.5+ years of experience building enterprise‑grade web platforms to drive innovative Generative AI UI interfaces. Your focus on React, TypeScript, microservices integration, and robust testing aligns perfectly with my expertise in crafting scalable, high‑performance frontend systems.
+
+Throughout my career I have architected and delivered Micro Frontend solutions using Module Federation, enabling independent teams to ship features rapidly while maintaining a cohesive user experience. I have led the migration of legacy applications to Next.js‑based stacks, achieving sub‑second page loads and a 40% reduction in bundle size for traffic exceeding millions of monthly users. My hands‑on work integrating AI agents—such as Claude‑powered assistants and IBM Watson services—into React/TypeScript frontends has produced intelligent, context‑aware interfaces that boost user engagement and operational efficiency.
+
+At Shorthills AI, I will partner with your engineering leadership to establish a modular frontend foundation that accelerates AI‑driven feature delivery, ensures seamless microservices communication, and upholds rigorous testing and cloud‑native deployment practices. My track record of mentoring cross‑functional teams and defining architectural standards will help scale your platform as you expand generative AI offerings.
+
+Please find my portfolio at https://sathyanantham-portfolio-tv.vercel.app, which showcases recent AI‑enhanced UI projects and my AI Twin demo. I look forward to discussing how I can contribute to Shorthills AI’s technical vision.
+
+Sincerely  
+Sathyanantham V

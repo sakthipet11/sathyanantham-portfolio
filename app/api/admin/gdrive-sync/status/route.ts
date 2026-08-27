@@ -21,6 +21,8 @@ export async function GET(request: Request) {
   const todayStr = new Date().toISOString().split('T')[0];
   return NextResponse.json({
     status: 'success',
+    folder_url: 'https://drive.google.com/drive/u/1/folders/1AtZo2n7TYsavZrw6cG1quek3je0K3hkO',
+    folder_id: '1AtZo2n7TYsavZrw6cG1quek3je0K3hkO',
     enabled: true,
     schedule_time: '07:00 AM IST',
     frequency: 'DAILY',
@@ -30,3 +32,4 @@ export async function GET(request: Request) {
     last_jobs_count: 0
   });
 }
+

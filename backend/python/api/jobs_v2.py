@@ -81,6 +81,12 @@ def get_jobs_metrics():
     """Returns HUD analytics: Jobs Found, New Jobs, Profile Matches, JD Matches, Top Match %, Remote Jobs."""
     return {"status": "success", "metrics": job_repository.get_job_metrics()}
 
+@router.get("/api/v2/jobs/sources")
+def get_job_sources():
+    """Returns all configured job sources with active health status and real-time job counts."""
+    sources = job_repository.list_job_sources()
+    return {"status": "success", "count": len(sources), "sources": sources}
+
 @router.get("/api/v2/jobs")
 def list_jobs(
     status: Optional[str] = Query(None, description="Filter by status e.g. QUALIFIED, REJECTED, MANUAL_REQUIRED, APPROVED"),

@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Zap,
@@ -24,7 +24,8 @@ import {
   ToggleRight,
   MessageSquare,
   Menu,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
@@ -44,6 +45,7 @@ interface NavSection {
 }
 
 export function AdminSidebar() {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentTab = searchParams.get('tab');
@@ -55,6 +57,10 @@ export function AdminSidebar() {
   // Host presence toggle state
   const [isHostOnline, setIsHostOnline] = useState(false);
 
+  // Navigation loading lock state
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigatingTarget, setNavigatingTarget] = useState<string | null>(null);
+
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
@@ -65,7 +71,7 @@ export function AdminSidebar() {
       setIsAuthenticated(authed);
 
       if (!authed && pathname && pathname !== '/admin' && pathname !== '/admin/dashboard') {
-        window.location.href = '/admin';
+        router.push('/admin');
       }
     };
 
@@ -81,16 +87,29 @@ export function AdminSidebar() {
       window.removeEventListener('admin-auth-changed', handleAuthChange);
       window.removeEventListener('storage', handleAuthChange);
     };
-  }, [pathname]);
+  }, [pathname, router]);
 
-  // Auto-close mobile drawer when pathname/searchParams change
+  // Reset navigation loading state when pathname or searchParams change
   useEffect(() => {
+    setIsNavigating(false);
+    setNavigatingTarget(null);
     setIsMobileOpen(false);
   }, [pathname, searchParams]);
 
+  // Safety fallback timeout to release navigation lock if transition stalls
+  useEffect(() => {
+    if (isNavigating) {
+      const timer = setTimeout(() => {
+        setIsNavigating(false);
+        setNavigatingTarget(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [isNavigating]);
+
   useEffect(() => {
     const apiHost = getApiHost();
-    fetchWithTimeout(`${apiHost}/api/presence`, {}, 1500)
+    fetchWithTimeout(`${apiHost}/api/presence`, {}, 8000)
       .then(res => res.json())
       .then(data => {
         if (typeof data.is_online === 'boolean') {
@@ -125,7 +144,7 @@ export function AdminSidebar() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ is_online: nextState })
-      }, 1500);
+      }, 8000);
     } catch (e) {
       console.warn("Failed to push presence toggle from sidebar:", e);
     }
@@ -189,7 +208,12 @@ export function AdminSidebar() {
   };
 
   const renderNavContent = (onLinkClick?: () => void) => (
-    <div className="flex flex-col justify-between h-full font-mono text-xs">
+    <div className="flex flex-col justify-between h-full font-mono text-xs relative">
+      {/* Top Loading Progress Bar */}
+      {isNavigating && (
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-primary via-amber-500 to-primary animate-pulse z-50 shadow-sm shadow-primary/50" />
+      )}
+
       <div>
         {/* Header Branding */}
         <div className="p-5 border-b border-border/80 flex items-center justify-between gap-3">
@@ -225,12 +249,22 @@ export function AdminSidebar() {
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = isItemActive(item);
+                const isTargetNav = navigatingTarget === item.href;
+
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     prefetch={true}
-                    onClick={() => {
+                    onClick={(e) => {
+                      if (isNavigating && !isTargetNav) {
+                        e.preventDefault();
+                        return;
+                      }
+                      if (!active) {
+                        setIsNavigating(true);
+                        setNavigatingTarget(item.href);
+                      }
                       if (onLinkClick) onLinkClick();
                       if (typeof window !== 'undefined') {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -239,6 +273,8 @@ export function AdminSidebar() {
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl transition-all font-medium group ${
                       active
                         ? 'border-l-4 border-l-primary bg-muted/80 dark:bg-muted/50 text-foreground font-bold shadow-2xs backdrop-blur-md'
+                        : isNavigating && !isTargetNav
+                        ? 'text-muted-foreground/50 pointer-events-none cursor-not-allowed'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                     }`}
                   >
@@ -246,9 +282,14 @@ export function AdminSidebar() {
                       <Icon className={`w-4 h-4 shrink-0 transition-colors ${active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`} />
                       <span className="truncate">{item.label}</span>
                     </div>
-                    {item.isLive && (
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${isHostOnline ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground'}`} />
-                    )}
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isTargetNav ? (
+                        <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                      ) : item.isLive ? (
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${isHostOnline ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground'}`} />
+                      ) : null}
+                    </div>
                   </Link>
                 );
               })}

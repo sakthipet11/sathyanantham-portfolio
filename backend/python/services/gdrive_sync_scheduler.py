@@ -34,6 +34,7 @@ class GDriveSyncScheduler:
 
                     schedule_time_str = (settings.get("gdrive_sync_schedule_time") or settings.get("daily_schedule_time") or "07:00 AM IST").upper()
                     frequency = (settings.get("gdrive_sync_frequency") or "DAILY").upper()
+                    folder_url = settings.get("gdrive_folder_url")
 
                     now = datetime.now()
                     current_date_str = now.strftime("%Y-%m-%d")
@@ -43,7 +44,7 @@ class GDriveSyncScheduler:
                         if self._last_run_hour != current_hour_str:
                             self._last_run_hour = current_hour_str
                             print(f"[GDRIVE_SCHEDULER CRON] Triggering HOURLY Google Drive Sync at {now.strftime('%H:%M')}")
-                            gdrive_sync_service.run_sync(triggered_by="HOURLY_CRON_SCHEDULER")
+                            gdrive_sync_service.run_sync(folder_url=folder_url, triggered_by="HOURLY_CRON_SCHEDULER")
                     else: # DAILY (default: 07:00 AM IST)
                         match = re.search(r'(\d{1,2}):(\d{2})\s*(AM|PM)?', schedule_time_str)
                         if match:
@@ -58,7 +59,7 @@ class GDriveSyncScheduler:
                             if now.hour == hr and now.minute == mn and self._last_run_date != current_date_str:
                                 self._last_run_date = current_date_str
                                 print(f"[GDRIVE_SCHEDULER CRON] Triggering DAILY Google Drive Sync at {schedule_time_str}")
-                                gdrive_sync_service.run_sync(triggered_by="DAILY_CRON_SCHEDULER")
+                                gdrive_sync_service.run_sync(folder_url=folder_url, triggered_by="DAILY_CRON_SCHEDULER")
 
                 except Exception as err:
                     print(f"[GDRIVE_SCHEDULER] Scheduler error: {err}")
@@ -70,3 +71,4 @@ class GDriveSyncScheduler:
             print(f"[GDRIVE_SCHEDULER] Could not start loop: {e}")
 
 gdrive_sync_scheduler = GDriveSyncScheduler()
+

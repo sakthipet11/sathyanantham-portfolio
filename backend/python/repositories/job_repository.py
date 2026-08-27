@@ -1,3 +1,4 @@
+import os
 import decimal
 import uuid
 import hashlib
@@ -80,11 +81,96 @@ class JobRepository:
             finally:
                 pg_conn.close()
 
-        # Check in-memory store
-        for job in self._in_memory_jobs.values():
-            if job.get("idempotency_key") == idempotency_key:
-                return job
-        return None
+    def get_or_create_job_source(self, source_name: str = "jsearch", base_url: Optional[str] = None, source_type: str = "api") -> Optional[Dict[str, Any]]:
+        """
+        Ensures the single authoritative JSearch job source exists in job_sources table.
+        """
+        clean_name = "jsearch"
+        url = base_url or os.getenv("JSEARCH_BASE_URL", "https://api.openwebninja.com/jsearch/search-v2")
+
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("SELECT * FROM job_sources WHERE LOWER(name) = 'jsearch' LIMIT 1;")
+                    row = cur.fetchone()
+                    if row:
+                        if row.get("base_url") != url:
+                            cur.execute("UPDATE job_sources SET base_url = %s, is_active = true WHERE LOWER(name) = 'jsearch' RETURNING *;", (url,))
+                            row = cur.fetchone()
+                            pg_conn.commit()
+                        return dict(row)
+                    
+                    # Insert single jsearch source
+                    source_id = "00000000-0000-0000-0000-000000000010"
+                    cur.execute("""
+                        INSERT INTO job_sources (id, name, base_url, source_type, is_active, created_at)
+                        VALUES (%s, 'jsearch', %s, %s, true, NOW())
+                        ON CONFLICT (name) DO UPDATE SET base_url = EXCLUDED.base_url, is_active = true
+                        RETURNING *;
+                    """, (source_id, url, source_type))
+                    new_row = cur.fetchone()
+                    pg_conn.commit()
+                    if new_row:
+                        return dict(new_row)
+            except Exception as e:
+                print(f"[JOB_REPO] Error in get_or_create_job_source: {e}")
+                pg_conn.rollback()
+            finally:
+                pg_conn.close()
+
+        return {"id": "00000000-0000-0000-0000-000000000010", "name": "jsearch", "base_url": url, "source_type": "api", "is_active": True}
+
+    def list_job_sources(self) -> List[Dict[str, Any]]:
+        """
+        Lists single authoritative JSearch job source with live job counts and health tracking.
+        """
+        sources: List[Dict[str, Any]] = []
+        url = os.getenv("JSEARCH_BASE_URL", "https://api.openwebninja.com/jsearch/search-v2")
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT 
+                            js.id,
+                            js.name,
+                            js.base_url,
+                            js.source_type,
+                            js.is_active,
+                            js.last_scanned_at,
+                            js.created_at,
+                            COUNT(j.id) AS job_count
+                        FROM job_sources js
+                        LEFT JOIN jobs j ON (j.source_id = js.id OR LOWER(j.source) = LOWER(js.name) OR LOWER(j.portal_type) = LOWER(js.name))
+                        WHERE LOWER(js.name) = 'jsearch'
+                        GROUP BY js.id, js.name, js.base_url, js.source_type, js.is_active, js.last_scanned_at, js.created_at;
+                    """)
+                    rows = cur.fetchall()
+                    if rows:
+                        sources = [_sanitize_record(dict(r)) for r in rows]
+                    else:
+                        jsearch_src = self.get_or_create_job_source("jsearch", url)
+                        if jsearch_src:
+                            cur.execute("SELECT COUNT(*) FROM jobs;")
+                            cnt = cur.fetchone().get("count", 0) if cur.rowcount else 0
+                            jsearch_src["job_count"] = cnt
+                            sources = [jsearch_src]
+            except Exception as e:
+                print(f"[JOB_REPO] Error in list_job_sources: {e}")
+            finally:
+                pg_conn.close()
+
+        if not sources:
+            sources = [{
+                "id": "00000000-0000-0000-0000-000000000010",
+                "name": "jsearch",
+                "base_url": url,
+                "source_type": "api",
+                "is_active": True,
+                "job_count": len(self._in_memory_jobs)
+            }]
+        return sources
 
     def get_job_by_id(self, job_id: str) -> Optional[Dict[str, Any]]:
         if self.db.client:
@@ -124,6 +210,14 @@ class JobRepository:
             job_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
         job_data["id"] = job_id
 
+        # Single Authoritative Job Source: JSearch
+        source_rec = self.get_or_create_job_source("jsearch")
+        source_id = source_rec.get("id") if source_rec else "00000000-0000-0000-0000-000000000010"
+        job_data["source_id"] = source_id
+        job_data["source"] = "jsearch"
+        if not job_data.get("portal_type") or job_data.get("portal_type") in ("custom", "undefined"):
+            job_data["portal_type"] = "jsearch"
+
         if self.db.client:
             try:
                 res = self.db.client.table("jobs").upsert(job_data, on_conflict="idempotency_key").execute()
@@ -140,17 +234,19 @@ class JobRepository:
                 with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute("""
                         INSERT INTO jobs (
-                            id, title, company, location, apply_url, portal_type, status,
+                            id, source_id, title, company, company_domain, location, apply_url, portal_type, status,
                             idempotency_key, description_raw, source, job_url, posted_date,
                             fingerprint, tech_stack, salary_min, salary_max, match_type,
                             reference_jd_summary, match_score, published_time
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         ON CONFLICT (idempotency_key) DO UPDATE SET
                             title = EXCLUDED.title,
                             company = EXCLUDED.company,
+                            company_domain = COALESCE(EXCLUDED.company_domain, jobs.company_domain),
                             location = EXCLUDED.location,
                             status = EXCLUDED.status,
+                            source_id = COALESCE(EXCLUDED.source_id, jobs.source_id),
                             source = COALESCE(EXCLUDED.source, jobs.source),
                             job_url = COALESCE(EXCLUDED.job_url, jobs.job_url),
                             fingerprint = COALESCE(EXCLUDED.fingerprint, jobs.fingerprint),
@@ -162,8 +258,10 @@ class JobRepository:
                         RETURNING *;
                     """, (
                         job_data["id"],
+                        job_data.get("source_id"),
                         job_data.get("title", ""),
                         job_data.get("company", ""),
+                        job_data.get("company_domain"),
                         job_data.get("location", "Remote"),
                         job_data.get("apply_url", "https://example.com"),
                         job_data.get("portal_type", "custom"),
@@ -572,6 +670,9 @@ class JobRepository:
         if pg_conn:
             try:
                 with pg_conn.cursor() as cur:
+                    cur.execute("DELETE FROM application_events WHERE application_id IN (SELECT id FROM applications_v2 WHERE job_id::text = %s);", (str(job_id),))
+                    cur.execute("DELETE FROM applications_v2 WHERE job_id::text = %s;", (str(job_id),))
+                    cur.execute("DELETE FROM applications WHERE job_id::text = %s;", (str(job_id),))
                     cur.execute("DELETE FROM job_scores WHERE job_id::text = %s;", (str(job_id),))
                     cur.execute("DELETE FROM job_source_records WHERE job_id::text = %s;", (str(job_id),))
                     cur.execute("DELETE FROM jobs WHERE id::text = %s;", (str(job_id),))
@@ -595,11 +696,49 @@ class JobRepository:
         return deleted
 
     def delete_bulk(self, job_ids: List[str], actor: str = "admin_user", action: str = "MANUAL_DELETE") -> int:
-        count = 0
-        for j_id in job_ids:
-            if self.delete_by_id(j_id, actor=actor, action=action):
-                count += 1
-        return count
+        clean_ids = [str(j) for j in job_ids if j]
+        if not clean_ids:
+            return 0
+
+        for j_id in clean_ids:
+            if j_id in self._in_memory_jobs:
+                del self._in_memory_jobs[j_id]
+            if j_id in self._in_memory_scores:
+                del self._in_memory_scores[j_id]
+
+        deleted_count = 0
+        pg_conn = self.db._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor() as cur:
+                    cur.execute("DELETE FROM application_events WHERE application_id IN (SELECT id FROM applications_v2 WHERE job_id::text = ANY(%s));", (clean_ids,))
+                    cur.execute("DELETE FROM applications_v2 WHERE job_id::text = ANY(%s);", (clean_ids,))
+                    cur.execute("DELETE FROM applications WHERE job_id::text = ANY(%s);", (clean_ids,))
+                    cur.execute("DELETE FROM job_scores WHERE job_id::text = ANY(%s);", (clean_ids,))
+                    cur.execute("DELETE FROM job_source_records WHERE job_id::text = ANY(%s);", (clean_ids,))
+                    cur.execute("DELETE FROM jobs WHERE id::text = ANY(%s);", (clean_ids,))
+                    deleted_count = cur.rowcount
+                    cur.execute("DELETE FROM job_listings WHERE id::text = ANY(%s);", (clean_ids,))
+                    deleted_count = max(deleted_count, cur.rowcount)
+                    pg_conn.commit()
+            except Exception as e:
+                print(f"[JOB_REPO] PG bulk delete error: {e}")
+                pg_conn.rollback()
+            finally:
+                pg_conn.close()
+
+        if self.db.client:
+            try:
+                for j_id in clean_ids:
+                    try:
+                        self.db.client.table("job_scores").delete().eq("job_id", j_id).execute()
+                        self.db.client.table("jobs").delete().eq("id", j_id).execute()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        return deleted_count or len(clean_ids)
 
     def get_expired_jobs(self, cutoff_days: int, status_filter: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         from datetime import datetime, timezone, timedelta

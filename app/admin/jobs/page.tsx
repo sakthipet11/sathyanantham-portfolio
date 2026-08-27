@@ -37,7 +37,8 @@ import {
   CheckCircle,
   Flame,
   CheckSquare,
-  Square
+  Square,
+  Bot
 } from 'lucide-react';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 import { BulkActionBar } from '@/components/admin/BulkActionBar';
@@ -89,6 +90,7 @@ export default function AdminJobsPage() {
   const [autoApplyModalOpen, setAutoApplyModalOpen] = useState(false);
   const [currentBatchId, setCurrentBatchId] = useState<string | null>(null);
   const [applyingJobs, setApplyingJobs] = useState(false);
+  const [isStaging, setIsStaging] = useState(false);
 
   useLockBodyScroll(!!selectedJob || jdSearchModalOpen || settingsModalOpen || deleteModalOpen || autoApplyModalOpen);
 
@@ -105,12 +107,19 @@ export default function AdminJobsPage() {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [discoverySettings, setDiscoverySettings] = useState<any>({
-    target_locations: ['Coimbatore', 'Bangalore', 'Chennai', 'India', 'Remote'],
+    target_locations: ['Bangalore', 'Coimbatore', 'Chennai', 'India'],
     remote_preference: 'Local + Remote',
-    target_roles: ['Senior UI Developer', 'React Developer', 'Lead Software Engineer', 'AI Engineer'],
+    target_roles: ['Lead Software Engineer', 'Senior UI Developer', 'React Developer', 'AI Engineer'],
     experience_levels: ['Senior', 'Lead'],
-    employment_types: ['Full-time', 'Contract'],
-    job_recency_hours: 24,
+    employment_types: ['Full-time'],
+    country: 'in',
+    language: 'en',
+    date_posted: 'week',
+    work_from_home: false,
+    job_requirements: ['more_than_3_years_experience'],
+    exclude_job_publishers: [],
+    num_pages: 1,
+    job_recency_hours: 168,
     daily_application_limit: 10,
     daily_schedule_time: '08:00 AM IST',
     profile_ats_threshold: 75.0,
@@ -118,25 +127,53 @@ export default function AdminJobsPage() {
   });
   const [newLocationInput, setNewLocationInput] = useState('');
   const [newRoleInput, setNewRoleInput] = useState('');
+  const [newPublisherInput, setNewPublisherInput] = useState('');
+
+  const addPublisherTag = () => {
+    if (!newPublisherInput.trim()) return;
+    const clean = newPublisherInput.trim();
+    if (!discoverySettings.exclude_job_publishers?.includes(clean)) {
+      setDiscoverySettings((p: any) => ({
+        ...p,
+        exclude_job_publishers: [...(p.exclude_job_publishers || []), clean]
+      }));
+    }
+    setNewPublisherInput('');
+  };
+
+  const removePublisherTag = (pub: string) => {
+    setDiscoverySettings((p: any) => ({
+      ...p,
+      exclude_job_publishers: (p.exclude_job_publishers || []).filter((x: string) => x !== pub)
+    }));
+  };
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 4000);
   };
 
+  const [sources, setSources] = useState<any[]>([]);
+  const [stagedJobIds, setStagedJobIds] = useState<Set<string>>(new Set());
+
   const fetchJobsAndMetrics = useCallback(async () => {
     try {
       setLoading(true);
       const timestamp = Date.now();
-      const [jobsRes, metricsRes] = await Promise.all([
+      const [jobsRes, metricsRes, sourcesRes, appsRes] = await Promise.all([
         fetchWithTimeout(`${apiHost}/api/v2/jobs?limit=100&_t=${timestamp}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-        }, 3000),
+        }, 10000),
         fetchWithTimeout(`${apiHost}/api/v2/jobs/metrics?_t=${timestamp}`, {
           cache: 'no-store',
           headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-        }, 3000)
+        }, 10000),
+        fetchWithTimeout(`${apiHost}/api/v2/jobs/sources?_t=${timestamp}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+        }, 10000).catch(() => null),
+        fetchWithTimeout(`${apiHost}/api/v2/applications`, {}, 10000).catch(() => null)
       ]);
 
       if (jobsRes.ok) {
@@ -151,6 +188,18 @@ export default function AdminJobsPage() {
         if (mData.metrics) setMetrics(mData.metrics);
       } else {
         setMetrics(ZERO_METRICS);
+      }
+
+      if (sourcesRes && sourcesRes.ok) {
+        const sData = await sourcesRes.json();
+        if (Array.isArray(sData.sources)) setSources(sData.sources);
+      }
+
+      if (appsRes && appsRes.ok) {
+        const aData = await appsRes.json();
+        const appList = aData.applications || [];
+        const staged = new Set<string>(appList.map((a: any) => a.job_id).filter(Boolean));
+        setStagedJobIds(staged);
       }
     } catch (err) {
       console.warn("API failed for jobs:", err);
@@ -238,7 +287,7 @@ export default function AdminJobsPage() {
     setApplyingJobs(true);
     try {
       showToast('🚀 Launching Chromium Auto-Apply in visible window...');
-      
+
       const res = await fetch(`${apiHost}/api/v2/applications/apply-single`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -256,7 +305,7 @@ export default function AdminJobsPage() {
 
       const result = await res.json();
       showToast(`✨ Auto-Apply running in Chromium. Status will update to 'Applied' in DB.`);
-      
+
       // Poll/refresh jobs list after a short delay so the user sees the updated status
       setTimeout(() => {
         fetchJobsAndMetrics();
@@ -283,6 +332,45 @@ export default function AdminJobsPage() {
     setSelectedIds([]);
   }, [fetchJobsAndMetrics]);
 
+  // 1-Click Atomic Application Staging (Resume + Cover Letter + 1st-Degree Referrals)
+  const handleStageApplicationPackage = async (jobIds: string[]) => {
+    if (jobIds.length === 0) {
+      showToast("Please select at least one job to stage");
+      return;
+    }
+    setIsStaging(true);
+    try {
+      showToast(`⚡ Staging application package for ${jobIds.length} job${jobIds.length > 1 ? 's' : ''}...`);
+      const res = await fetch(`${apiHost}/api/v2/applications/stage-package`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_ids: jobIds,
+          user_profile_id: '00000000-0000-0000-0000-000000000001',
+          generate_cover_letter: true,
+          link_referrals: true
+        })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to stage application package');
+      }
+      const data = await res.json();
+      showToast(`✅ ${data.message}`);
+      setStagedJobIds(prev => {
+        const next = new Set(prev);
+        jobIds.forEach(id => next.add(id));
+        return next;
+      });
+      fetchJobsAndMetrics();
+      setSelectedIds([]);
+    } catch (err: any) {
+      showToast(err.message || 'Error staging application package');
+    } finally {
+      setIsStaging(false);
+    }
+  };
+
   const fetchSettings = async () => {
     try {
       setSettingsLoading(true);
@@ -290,12 +378,25 @@ export default function AdminJobsPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.settings) {
-          setDiscoverySettings((prev: any) => ({
-            ...prev,
-            ...data.settings,
-            target_locations: data.settings.target_locations || prev.target_locations,
-            target_roles: data.settings.target_roles || data.settings.target_titles || prev.target_roles
-          }));
+          setDiscoverySettings({
+            target_locations: data.settings.target_locations || ['Bangalore', 'Coimbatore', 'Chennai', 'India'],
+            remote_preference: data.settings.remote_preference || 'Local + Remote',
+            target_roles: data.settings.target_roles || data.settings.target_titles || ['Lead Software Engineer', 'Senior UI Developer'],
+            experience_levels: data.settings.experience_levels || ['Senior', 'Lead'],
+            employment_types: data.settings.employment_types || ['Full-time'],
+            country: data.settings.country || 'in',
+            language: data.settings.language || 'en',
+            date_posted: data.settings.date_posted || 'week',
+            work_from_home: Boolean(data.settings.work_from_home),
+            job_requirements: data.settings.job_requirements || ['more_than_3_years_experience'],
+            exclude_job_publishers: data.settings.exclude_job_publishers || [],
+            num_pages: Number(data.settings.num_pages ?? 1),
+            job_recency_hours: Number(data.settings.job_recency_hours ?? 168),
+            daily_application_limit: Number(data.settings.daily_application_limit ?? 10),
+            daily_schedule_time: data.settings.daily_schedule_time || '08:00 AM IST',
+            profile_ats_threshold: Number(data.settings.profile_ats_threshold ?? data.settings.min_ats_score_threshold ?? 75.0),
+            jd_match_threshold: Number(data.settings.jd_match_threshold ?? 50.0)
+          });
         }
       }
     } catch (err) {
@@ -703,7 +804,15 @@ export default function AdminJobsPage() {
                 className="px-3.5 py-2.5 bg-card/80 dark:bg-card/80 border border-border/80 rounded-xl text-xs text-foreground font-medium focus:outline-none focus:border-primary shadow-xs transition"
               >
                 <option value="ALL">All Sources</option>
-                <option value="jsearch">JSearch (Google for Jobs)</option>
+                {sources.length > 0 ? (
+                  sources.map((s: any) => (
+                    <option key={s.id || s.name} value={s.name}>
+                      {s.name.toUpperCase()} (Google for Jobs) ({s.job_count ?? 0})
+                    </option>
+                  ))
+                ) : (
+                  <option value="jsearch">JSEARCH (Google for Jobs)</option>
+                )}
               </select>
 
               <select
@@ -775,6 +884,8 @@ export default function AdminJobsPage() {
             setItemsToDelete(selectedIds);
             setDeleteModalOpen(true);
           }}
+          onTriggerBulkStage={() => handleStageApplicationPackage(selectedIds)}
+          isStaging={isStaging}
           onTriggerBulkApply={handleBulkAutoApply}
           applyingJobs={applyingJobs}
           pipelineName="jobs"
@@ -823,9 +934,8 @@ export default function AdminJobsPage() {
               return (
                 <div
                   key={job.id}
-                  className={`p-4 sm:p-5 rounded-2xl bg-card/70 border transition-all duration-200 flex flex-col justify-between relative group ${
-                    isSelected ? 'border-primary bg-primary/5' : 'border-border/80 hover:border-border'
-                  }`}
+                  className={`p-4 sm:p-5 rounded-2xl bg-card/70 border transition-all duration-200 flex flex-col justify-between relative group ${isSelected ? 'border-primary bg-primary/5' : 'border-border/80 hover:border-border'
+                    }`}
                 >
                   <div className="space-y-3">
                     {/* Header */}
@@ -868,11 +978,10 @@ export default function AdminJobsPage() {
                       </span>
 
                       <span
-                        className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold ${
-                          matchType === 'JD_MATCH'
-                            ? 'bg-purple-500/10 text-purple-500 border-purple-500/30'
-                            : 'bg-primary/10 text-primary border-primary/30'
-                        }`}
+                        className={`px-2 py-0.5 rounded-md border text-[10px] font-semibold ${matchType === 'JD_MATCH'
+                          ? 'bg-purple-500/10 text-purple-500 border-purple-500/30'
+                          : 'bg-primary/10 text-primary border-primary/30'
+                          }`}
                       >
                         {matchType === 'JD_MATCH' ? 'JD Match' : 'Profile Match'}
                       </span>
@@ -926,14 +1035,35 @@ export default function AdminJobsPage() {
 
                   {/* Actions Footer */}
                   <div className="mt-4 pt-3.5 border-t border-border/80 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button
                         onClick={() => setSelectedJob(job)}
                         className="px-2.5 py-1.5 rounded-xl bg-card border border-border/80 hover:bg-muted text-foreground text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <Eye className="w-3.5 h-3.5 text-primary" />
-                        <span>ATS Radar</span>
+                        <span>Radar</span>
                       </button>
+
+                      {stagedJobIds.has(job.id) ? (
+                        <button
+                          disabled
+                          className="px-2.5 py-1.5 rounded-xl bg-muted/70 border border-border/80 text-muted-foreground text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed opacity-80"
+                          title="Application package already staged in Applications"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Staged</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleStageApplicationPackage([job.id])}
+                          disabled={isStaging}
+                          className="px-2.5 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500 hover:text-white text-emerald-600 dark:text-emerald-400 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          title="1-Click Stage: Pair tailored resume, draft cover letter & link 1st-degree referrals"
+                        >
+                          <Bot className="w-3.5 h-3.5" />
+                          <span>Stage</span>
+                        </button>
+                      )}
 
                       <button
                         onClick={() => handleSingleAutoApply(job.id)}
@@ -942,7 +1072,7 @@ export default function AdminJobsPage() {
                         title="Auto-Apply with Chromium Automation"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>Auto-Apply</span>
+                        <span>Apply</span>
                       </button>
 
                       {job.apply_url && (
@@ -1164,10 +1294,10 @@ export default function AdminJobsPage() {
             </div>
 
             <div className="space-y-4">
-              {/* 1. Target Locations */}
-              <div>
-                <label className="block text-xs font-semibold text-foreground mb-1.5">
-                  Target Locations (Multiple)
+              {/* 1. Target Locations & Geographic Scope */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-foreground">
+                  Target Locations & Geographic Country Scope
                 </label>
                 <div className="p-3 rounded-xl bg-muted/40 border border-border/80 space-y-2">
                   <div className="flex flex-wrap gap-1.5">
@@ -1206,17 +1336,59 @@ export default function AdminJobsPage() {
                     <button
                       type="button"
                       onClick={addLocationTag}
-                      className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1 transition"
+                      className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Add</span>
                     </button>
                   </div>
                 </div>
+
+                {/* Country Code & Language */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                      API Country Code (country param)
+                    </label>
+                    <select
+                      value={discoverySettings.country || 'in'}
+                      onChange={e => setDiscoverySettings((p: any) => ({ ...p, country: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary"
+                    >
+                      <option value="india">🇮🇳 India (in)</option>
+                      <option value="us">🇺🇸 United States (us)</option>
+                      <option value="gb">🇬🇧 United Kingdom (gb)</option>
+                      <option value="de">🇩🇪 Germany (de)</option>
+                      <option value="ca">🇨🇦 Canada (ca)</option>
+                      <option value="au">🇦🇺 Australia (au)</option>
+                      <option value="sg">🇸🇬 Singapore (sg)</option>
+                      <option value="ae">🇦🇪 UAE (ae)</option>
+                      <option value="fr">🇫🇷 France (fr)</option>
+                      <option value="nl">🇳🇱 Netherlands (nl)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
+                      Language (language param)
+                    </label>
+                    <select
+                      value={discoverySettings.language || 'en'}
+                      onChange={e => setDiscoverySettings((p: any) => ({ ...p, language: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary"
+                    >
+                      <option value="en">English (en)</option>
+                      <option value="de">German (de)</option>
+                      <option value="fr">French (fr)</option>
+                      <option value="es">Spanish (es)</option>
+                      <option value="ja">Japanese (ja)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
-              {/* 2. Remote Preference & Recency */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* 2. Remote / Work From Home & Recency */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1.5">
                     Remote Preference
@@ -1224,9 +1396,9 @@ export default function AdminJobsPage() {
                   <select
                     value={discoverySettings.remote_preference}
                     onChange={e => setDiscoverySettings((p: any) => ({ ...p, remote_preference: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-card/80 dark:bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary shadow-xs transition"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary shadow-xs transition"
                   >
-                    <option value="Local + Remote">Local + Remote (Recommended)</option>
+                    <option value="Local + Remote">Local + Remote</option>
                     <option value="Remote">Remote Only</option>
                     <option value="Local">Local Only</option>
                   </select>
@@ -1234,25 +1406,50 @@ export default function AdminJobsPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1.5">
-                    Job Recency (Posting Window)
+                    Date Posted (date_posted)
                   </label>
                   <select
-                    value={discoverySettings.job_recency_hours}
-                    onChange={e => setDiscoverySettings((p: any) => ({ ...p, job_recency_hours: Number(e.target.value) }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-card/80 dark:bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary shadow-xs transition"
+                    value={discoverySettings.date_posted || 'week'}
+                    onChange={e => {
+                      const val = e.target.value;
+                      const hrsMap: Record<string, number> = { today: 24, '3days': 72, week: 168, month: 720, all: 2160 };
+                      setDiscoverySettings((p: any) => ({
+                        ...p,
+                        date_posted: val,
+                        job_recency_hours: hrsMap[val] || 168
+                      }));
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary shadow-xs transition"
                   >
-                    <option value={24}>Last 24 Hours (Fresh)</option>
-                    <option value={48}>Last 48 Hours</option>
-                    <option value={72}>Last 72 Hours</option>
-                    <option value={168}>Last 7 Days</option>
+                    <option value="today">Today (24 Hours)</option>
+                    <option value="3days">Last 3 Days</option>
+                    <option value="week">Last 7 Days (Week)</option>
+                    <option value="month">Last Month</option>
+                    <option value="all">All Postings</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    Work From Home Only
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setDiscoverySettings((p: any) => ({ ...p, work_from_home: !p.work_from_home }))}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs font-medium transition cursor-pointer flex items-center justify-center gap-2 ${discoverySettings.work_from_home
+                        ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/40 font-semibold'
+                        : 'bg-muted/30 border-border/80 text-muted-foreground hover:text-foreground'
+                      }`}
+                  >
+                    <span>{discoverySettings.work_from_home ? '✓ WFH Only Enabled' : '○ WFH Only Disabled'}</span>
+                  </button>
                 </div>
               </div>
 
               {/* 3. Job Roles & Keywords */}
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5">
-                  Target Roles & Keywords
+                  Target Roles & Keywords (query param)
                 </label>
                 <div className="p-3 rounded-xl bg-muted/40 border border-border/80 space-y-2">
                   <div className="flex flex-wrap gap-1.5">
@@ -1290,7 +1487,7 @@ export default function AdminJobsPage() {
                     <button
                       type="button"
                       onClick={addRoleTag}
-                      className="px-3 py-1.5 rounded-xl bg-card border border-border/80 hover:bg-muted text-foreground text-xs font-semibold flex items-center gap-1 transition"
+                      className="px-3 py-1.5 rounded-xl bg-card border border-border/80 hover:bg-muted text-foreground text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Add</span>
@@ -1299,7 +1496,150 @@ export default function AdminJobsPage() {
                 </div>
               </div>
 
-              {/* 4. Schedule, Daily Limit & Dual ATS Thresholds */}
+              {/* 4. Employment Types (employment_types param) */}
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Employment Types (employment_types param)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: 'Full-time (FULLTIME)', val: 'Full-time' },
+                    { label: 'Contractor (CONTRACTOR)', val: 'Contract' },
+                    { label: 'Part-time (PARTTIME)', val: 'Part-time' },
+                    { label: 'Internship (INTERN)', val: 'Internship' }
+                  ].map(item => {
+                    const active = (discoverySettings.employment_types || []).includes(item.val);
+                    return (
+                      <button
+                        key={item.val}
+                        type="button"
+                        onClick={() => {
+                          setDiscoverySettings((p: any) => {
+                            const cur = p.employment_types || [];
+                            const next = cur.includes(item.val)
+                              ? cur.filter((t: string) => t !== item.val)
+                              : [...cur, item.val];
+                            return { ...p, employment_types: next };
+                          });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${active
+                            ? 'bg-primary/15 text-primary border-primary/40 font-semibold'
+                            : 'bg-muted/30 border-border/80 text-muted-foreground hover:text-foreground'
+                          }`}
+                      >
+                        {active ? '✓ ' : '+ '}{item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 5. Job Requirements / Experience (job_requirements param) */}
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Experience & Qualifications (job_requirements param)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: '3+ Years Exp (more_than_3_years_experience)', val: 'more_than_3_years_experience' },
+                    { label: '< 3 Years Exp (under_3_years_experience)', val: 'under_3_years_experience' },
+                    { label: 'No Experience / Entry (no_experience)', val: 'no_experience' },
+                    { label: 'No Degree Required (no_degree)', val: 'no_degree' }
+                  ].map(req => {
+                    const active = (discoverySettings.job_requirements || []).includes(req.val);
+                    return (
+                      <button
+                        key={req.val}
+                        type="button"
+                        onClick={() => {
+                          setDiscoverySettings((p: any) => {
+                            const cur = p.job_requirements || [];
+                            const next = cur.includes(req.val)
+                              ? cur.filter((r: string) => r !== req.val)
+                              : [...cur, req.val];
+                            return { ...p, job_requirements: next };
+                          });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer ${active
+                            ? 'bg-purple-500/15 text-purple-400 border-purple-500/40 font-semibold'
+                            : 'bg-muted/30 border-border/80 text-muted-foreground hover:text-foreground'
+                          }`}
+                      >
+                        {active ? '✓ ' : '+ '}{req.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 6. Pages to Fetch */}
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Pages to Fetch (num_pages param: 1-5, 10 jobs/page)
+                </label>
+                <select
+                  value={discoverySettings.num_pages || 1}
+                  onChange={e => setDiscoverySettings((p: any) => ({ ...p, num_pages: Number(e.target.value) }))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-card/80 border border-border/80 text-xs font-mono text-foreground focus:outline-none focus:border-primary shadow-xs transition"
+                >
+                  <option value={1}>1 Page (Up to 10 jobs)</option>
+                  <option value={2}>2 Pages (Up to 20 jobs)</option>
+                  <option value={3}>3 Pages (Up to 30 jobs)</option>
+                  <option value={5}>5 Pages (Up to 50 jobs)</option>
+                </select>
+              </div>
+
+              {/* 7. Exclude Job Publishers (exclude_job_publishers param) */}
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Exclude Job Publishers (exclude_job_publishers param)
+                </label>
+                <div className="p-3 rounded-xl bg-muted/40 border border-border/80 space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {(discoverySettings.exclude_job_publishers || []).map((pub: string, idx: number) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-xl bg-red-500/10 border border-red-500/25 text-red-400 text-xs font-mono flex items-center gap-1.5"
+                      >
+                        <span>{pub}</span>
+                        <button
+                          type="button"
+                          onClick={() => removePublisherTag(pub)}
+                          className="hover:text-destructive transition cursor-pointer"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      placeholder="Add publisher to exclude (e.g. Revature, CyberCoders)..."
+                      value={newPublisherInput}
+                      onChange={e => setNewPublisherInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addPublisherTag();
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 rounded-xl bg-background border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={addPublisherTag}
+                      className="px-3 py-1.5 rounded-xl bg-muted border border-border/80 hover:bg-card text-foreground text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Exclude</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 8. Schedule, Daily Limit & Dual ATS Thresholds */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1.5">
@@ -1427,20 +1767,20 @@ export default function AdminJobsPage() {
               const titleScore = Math.round(sd.title_match ?? sd.seniority_match_score ?? sb.title_match ?? 88);
               const overallScore = Math.round(selectedJob.match_score ?? sd.overall_score ?? sb.overall_score ?? 75);
               const rec = sd.recommendation || sd.evaluation_summary || sb.recommendation || `High alignment with candidate profile for ${selectedJob.company}.`;
-              
+
               const strengthsList: string[] = (sd.strengths && sd.strengths.length > 0)
                 ? sd.strengths
                 : ((sb.strengths && sb.strengths.length > 0) ? sb.strengths : [
-                    `Proven experience directly aligning with ${selectedJob.title}`,
-                    `Core skill match: ${(sd.matching_keywords || sb.matching_keywords || ['React', 'TypeScript']).slice(0, 3).join(', ')}`,
-                    `Strong track record in architecture and UI performance`
-                  ]);
+                  `Proven experience directly aligning with ${selectedJob.title}`,
+                  `Core skill match: ${(sd.matching_keywords || sb.matching_keywords || ['React', 'TypeScript']).slice(0, 3).join(', ')}`,
+                  `Strong track record in architecture and UI performance`
+                ]);
 
               const gapsList: string[] = (sd.gaps && sd.gaps.length > 0)
                 ? sd.gaps
                 : ((sb.gaps && sb.gaps.length > 0) ? sb.gaps : ((sd.missing_keywords || sb.missing_keywords || []).length > 0
-                    ? [`Review specific requirement for ${(sd.missing_keywords || sb.missing_keywords).slice(0, 2).join(', ')}`]
-                    : [`Verify specific cloud tooling requirements`]));
+                  ? [`Review specific requirement for ${(sd.missing_keywords || sb.missing_keywords).slice(0, 2).join(', ')}`]
+                  : [`Verify specific cloud tooling requirements`]));
 
               return (
                 <>
@@ -1535,6 +1875,26 @@ export default function AdminJobsPage() {
               </button>
 
               <div className="flex items-center gap-2">
+                {stagedJobIds.has(selectedJob.id) ? (
+                  <button
+                    disabled
+                    className="px-3.5 py-2 rounded-xl bg-muted/70 border border-border/80 text-muted-foreground text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed opacity-80"
+                    title="Application package already staged"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Staged</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleStageApplicationPackage([selectedJob.id])}
+                    disabled={isStaging}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500 hover:text-white text-emerald-600 dark:text-emerald-400 text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    title="Stage Application Package"
+                  >
+                    <Bot className="w-3.5 h-3.5" />
+                    <span>Stage</span>
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedJob(null)}
                   className="px-4 py-2 rounded-xl bg-card border border-border/80 hover:bg-muted text-foreground text-xs font-semibold transition"

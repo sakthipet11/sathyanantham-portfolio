@@ -35,10 +35,9 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   if (!isOpen) return null;
 
   const isBulk = itemCount > 1;
-  const isConfirmDisabled = isBulk ? confirmInput.trim().toUpperCase() !== 'DELETE' : false;
 
   const handleConfirm = () => {
-    if (isConfirmDisabled || isDeleting) return;
+    if (isDeleting) return;
     onConfirm();
     setConfirmInput('');
   };
@@ -77,24 +76,9 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
             <span>Destructive Action Warning</span>
           </div>
           <p className="font-sans text-muted-foreground">
-            You are about to permanently remove {itemCount} record{itemCount > 1 ? 's' : ''} from the database. A full row snapshot will be archived in <span className="font-mono text-foreground font-semibold">audit_logs</span> before deletion.
+            You are about to permanently remove <span className="font-bold text-foreground font-mono">{itemCount} {label}{itemCount > 1 ? 's' : ''}</span> from the database. This action cannot be undone.
           </p>
         </div>
-
-        {isBulk && (
-          <div className="space-y-2 font-mono text-xs">
-            <label className="block text-muted-foreground">
-              Type <span className="text-destructive font-bold">DELETE</span> to enable confirmation:
-            </label>
-            <input
-              type="text"
-              value={confirmInput}
-              onChange={(e) => setConfirmInput(e.target.value)}
-              placeholder="DELETE"
-              className="w-full bg-muted/40 border border-border/80 rounded-xl px-4 py-2 text-xs text-foreground focus:outline-none focus:border-destructive font-mono uppercase tracking-widest"
-            />
-          </div>
-        )}
 
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
@@ -106,9 +90,9 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
 
           <button
             onClick={handleConfirm}
-            disabled={isConfirmDisabled || isDeleting}
+            disabled={isDeleting}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold font-mono transition-all shadow-xs cursor-pointer ${
-              isConfirmDisabled || isDeleting
+              isDeleting
                 ? 'bg-muted text-muted-foreground border border-border/60 cursor-not-allowed opacity-50'
                 : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
             }`}
