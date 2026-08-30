@@ -6,7 +6,11 @@ import uuid
 import urllib.request
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-import openpyxl
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None
+
 
 from backend.python.repositories.job_repository import job_repository
 from backend.python.repositories.supabase_repo import db_helper
@@ -499,6 +503,11 @@ class GDriveSyncService:
                 reader = csv.reader(f)
                 return self.parse_rows(list(reader), source_label="gdrive_folder_csv")
 
+        if openpyxl is None:
+            raise ImportError(
+                "Package 'openpyxl' is required to parse Excel (.xlsx) files. "
+                "Ensure 'openpyxl' is installed in the python environment."
+            )
         wb = openpyxl.load_workbook(file_path, data_only=True)
         ws = wb.active
         rows = list(ws.iter_rows(values_only=True))

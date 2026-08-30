@@ -657,6 +657,14 @@ class SupabaseHelper:
         return []
 
     def get_chat_sessions(self) -> List[Dict[str, Any]]:
+        if self.client:
+            try:
+                res = self.client.table("chat_sessions").select("*").order("created_at", desc=True).execute()
+                if res.data is not None:
+                    return res.data
+            except Exception as e:
+                print(f"Supabase get chat sessions error: {e}")
+
         pg_conn = self._get_pg_connection()
         if pg_conn:
             try:
@@ -668,9 +676,17 @@ class SupabaseHelper:
                 print(f"PostgreSQL get chat sessions error: {e}")
             finally:
                 pg_conn.close()
-        return []
+        return list(self._mock_chat_sessions.values()) if hasattr(self, "_mock_chat_sessions") else []
 
     def get_chat_messages(self, session_id: str) -> List[Dict[str, Any]]:
+        if self.client:
+            try:
+                res = self.client.table("chat_messages").select("*").eq("session_id", session_id).order("timestamp", desc=False).execute()
+                if res.data is not None:
+                    return res.data
+            except Exception as e:
+                print(f"Supabase get chat messages error: {e}")
+
         pg_conn = self._get_pg_connection()
         if pg_conn:
             try:
@@ -682,7 +698,36 @@ class SupabaseHelper:
                 print(f"PostgreSQL get chat messages error: {e}")
             finally:
                 pg_conn.close()
-        return []
+        return self._mock_chat_messages.get(session_id, []) if hasattr(self, "_mock_chat_messages") else []
+
+    def delete_chat_session(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+        if not session_id:
+            return {"status": "error", "message": "session_id is required"}
+
+        if self.client:
+            try:
+                self.client.table("chat_messages").delete().eq("session_id", session_id).execute()
+                self.client.table("chat_sessions").delete().eq("id", session_id).execute()
+                return {"status": "success", "message": f"Session {session_id} deleted"}
+            except Exception as e:
+                print(f"Supabase delete chat session error: {e}")
+
+        pg_conn = self._get_pg_connection()
+        if pg_conn:
+            try:
+                with pg_conn.cursor() as cur:
+                    cur.execute("DELETE FROM chat_sessions WHERE id = %s;", (session_id,))
+                    pg_conn.commit()
+                    return {"status": "success", "message": f"Session {session_id} deleted"}
+            except Exception as e:
+                print(f"PostgreSQL delete chat session error: {e}")
+            finally:
+                pg_conn.close()
+
+        if hasattr(self, "_mock_chat_sessions"):
+            self._mock_chat_sessions.pop(session_id, None)
+            self._mock_chat_messages.pop(session_id, None)
+        return {"status": "success", "message": f"Session {session_id} deleted"}
 
     def write_audit_log(self, actor_type: str, actor_id: str, action: str, entity_type: str, entity_id: str, before_state: Any = None, after_state: Any = None, justification: str = None) -> Dict[str, Any]:
         def safe_json(obj):

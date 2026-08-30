@@ -147,6 +147,25 @@ def delete_admin_chat_session(session_id: Optional[str] = Query(None, descriptio
 def get_admin_chat_messages(session_id: str = Query(..., description="ID of the chat session")):
     return db_helper.get_chat_messages(session_id)
 
+from pydantic import BaseModel
+
+class AdminChatSendRequest(BaseModel):
+    session_id: str
+    content: str
+
+@router.post("/chat/send", dependencies=[Depends(verify_admin_token)])
+async def send_admin_chat_message(req: AdminChatSendRequest):
+    db_helper.upsert_chat_session(req.session_id, status="live_human")
+    db_helper.insert_chat_message(req.session_id, "assistant", f"[Live] {req.content}")
+    await ws_manager.send_to_visitor(req.session_id, {
+        "type": "human_response",
+        "sender": "Sathyanantham V (Live)",
+        "content": req.content
+    })
+    await ws_manager.broadcast_sessions_update()
+    return {"status": "success", "message": "Message dispatched to visitor"}
+
+
 ALLOWED_CMS_TABLES = {"skills", "experience", "projects", "education", "certificates"}
 
 @router.post("/cms/upsert", dependencies=[Depends(verify_admin_token)])

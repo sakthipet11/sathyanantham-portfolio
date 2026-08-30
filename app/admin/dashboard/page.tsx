@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, Suspense, useMemo } from 'react';
+import { useState, useEffect, useRef, Suspense, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { LiveChatConsole } from '@/components/admin/LiveChatConsole';
 import {
   LayoutDashboard,
   Zap,
@@ -40,7 +41,12 @@ import {
   AlertTriangle,
   Play,
   Check,
-  ExternalLink
+  ExternalLink,
+  Trash2,
+  User,
+  Wifi,
+  WifiOff,
+  ArrowLeft
 } from 'lucide-react';
 
 interface OverviewMetrics {
@@ -181,6 +187,9 @@ function AdminDashboardContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [currentChatMessages, setCurrentChatMessages] = useState<any[]>([]);
   const [hostReply, setHostReply] = useState('');
+  const [wsConnected, setWsConnected] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sendingReply, setSendingReply] = useState(false);
   const hostSocketRef = useRef<WebSocket | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -307,6 +316,65 @@ function AdminDashboardContent() {
     }
   };
 
+  // Fetch Chat Sessions
+  const fetchChatSessions = useCallback(async () => {
+    try {
+      const res = await fetchWithTimeout(`${apiHost}/api/admin/chat/sessions`, { headers: getAuthHeaders() }, 6000);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setChatSessions(data);
+          setSelectedSessionId((prev) => prev || (data.length > 0 ? data[0].id : null));
+        }
+      }
+    } catch (e) {
+      console.warn('Fetch chat sessions error:', e);
+    }
+  }, [apiHost]);
+
+  // Fetch Messages for Selected Session
+  const fetchSessionMessages = useCallback(async (sessionId: string) => {
+    if (!sessionId) return;
+    try {
+      const res = await fetchWithTimeout(`${apiHost}/api/admin/chat/messages?session_id=${encodeURIComponent(sessionId)}`, {
+        headers: getAuthHeaders()
+      }, 6000);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setCurrentChatMessages(data);
+        }
+      }
+    } catch (e) {
+      console.warn('Fetch session messages error:', e);
+    }
+  }, [apiHost]);
+
+  // When selectedSessionId changes, load its messages
+  useEffect(() => {
+    if (!selectedSessionId) return;
+    setLoadingMessages(true);
+    fetchSessionMessages(selectedSessionId).finally(() => setLoadingMessages(false));
+  }, [selectedSessionId, fetchSessionMessages]);
+
+  // Auto-scroll chat to bottom on new messages
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [currentChatMessages]);
+
+  // Polling for live sessions and messages
+  useEffect(() => {
+    if (!isAuthenticated || !isLiveChatTab) return;
+    fetchChatSessions();
+    const interval = setInterval(() => {
+      fetchChatSessions();
+      if (selectedSessionId) {
+        fetchSessionMessages(selectedSessionId);
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, isLiveChatTab, selectedSessionId, fetchChatSessions, fetchSessionMessages]);
+
   // Live WebSocket for Chat Takeover (Active when in live-chat mode)
   useEffect(() => {
     if (!isAuthenticated || !isLiveChatTab) return;
@@ -315,6 +383,18 @@ function AdminDashboardContent() {
     try {
       ws = new WebSocket(wsUrl);
       hostSocketRef.current = ws;
+
+      ws.onopen = () => {
+        setWsConnected(true);
+      };
+
+      ws.onclose = () => {
+        setWsConnected(false);
+      };
+
+      ws.onerror = () => {
+        setWsConnected(false);
+      };
 
       ws.onmessage = (event) => {
         try {
@@ -325,12 +405,14 @@ function AdminDashboardContent() {
             if (data.session_id === selectedSessionId) {
               setCurrentChatMessages((prev) => [
                 ...prev,
-                { role: 'user', content: data.content, timestamp: new Date().toLocaleTimeString() }
+                { role: 'user', content: data.content, timestamp: new Date().toISOString() }
               ]);
             }
             triggerToast(`New visitor message from ${data.session_id?.slice(0, 8) || 'Visitor'}`);
+            fetchChatSessions();
           } else if (data.type === 'handoff_alert') {
             triggerToast(`🚨 LIVE CHAT HANDOFF REQUESTED by visitor!`);
+            fetchChatSessions();
           }
         } catch (e) {
           console.error('WS parse error:', e);
@@ -338,12 +420,112 @@ function AdminDashboardContent() {
       };
     } catch (e) {
       console.warn('WS init error:', e);
+      setWsConnected(false);
     }
 
     return () => {
       if (ws) ws.close();
     };
-  }, [isAuthenticated, isLiveChatTab, selectedSessionId, apiHost]);
+  }, [isAuthenticated, isLiveChatTab, selectedSessionId, apiHost, fetchChatSessions]);
+
+  // Send Host Message
+  const handleSendHostReply = async () => {
+    if (!hostReply.trim() || !selectedSessionId) return;
+    const text = hostReply.trim();
+    setHostReply('');
+    setSendingReply(true);
+
+    const optimisticMsg = {
+      id: `live-host-${Date.now()}`,
+      session_id: selectedSessionId,
+      role: 'assistant',
+      content: `[Live] ${text}`,
+      timestamp: new Date().toISOString()
+    };
+    setCurrentChatMessages((prev) => [...prev, optimisticMsg]);
+
+    // WebSocket send
+    if (hostSocketRef.current && hostSocketRef.current.readyState === WebSocket.OPEN) {
+      try {
+        hostSocketRef.current.send(JSON.stringify({
+          target_session_id: selectedSessionId,
+          content: text
+        }));
+      } catch (e) {
+        console.warn('WS send error:', e);
+      }
+    }
+
+    // REST POST fallback
+    try {
+      await fetch(`${apiHost}/api/admin/chat/send`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          session_id: selectedSessionId,
+          content: text
+        })
+      });
+    } catch (e) {
+      console.warn('REST chat send error:', e);
+    } finally {
+      setSendingReply(false);
+    }
+
+    setTimeout(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+  };
+
+  // Delete session handler
+  const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Delete chat session ${sessionId}?`)) return;
+    try {
+      await fetch(`${apiHost}/api/admin/chat/sessions?session_id=${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      setChatSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (selectedSessionId === sessionId) {
+        setSelectedSessionId(null);
+        setCurrentChatMessages([]);
+      }
+      triggerToast('Chat session deleted.');
+    } catch (e) {
+      console.warn('Delete session error:', e);
+    }
+  };
+
+  // Toggle Session Mode (live_human vs ai_twin)
+  const handleToggleSessionMode = async (sessionId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === 'live_human' ? 'ai_twin' : 'live_human';
+    try {
+      await fetch(`${apiHost}/api/admin/chat/send`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          content: nextStatus === 'live_human'
+            ? 'Sathyanantham V has joined the chat in person.'
+            : 'Sathyanantham AI Twin has resumed autonomous conversation mode.'
+        })
+      });
+      setChatSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, status: nextStatus } : s))
+      );
+      triggerToast(nextStatus === 'live_human' ? 'Live Human Takeover enabled' : 'Handed back to AI Twin');
+      fetchSessionMessages(sessionId);
+    } catch (e) {
+      console.warn('Toggle session error:', e);
+    }
+  };
 
   // Host Presence Toggle
   const syncHostPresenceBackend = async (newOnlineState: boolean) => {
@@ -620,14 +802,16 @@ function AdminDashboardContent() {
       <header className="px-6 md:px-8 py-4 md:py-5 border-b border-border/80 flex items-center justify-between bg-card/60 backdrop-blur-xl sticky top-0 z-30">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-            <LayoutDashboard className="w-4 h-4" />
+            {isLiveChatTab ? <MessageSquare className="w-4 h-4" /> : <LayoutDashboard className="w-4 h-4" />}
           </div>
           <div>
             <h1 className="text-sm md:text-base font-bold text-foreground tracking-tight flex items-center gap-2">
-              Autonomous Job Automation Command Center
+              {isLiveChatTab ? 'Live Visitor Presence & Chat Takeover Console' : 'Autonomous Job Automation Command Center'}
             </h1>
             <p className="text-[10px] text-muted-foreground hidden sm:block">
-              Supervising Multi-Agent Discovery, Scoring, Tailoring & Outreach Pipelines
+              {isLiveChatTab
+                ? 'Direct two-way visitor chat stream, real-time handoff alerts & digital twin supervision'
+                : 'Supervising Multi-Agent Discovery, Scoring, Tailoring & Outreach Pipelines'}
             </p>
           </div>
         </div>
@@ -654,8 +838,14 @@ function AdminDashboardContent() {
 
           <button
             onClick={() => {
-              fetchDashboardData();
-              triggerToast('Synchronized with live backend telemetry.');
+              if (isLiveChatTab) {
+                fetchChatSessions();
+                if (selectedSessionId) fetchSessionMessages(selectedSessionId);
+                triggerToast('Synchronized with live chat telemetry.');
+              } else {
+                fetchDashboardData();
+                triggerToast('Synchronized with live backend telemetry.');
+              }
             }}
             disabled={loadingData}
             className="p-2.5 bg-card/70 border border-border/80 rounded-2xl text-muted-foreground hover:text-foreground hover:bg-muted/80 disabled:opacity-50 transition-all cursor-pointer shadow-2xs"
@@ -666,8 +856,71 @@ function AdminDashboardContent() {
         </div>
       </header>
 
+      {/* Top Dashboard / Live Chat View Switcher */}
+      <div className="px-6 md:px-8 pt-3 flex items-center justify-between border-b border-border/60 bg-muted/20">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/dashboard"
+            className={`px-4 py-2 text-xs font-bold font-mono rounded-t-xl transition-all border-b-2 flex items-center gap-2 ${
+              !isLiveChatTab
+                ? 'border-primary text-primary bg-background/80 shadow-sm'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>Autonomous Pipeline</span>
+          </Link>
+          <Link
+            href="/admin/dashboard?tab=live-chat"
+            className={`px-4 py-2 text-xs font-bold font-mono rounded-t-xl transition-all border-b-2 flex items-center gap-2 relative ${
+              isLiveChatTab
+                ? 'border-primary text-primary bg-background/80 shadow-sm'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Live Presence & Chat</span>
+            {chatSessions.some((s) => s.status === 'live_human') && (
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block ml-1" />
+            )}
+          </Link>
+        </div>
+
+        {isLiveChatTab && (
+          <div className="flex items-center gap-2 pb-2 text-[11px] font-mono text-muted-foreground">
+            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-border/70 bg-card/60">
+              <span className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+              <span>{wsConnected ? 'WebSocket Live' : 'Direct Polling Mode'}</span>
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Main Viewport Content */}
       <div className="p-4 md:p-8 flex-1 overflow-y-auto space-y-8">
+        {isLiveChatTab ? (
+          <LiveChatConsole
+            chatSessions={chatSessions}
+            selectedSessionId={selectedSessionId}
+            onSelectSession={(id) => setSelectedSessionId(id)}
+            currentChatMessages={currentChatMessages}
+            loadingMessages={loadingMessages}
+            isHostOnline={isHostOnline}
+            isTogglingPresence={isTogglingPresence}
+            onTogglePresence={() => syncHostPresenceBackend(!isHostOnline)}
+            wsConnected={wsConnected}
+            hostReply={hostReply}
+            onHostReplyChange={(val) => setHostReply(val)}
+            onSendReply={handleSendHostReply}
+            sendingReply={sendingReply}
+            chatEndRef={chatEndRef}
+            onDeleteSession={handleDeleteSession}
+            onToggleSessionMode={handleToggleSessionMode}
+            onRefreshSessions={fetchChatSessions}
+            onRefreshMessages={(sessionId) => fetchSessionMessages(sessionId)}
+          />
+        ) : (
+          <>
         {/* ========================================================================= */}
         {/* SECTION 1: TOP-LINE KPIS (10 Outcomes in One Row/Grid) */}
         {/* ========================================================================= */}
@@ -1229,6 +1482,8 @@ function AdminDashboardContent() {
             </table>
           </div>
         </section>
+        </>
+        )}
       </div>
     </div>
   );
