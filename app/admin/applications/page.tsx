@@ -666,11 +666,11 @@ export default function ApplicationsPage() {
                       <td className="py-4 px-4">
                         <div className="flex items-start gap-2.5">
                           <div className="p-2 rounded-xl bg-muted/60 border border-border/80 text-foreground font-mono font-bold text-xs mt-0.5">
-                            {app.company.slice(0, 2).toUpperCase()}
+                            {(app.company || 'CO').slice(0, 2).toUpperCase()}
                           </div>
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-bold text-foreground text-sm font-sans">{app.company}</span>
+                              <span className="font-bold text-foreground text-sm font-sans">{app.company || 'Unknown Company'}</span>
                               {app.match_score && (
                                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold flex items-center gap-1">
                                   <Sparkles className="w-2.5 h-2.5" /> {app.match_score}%

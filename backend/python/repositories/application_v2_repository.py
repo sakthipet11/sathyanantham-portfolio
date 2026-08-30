@@ -436,13 +436,30 @@ class ApplicationV2Repository:
         # Fallback Supabase
         if self.db.client:
             try:
-                sb_query = self.db.client.table("applications_v2").select("*")
+                sb_query = self.db.client.table("applications_v2").select("*, jobs(title, company, location, apply_url)")
                 if status and status != "ALL":
                     sb_query = sb_query.eq("status", status)
                 res = sb_query.order("updated_at", desc=True).range(offset, offset + limit - 1).execute()
                 if res.data:
-                    return res.data
+                    cleaned_rows = []
+                    for row in res.data:
+                        job = row.get("jobs") or {}
+                        cleaned_rows.append({
+                            **row,
+                            "job_title": job.get("title") or row.get("job_title"),
+                            "company": job.get("company") or row.get("company") or "Unknown Company",
+                            "location": job.get("location") or row.get("location"),
+                            "apply_url": job.get("apply_url") or row.get("apply_url")
+                        })
+                    return cleaned_rows
             except Exception as e:
+                # If foreign relation fails, fallback to simple select
+                try:
+                    res_simple = self.db.client.table("applications_v2").select("*").order("updated_at", desc=True).range(offset, offset + limit - 1).execute()
+                    if res_simple.data:
+                        return [{**r, "company": r.get("company") or "Unknown Company"} for r in res_simple.data]
+                except Exception:
+                    pass
                 print(f"[APP_V2_REPO] Supabase list error: {e}")
 
         return []

@@ -114,6 +114,10 @@ sequenceDiagram
     end
 ```
 
+### 📸 Live Application Execution Sample
+![Live Auto-Apply Form Filling Sample](docs/images/auto_apply_form_filling_sample.png)
+*Figure: Headless Playwright engine executing semantic field mapping, autofilling candidate information, and verifying terms on live portal.*
+
 ---
 
 ## 🤝 Job-First Automated Referral Execution Engine

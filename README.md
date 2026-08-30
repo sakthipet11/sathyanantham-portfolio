@@ -86,6 +86,12 @@ The platform operates on a clean, 4-tier decoupled architecture:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### 📸 Live Execution Sample
+The Playwright browser automation engine dynamically maps form fields using LLMs, uploads tailored PDF resumes, and captures audit screenshots:
+
+![Live Auto-Apply Form Filling Sample](docs/images/auto_apply_form_filling_sample.png)
+*Figure: Headless Playwright engine executing semantic field mapping, autofilling candidate information, and verifying terms on live portal.*
+
 ---
 
 ## 📋 7-Column Connection Table Schema

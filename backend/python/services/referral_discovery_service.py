@@ -69,26 +69,40 @@ class ReferralDiscoveryService:
                 discovered_referrals.append(existing_for_job)
                 continue
 
-            # Try finding 1st-degree connection from local network
-            contact = await linkedin_contact_service.find_and_enrich_best_contact(
-                company_name=norm_company,
-                target_role=job_title
-            )
+            # 1. Try finding matching contact with verified email from Connections table
+            conns = connection_repository.find_connections_by_company(norm_company)
+            best_conn = None
+            if conns:
+                with_email = [c for c in conns if c.get("email")]
+                if with_email:
+                    recruiters = [c for c in with_email if any(k in (c.get("position") or "").lower() for k in ["recruiter", "talent", "hr", "people", "sourcer"])]
+                    best_conn = recruiters[0] if recruiters else with_email[0]
+                else:
+                    best_conn = conns[0]
 
-            if contact and contact.get("connection_type") == "1ST_DEGREE_LINKEDIN":
+            if best_conn and best_conn.get("email"):
                 job_contact_map[job_id] = {
                     "job": job,
                     "norm_company": norm_company,
-                    "contact": contact,
-                    "source": "1ST_DEGREE_LINKEDIN"
+                    "contact": {
+                        "person_name": best_conn.get("full_name") or f"{best_conn.get('first_name', '')} {best_conn.get('last_name', '')}".strip(),
+                        "company": norm_company,
+                        "role": best_conn.get("position") or "Company Connection",
+                        "connection_type": best_conn.get("connection_degree") or "1st",
+                        "profile_url": best_conn.get("linkedin_url"),
+                        "contact_email": best_conn.get("email"),
+                        "verified_email": best_conn.get("email")
+                    },
+                    "source": "CONNECTIONS_TABLE"
                 }
             else:
-                # Queue for batch Apify recruiter extraction
+                # 2. Queue for Apify HR recruiter extraction using company_domain
                 jobs_needing_apify.append({
                     "job_id": job_id,
                     "job": job,
                     "company": norm_company,
-                    "location": job.get("location") or "Remote",
+                    "company_domain": job.get("company_domain") or apify_recruiter_service.extract_domain(norm_company),
+                    "location": job.get("location") or "India",
                     "job_url": job.get("apply_url") or job.get("job_url") or ""
                 })
 
@@ -146,7 +160,7 @@ class ReferralDiscoveryService:
 
             if not contact:
                 no_contact_record = {
-                    "id": f"ref-{uuid.uuid4().hex[:12]}",
+                    "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, f"ref-no-contact:{j_id}:{norm_company}")),
                     "job_id": j_id,
                     "job_title": job_title,
                     "job_ats_score": ats_score,
@@ -215,7 +229,7 @@ class ReferralDiscoveryService:
             ]
 
             ref_record = {
-                "id": f"ref-{uuid.uuid4().hex[:12]}",
+                "id": str(uuid.uuid5(uuid.NAMESPACE_DNS, f"ref:{j_id}:{norm_company}")),
                 "job_id": j_id,
                 "job_title": job_title,
                 "job_ats_score": ats_score,

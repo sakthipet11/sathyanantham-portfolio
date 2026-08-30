@@ -39,7 +39,9 @@ export default function AdminAutomationPage() {
     error: (msg: string) => showToast('error', msg)
   };
 
-  const adminToken = typeof window !== 'undefined' ? localStorage.getItem('sathya_admin_token') || 'sathya123' : 'sathya123';
+  const adminToken = typeof window !== 'undefined'
+    ? (sessionStorage.getItem('sathya_admin_token') || localStorage.getItem('sathya_admin_token') || 'sathya123')
+    : 'sathya123';
 
   // Fetch current Google Drive sync status and settings on mount
   useEffect(() => {
@@ -327,6 +329,7 @@ export default function AdminAutomationPage() {
                       formData.append('file', file);
                       const res = await fetch('/api/admin/gdrive-sync/upload', {
                         method: 'POST',
+                        headers: { 'X-Admin-Token': adminToken },
                         body: formData
                       });
                       const data = await res.json();

@@ -430,8 +430,27 @@ function AdminDashboardContent() {
   };
 
   // Login Form Submission
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      const res = await fetch(`${apiHost}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const tokenToSave = data.token || password;
+        sessionStorage.setItem('sathya_admin_token', tokenToSave);
+        setIsAuthenticated(true);
+        fetchDashboardData();
+        window.dispatchEvent(new Event('admin-auth-changed'));
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend login attempt failed, falling back to local check', err);
+    }
+
     if (password === 'sathya2026' || password === 'admin' || password === 'sathya123' || password.length >= 4) {
       sessionStorage.setItem('sathya_admin_token', password);
       setIsAuthenticated(true);

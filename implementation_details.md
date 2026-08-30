@@ -7,12 +7,12 @@ This repository is structured as a production-grade **Multi-Agent Portfolio & Re
 All data points across the portfolio (projects, experience, skills, candidate profile) and Recruiter OS (jobs, applications, referrals, connections, emails, analytics) query live database records via PostgreSQL (`postgresql://postgres:postgres@127.0.0.1:5432/postgres`) in development or Supabase Cloud in production.
 
 **Key Stats:**
-- **16 API Routers**: Complete REST API coverage
-- **29 Service Modules**: Job discovery, referral automation, email intelligence, contact enrichment, document generation
-- **8 Repository Layers**: Clean data access with PostgreSQL/Supabase dual support
-- **11 Admin Pages**: Full-featured Recruiter OS interface
-- **8 Database Migrations**: Version-controlled schema evolution
-- **11 Test Suites**: Comprehensive test coverage including connections, referrals, automation, copilot, and hardening
+- **17 API Routers**: Complete REST API coverage including autonomous auto-apply
+- **33 Service Modules**: Job discovery, referral automation, email intelligence, contact enrichment, document generation, Playwright browser engine, form mapping cache, queue processor, GDrive sync
+- **8 Repository Layers**: Clean data access with PostgreSQL/Supabase dual support and deduplicated queries
+- **11 Admin Pages**: Full-featured Recruiter OS interface with responsive mobile viewports
+- **8 Database Migrations**: Version-controlled schema evolution up through `008_auto_apply_schema.sql`
+- **11 Pytest Suites & 28 Playwright E2E Tests**: Comprehensive test coverage across public flows, 11 admin screens, mobile viewports, and API resilience
 
 ---
 
@@ -27,16 +27,19 @@ Sathyanantham-AI-Studio/
 ├── app/                                 # Next.js 15 App Router (Direct Root Level)
 │   ├── page.tsx                         # Main Interactive Portfolio & AI Digital Twin Landing
 │   ├── layout.tsx                       # Root Layout & Font/Theme Providers
+│   ├── loading.tsx                      # Root Suspense loading fallback
+│   ├── error.tsx                        # Root React client error boundary
+│   ├── not-found.tsx                    # Root branded 404 handler
 │   ├── globals.css                      # Global Tailwind CSS Styles
 │   ├── api/                             # Next.js API Proxy Routes
 │   │   ├── portfolio/                   # DB Portfolio Endpoints (/projects, /experience, /skills)
-│   │   └── admin/                       # Admin Proxy Routes (/gdrive-sync, etc.)
+│   │   └── admin/                       # Admin Proxy Routes (/gdrive-sync/run, /gdrive-sync/upload)
 │   └── admin/                           # Recruiter OS & Admin Command Center (11 Pages)
 │       ├── page.tsx                     # Admin Landing / Core Telemetry
 │       ├── dashboard/page.tsx           # Executive Control Center (10 KPIs & 9-Stage Pipeline)
 │       ├── analytics/page.tsx           # Real-Time Telemetry Hub (14-Day Charts, Activity Feed)
-│       ├── jobs/page.tsx                # Job Discovery & ATS Scoring Engine
-│       ├── applications/page.tsx        # Application Pipeline Tracker & Automation
+│       ├── jobs/page.tsx                # Job Discovery, ATS Radar & 1-Click Staging UI
+│       ├── applications/page.tsx        # Application Pipeline Tracker & Automation Batches
 │       ├── referrals/page.tsx           # Referral Review & Dispatch Center (Human Gate)
 │       ├── connections/page.tsx         # LinkedIn Network Management (731 Contacts, 7 Columns)
 │       ├── recruiter-inbox/page.tsx     # Live Visitor Handoff & Recruiter Chat
@@ -46,7 +49,7 @@ Sathyanantham-AI-Studio/
 │       └── settings/page.tsx            # Candidate Profile, API Keys & Configuration
 │
 ├── components/                          # UI Component Modules
-│   ├── admin/                           # Admin-specific components
+│   ├── admin/                           # Admin-specific components (BulkActionBar, ProgressModal)
 │   ├── ai/                              # AI Twin, chat components
 │   ├── canvas/                          # 3D graphics, animations
 │   ├── layout/                          # Layout components (headers, sidebars)
@@ -59,30 +62,37 @@ Sathyanantham-AI-Studio/
 │   │   ├── LiveHandoffSection.tsx
 │   │   ├── CoverLetterSection.tsx
 │   │   └── TechMarquee.tsx
-│   └── ui/                              # Reusable UI primitives
+│   └── ui/                              # Reusable UI primitives (GlobalErrorFallback, NotFound, etc.)
 │
 ├── lib/                                 # Shared Utilities & Configuration
-│   ├── api.ts                           # getApiHost() dynamic resolver
+│   ├── api.ts                           # getApiHost() dynamic resolver & resilient fetchApi<T>()
 │   ├── supabase.ts                      # Supabase client
 │   └── utils.ts                         # Helper functions
 │
 ├── hooks/                               # Custom React Hooks
 │   ├── useAITwin.ts
+│   ├── useApiError.ts                   # Resilient async state manager with retry callbacks
 │   ├── useScrollReveal.ts
 │   ├── useReducedMotion.ts
 │   └── useLockBodyScroll.ts
 │
 ├── public/                              # Public Static Assets
-│   └── downloads/                       # Tailored Resume PDFs
-│       └── Sathyanantham_V_Frontend_Architect_2026.pdf
+│   ├── downloads/                       # Tailored Resume PDFs & Screenshots
+│   │   ├── Sathyanantham_V_Frontend_Architect_2026.pdf
+│   │   ├── apply_screenshots/           # Live browser automation audit screenshots
+│   │   └── cover_letters/               # Generated candidate-grounded cover letters
+│   └── avatar.jpg
 │
 ├── backend/                             # Python Backend Engine
 │   └── python/
 │       ├── main.py                      # FastAPI v2.0.0 Entry Point (WebSockets, Routes, Startup)
 │       ├── requirements.txt             # Python Dependencies
 │       │
+│       ├── api/                         # 17 API Routers
+│       │   ├── admin.py                 # Admin utilities (/api/admin/*)
 │       │   ├── analytics.py             # Live telemetry & metrics (/api/v2/analytics/*)
 │       │   ├── applications.py          # Application pipeline (/api/v2/applications/*)
+│       │   ├── auto_apply.py            # Autonomous batch auto-apply (/api/v2/applications/*)
 │       │   ├── chat.py                  # AI Twin chat (/api/chat/*)
 │       │   ├── connections.py           # LinkedIn network (/api/v2/connections/*)
 │       │   ├── contact.py               # Contact form (/api/contact)
@@ -95,18 +105,20 @@ Sathyanantham-AI-Studio/
 │       │   ├── portfolio.py             # Portfolio data (/api/portfolio/*)
 │       │   ├── recruiter_inbox.py       # Live handoff chat (/api/v2/recruiter-inbox/*)
 │       │   ├── referrals.py             # Referral management (/api/v2/referrals/*)
-│       │   ├── resumes.py               # Resume versions (/api/v2/resumes/*)
-│       │   └── admin.py                 # Admin utilities (/api/admin/*)
+│       │   └── resumes.py               # Resume versions (/api/v2/resumes/*)
 │       │
+│       ├── services/                    # 33 Service Modules
 │       │   ├── ai_job_copilot_service.py          # Interactive AI copilot assistant
 │       │   ├── ai_providers.py                    # Centralized LLM provider (NVIDIA/Gemini)
 │       │   ├── apify_recruiter_service.py         # Apify Google Maps contact scraper
 │       │   ├── application_automation_service.py  # Application workflow automation
+│       │   ├── application_queue_service.py       # Multi-job auto-apply batch orchestration
 │       │   ├── audit_governance_service.py        # Security audit & compliance
 │       │   ├── candidate_profile_service.py       # Candidate truth store management
 │       │   ├── company_normalization_service.py   # Legal entity & alias normalizer
 │       │   ├── cover_letter_service.py            # Candidate-grounded cover letter generator
 │       │   ├── email_classification_service.py    # Email intent classification & parsing
+│       │   ├── form_mapping_service.py            # LLM semantic form selector mapper
 │       │   ├── gdrive_sync_scheduler.py           # Background GDrive sync scheduler
 │       │   ├── gdrive_sync_service.py             # Google Drive API integration
 │       │   ├── gmail_mcp_client.py                # Multi-attachment SMTP client
@@ -117,6 +129,8 @@ Sathyanantham-AI-Studio/
 │       │   ├── kill_switch_service.py             # Emergency automation kill switch
 │       │   ├── linkedin_contact_service.py        # LinkedIn network processing
 │       │   ├── notifications.py                   # Notification dispatch system
+│       │   ├── playwright_automation_service.py   # Headless browser automation & stealth
+│       │   ├── portal_mapping_cache_service.py    # Form signature cache with stats
 │       │   ├── prompt_security_service.py         # Prompt injection defense
 │       │   ├── rag_service.py                     # RAG knowledge base (kb)
 │       │   ├── recruiter_automation_service.py    # Recruiter workflow automation
@@ -131,6 +145,7 @@ Sathyanantham-AI-Studio/
 │       │
 │       ├── repositories/                # Database Layer Abstractions (8 Repos)
 │       │   ├── application_repository.py  # Applications & application_events (PostgreSQL)
+│       │   ├── application_v2_repository.py # V2 deduplicated applications repository
 │       │   ├── connection_repository.py   # 7-column connections + CSV ingestion
 │       │   ├── email_repository.py        # Email storage & classification results
 │       │   ├── job_repository.py          # Jobs & job_scores queries
@@ -162,18 +177,32 @@ Sathyanantham-AI-Studio/
 │       ├── 005_job_discovery_mcp_support.sql # MCP server integration
 │       ├── 006_job_discovery_settings_and_matching.sql # Job settings & matching
 │       ├── 006_recruiter_inbox_production.sql # Live chat & handoff
-│       └── 007_connections_and_referral_enrichment.sql # 7-column connection schema
+│       ├── 007_connections_and_referral_enrichment.sql # 7-column connection schema
+│       └── 008_auto_apply_schema.sql    # Autonomous batch apply, mappings, screenshots
 │
-├── docs/                                # Project Documentation
-│   └── Connections.csv                  # 731-Row LinkedIn Network Export
+├── e2e/                                 # Playwright E2E Test Suite (28 Tests)
+│   ├── public/public-flows.spec.ts      # Public portfolio tests
+│   ├── admin/admin-flows.spec.ts        # Admin authentication & drawer navigation
+│   ├── visual/responsive.spec.ts        # Responsive zero-overflow validation (11 screens)
+│   ├── api-errors/api-fallback.spec.ts  # API error boundary resilience
+│   └── error-handling/error-boundary.spec.ts # Root 404 and error boundaries
+│
+├── docs/                                # Project Documentation & Assets
+│   ├── Connections.csv                  # 731-Row LinkedIn Network Export
+│   ├── IMPLEMENTATION_COMPLETE.md       # Master implementation status & architecture
+│   ├── auto-apply-architecture.md       # 30-page auto-apply specification
+│   └── images/                          # Visual execution & audit screenshots
+│       ├── auto_apply_form_filling_sample.png
+│       ├── auto_apply_resume_upload_sample.png
+│       └── auto_apply_portal_auth_sample.png
 │
 ├── SKILL.md                             # Architectural skill documentation
 ├── README.md                            # Project overview & setup guide
 ├── implementation_details.md            # This file - technical implementation details
-├── package.json                         # Frontend dependencies (Next.js, React, etc.)
+├── package.json                         # Frontend dependencies (Next.js, React, Playwright)
 ├── tsconfig.json                        # TypeScript configuration
 ├── tailwind.config.ts                   # Tailwind CSS configuration
-└── next.config.ts                       # Next.js configuration
+└── next.config.mjs                      # Next.js configuration
 ```
 
 ---
@@ -291,6 +320,78 @@ Sathyanantham-AI-Studio/
 - **Rate Limiting**: Per-IP rate limits on all public endpoints
 - **Input Validation**: Zod schemas + Pydantic models for all API inputs
 - **Environment**: `.claude/settings.json` beforeRead hook blocks accidental `.env` file reads
+
+### 9. Autonomous Multi-Job Auto-Apply Engine
+
+- **Components**:
+  - `playwright_automation_service.py` (534 lines): Headless Playwright engine with anti-detection stealth arguments, custom viewport geometry, file uploads, CAPTCHA/login-wall detection, and audit screenshot capture.
+  - `form_mapping_service.py` (328 lines): LLM-driven semantic DOM parser mapping field selectors to candidate profile fields, backed by 70+ heuristic regex patterns.
+  - `portal_mapping_cache_service.py` (297 lines): Persistent database cache (`portal_form_mappings` table) with auto-deprecation upon portal DOM structure drift.
+  - `application_queue_service.py` (711 lines): Batch application coordinator with asynchronous `asyncio` loop, portal-specific rate limiting (Greenhouse: 30s, Lever: 20s, Workday: 60s), exponential backoff retries, and status broadcasting.
+- **Auto-Apply API Endpoints** (`backend/python/api/auto_apply.py`):
+  - `POST /api/v2/applications/bulk-prepare`: Creates batch and queues target applications.
+  - `POST /api/v2/applications/auto-apply`: Starts processing queued applications asynchronously.
+  - `GET /api/v2/applications/batch/{batch_id}/status`: Polled by UI modal for live batch progress.
+  - `POST /api/v2/applications/{app_id}/retry`: Retries failed applications with exponential backoff.
+  - `GET /api/v2/applications/{app_id}/screenshot`: Retrieves audit trail screenshot.
+  - `DELETE /api/v2/applications/batch/{batch_id}`: Cancels running batch execution.
+  - `GET /api/v2/applications/portal-mappings/stats`: Returns cache hit rate and domain reliability metrics.
+
+### 10. Live Execution & Audit Screenshots
+
+The automation pipeline stores full-resolution screenshots during every step of browser execution to ensure safety, auditability, and validation of candidate data entry.
+
+#### A. Automated Field Filling & Verification
+Demonstrating live semantic mapping and input population on Instahyre:
+
+![Live Auto-Apply Form Filling Sample](docs/images/auto_apply_form_filling_sample.png)
+*Figure 1: Live Playwright automation mapping candidate name, email, and programmatically verifying terms agreement.*
+
+#### B. Document Upload & Resume Parsing
+Demonstrating automated PDF resume attachment to a modal application form:
+
+![Live Auto-Apply Resume Upload Sample](docs/images/auto_apply_resume_upload_sample.png)
+*Figure 2: Automatic selection and multi-part upload of candidate tailored PDF resume.*
+
+#### C. Authentication & Login Wall Gating
+Demonstrating safe detection of portal auth boundaries at hirist.tech:
+
+![Live Auto-Apply Portal Auth Gating Sample](docs/images/auto_apply_portal_auth_sample.png)
+*Figure 3: Safe gate detection when credential or OTP authentication is required, marking the status as NEEDS_REVIEW.*
+
+### 11. Selective Discovery Staging & Deduplicated Applications
+
+- **Selective Staging Rule**:
+  - **ATS Match Score $\ge 75\%$**: Automatically qualifies as `QUALIFIED` and auto-stages directly into `applications_v2` in `READY_FOR_REVIEW` status, paired with a tailored resume variant and cover letter.
+  - **ATS Match Score $< 75\%$**: Retained in `jobs` table in `READY_FOR_REVIEW` without polluting the applications queue, granting discretionary review to the candidate.
+- **Interactive 1-Click Staging UI** (`app/admin/jobs/page.tsx` & Radar Modal):
+  - Unstaged jobs display an active **Stage** button.
+  - Upon staging, the button transitions dynamically to a disabled **Staged** state (`<CheckCircle2 /> Staged`) to prevent duplicate submissions.
+- **Deduplication Engine** (`backend/python/repositories/application_v2_repository.py`):
+  - Employs PostgreSQL `DISTINCT ON (job_id)` with `evaluated_at DESC` to ensure zero duplicated records.
+  - Deprecated legacy all-jobs fallback in `/api/v2/applications` so only staged applications appear.
+
+### 12. Google Drive Spreadsheet & Resume Cloud Sync Engine
+
+- **Service Module**: `backend/python/services/gdrive_sync_service.py`
+- **Scheduler**: `backend/python/services/gdrive_sync_scheduler.py`
+- **Admin Endpoints**:
+  - `POST /api/admin/gdrive-sync/run`: Triggers immediate background synchronization.
+  - `POST /api/admin/gdrive-sync/upload`: Direct upload of files to Google Drive.
+- **Capabilities**:
+  - Automatically exports and uploads formatted daily job tracker spreadsheets (`job_tracker_YYYY-MM-DD.xlsx`).
+  - Synchronizes physical PDF resumes directly to configured Google Drive folder (`GOOGLE_DRIVE_FOLDER_ID`).
+  - Performs MIME type conversion, credentials validation, and audit logging via `audit_governance_service.py`.
+
+### 13. Resilient UI Architecture & Playwright E2E Suite (28 Tests)
+
+- **Frontend Resilience**:
+  - Root special pages: `app/loading.tsx`, `app/error.tsx`, `app/not-found.tsx`.
+  - Reusable UI primitives: `GlobalErrorFallback.tsx`, `NotFound.tsx`, `LoadingSpinner.tsx`, `LoadingFallback.tsx`.
+  - Resilient API layer: `lib/api.ts` (`fetchApi<T>()` with timeout and fallback) and `hooks/useApiError.ts`.
+- **E2E Test Suite (28 Tests Passing across Desktop & Mobile)**:
+  - Validates zero horizontal scroll overflow (`scrollWidth <= clientWidth`) on mobile (`375px`) across public portfolio, login console, and all 11 admin screens (`/admin/dashboard`, `/admin/jobs`, `/admin/applications`, `/admin/recruiter-inbox`, `/admin/connections`, `/admin/referrals`, `/admin/resumes`, `/admin/automation`, `/admin/agent`, `/admin/analytics`, `/admin/settings`).
+  - Validates public flows, AI Twin interactive queries, admin passkey auth, drawer navigation, and API error boundaries.
 
 ---
 

@@ -37,7 +37,8 @@ import {
   Copy,
   Download,
   BellRing,
-  HelpCircle
+  HelpCircle,
+  Loader2
 } from 'lucide-react';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 import { BulkActionBar } from '@/components/admin/BulkActionBar';
@@ -134,31 +135,36 @@ export default function AdminReferralsPage() {
       }
 
       if (backendRefs.length > 0) {
-        setReferrals(backendRefs);
+        const uniqueRefs = Array.from(new Map(backendRefs.map((r: any) => [r.id, r])).values());
+        setReferrals(uniqueRefs);
       } else if (qualifiedJobs.length > 0) {
-        const mappedFromJobs = qualifiedJobs.map((j) => ({
-          id: `ref-${j.id || Math.random().toString(36).substring(7)}`,
-          job_id: j.id,
-          job_title: j.title || 'Lead Frontend Architect',
-          job_ats_score: Math.round(j.match_score || j.ats_score || 92),
-          company: j.company || 'TechCorp',
-          person_name: 'Talent Acquisition Team',
-          contact_email: '',
-          role: 'Engineering Lead / Recruiter',
-          profile_url: `https://www.linkedin.com/company/${(j.company || '').toLowerCase().replace(/\s+/g, '')}`,
-          connection_type: 'APIFY_MAPS_DISCOVERY',
-          referral_score: Math.round(j.match_score || 95),
-          subject: `Referral inquiry — ${j.title || 'Engineering Role'} at ${j.company}`,
-          message: `Hi! I noticed ${j.company} is hiring for ${j.title}. Given my background in micro-frontends and agentic systems, I'd love to connect. You can explore my portfolio at https://sathyanantham-portfolio-tv.vercel.app`,
-          cover_letter_text: `Tailored cover letter for ${j.company}.`,
-          resume_file_name: 'Sathyanantham_V_Frontend_Architect_2026.pdf',
-          status: 'READY_FOR_REVIEW',
-          attachments: [
-            { type: 'RESUME_PDF', name: 'Sathyanantham_V_Frontend_Architect_2026.pdf', download_url: '/downloads/Sathyanantham_V_Frontend_Architect_2026.pdf' },
-            { type: 'COVER_LETTER_TXT', name: `Cover_Letter_${j.company}.txt`, download_url: '#' }
-          ],
-          created_at: new Date().toISOString()
-        }));
+        const mappedFromJobs = qualifiedJobs.map((j) => {
+          const dom = j.company_domain || (j.company ? `${j.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com` : '');
+          return {
+            id: `ref-${j.id || Math.random().toString(36).substring(7)}`,
+            job_id: j.id,
+            job_title: j.title || 'Lead Frontend Architect',
+            job_ats_score: Math.round(j.match_score || j.ats_score || 92),
+            company: j.company || 'TechCorp',
+            company_domain: j.company_domain || '',
+            person_name: 'Talent Acquisition Team',
+            contact_email: dom ? `careers@${dom}` : '',
+            role: 'Engineering Lead / Recruiter',
+            profile_url: `https://www.linkedin.com/company/${(j.company || '').toLowerCase().replace(/\s+/g, '')}`,
+            connection_type: 'APIFY_MAPS_DISCOVERY',
+            referral_score: Math.round(j.match_score || 95),
+            subject: `Referral inquiry — ${j.title || 'Engineering Role'} at ${j.company}`,
+            message: `Hi! I noticed ${j.company} is hiring for ${j.title}. Given my background in micro-frontends and agentic systems, I'd love to connect. You can explore my portfolio at https://sathyanantham-portfolio-tv.vercel.app`,
+            cover_letter_text: `Tailored cover letter for ${j.company}.`,
+            resume_file_name: 'Sathyanantham_V_Frontend_Architect_2026.pdf',
+            status: 'READY_FOR_REVIEW',
+            attachments: [
+              { type: 'RESUME_PDF', name: 'Sathyanantham_V_Frontend_Architect_2026.pdf', download_url: '/downloads/Sathyanantham_V_Frontend_Architect_2026.pdf' },
+              { type: 'COVER_LETTER_TXT', name: `Cover_Letter_${j.company}.txt`, download_url: '#' }
+            ],
+            created_at: new Date().toISOString()
+          };
+        });
         setReferrals(mappedFromJobs);
       }
     } catch (err) {
@@ -172,6 +178,54 @@ export default function AdminReferralsPage() {
     fetchReferralsData();
   }, [apiHost]);
 
+  const [resolvingEmail, setResolvingEmail] = useState<boolean>(false);
+
+  const resolveRecipientEmail = async (ref: any, notify: boolean = true) => {
+    if (!ref) return;
+    setResolvingEmail(true);
+    try {
+      const res = await fetch(`${apiHost}/api/v2/referrals/resolve-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referral_id: ref.id,
+          company: ref.company,
+          company_domain: ref.company_domain,
+          job_id: ref.job_id
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.email) {
+          setDraftContactEmail(data.email);
+          setSelectedReferral((prev: any) => prev ? {
+            ...prev,
+            contact_email: data.email,
+            person_name: data.person_name || prev.person_name,
+            role: data.role || prev.role,
+            profile_url: data.profile_url || prev.profile_url,
+            connection_type: data.source === 'CONNECTIONS_TABLE' ? '1ST_DEGREE_LINKEDIN' : 'Recruiter'
+          } : prev);
+          setReferrals((prev) => prev.map((r) => r.id === ref.id ? {
+            ...r,
+            contact_email: data.email,
+            person_name: data.person_name || r.person_name,
+            role: data.role || r.role,
+            profile_url: data.profile_url || r.profile_url
+          } : r));
+          if (notify) {
+            showToast(`✅ Contact resolved: ${data.person_name} (${data.email}) via ${data.source === 'CONNECTIONS_TABLE' ? 'Connections DB' : 'Apify Discovery'}`);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error resolving email:", e);
+      if (notify) showToast("Could not resolve email from Apify/DB.");
+    } finally {
+      setResolvingEmail(false);
+    }
+  };
+
   const handleSelectReferral = (ref: any) => {
     setSelectedReferral(ref);
     setDraftMessage(ref.message || '');
@@ -181,6 +235,11 @@ export default function AdminReferralsPage() {
     setSelectedResumeId(ref.resume_id || 'resume-frontend-architect');
     setIncludeTwin(ref.include_twin_demo ?? true);
     setActiveDrawerTab('MESSAGE');
+
+    // Auto-resolve recipient email if empty
+    if (!ref.contact_email || ref.contact_email.trim() === '' || ref.contact_email.includes('pending')) {
+      resolveRecipientEmail(ref, false);
+    }
   };
 
   const handleScanDiscovery = async () => {
@@ -193,7 +252,8 @@ export default function AdminReferralsPage() {
         const data = await res.json();
         showToast(`Matched & prepared ${data.newly_discovered_count || 0} referral opportunities from qualified jobs!`);
         if (Array.isArray(data.referrals) && data.referrals.length > 0) {
-          setReferrals(data.referrals);
+          const uniqueDiscovered = Array.from(new Map(data.referrals.map((r: any) => [r.id, r])).values());
+          setReferrals(uniqueDiscovered);
         }
         await fetchReferralsData();
       } else {
@@ -643,13 +703,13 @@ export default function AdminReferralsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredReferrals.map((ref) => {
+                filteredReferrals.map((ref, idx) => {
                   const isSelected = selectedIds.includes(ref.id);
                   const isNoContact = ref.status === 'NO_CONTACT_FOUND' || ref.connection_type === 'NO_CONTACT';
 
                   return (
                     <tr
-                      key={ref.id}
+                      key={`${ref.id}-${idx}`}
                       className={`hover:bg-muted/30 transition-colors group cursor-pointer ${isSelected ? 'bg-primary/5' : ''}`}
                       onClick={() => handleSelectReferral(ref)}
                     >
@@ -693,7 +753,21 @@ export default function AdminReferralsPage() {
                             </div>
                             <div className="text-[11px] text-muted-foreground font-mono mt-0.5 flex items-center gap-1 truncate max-w-xs">
                               <Mail className="w-2.5 h-2.5 text-primary/70" />
-                              {ref.contact_email || 'Email pending resolution'}
+                              {ref.contact_email ? (
+                                <span className="text-foreground font-medium">{ref.contact_email}</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    resolveRecipientEmail(ref, true);
+                                  }}
+                                  className="text-primary hover:underline flex items-center gap-0.5 text-[10px] cursor-pointer"
+                                >
+                                  <Sparkles className="w-2 h-2" />
+                                  <span>Resolve email</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -832,7 +906,28 @@ export default function AdminReferralsPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase block mb-1">Recipient Email (Editable)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10px] font-mono text-muted-foreground uppercase">Recipient Email (Editable)</label>
+                    <button
+                      type="button"
+                      disabled={resolvingEmail}
+                      onClick={() => resolveRecipientEmail(selectedReferral, true)}
+                      className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="Fetch HR email from Connections DB or Apify"
+                    >
+                      {resolvingEmail ? (
+                        <>
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          <span>Searching...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-2.5 h-2.5" />
+                          <span>Find via DB / Apify</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <input
                     type="email"
                     value={draftContactEmail}

@@ -109,7 +109,16 @@ class AuditGovernanceService:
 
         if self.db.client:
             try:
-                self.db.client.table("audit_logs").insert(record).execute()
+                db_payload = {
+                    "actor_type": actor,
+                    "actor_id": ai_agent or actor,
+                    "action": action,
+                    "entity_type": "job" if job_id else "system",
+                    "entity_id": str(job_id or application_id or "system"),
+                    "justification_rationale": (result or "")[:500],
+                    "timestamp": now
+                }
+                self.db.client.table("audit_logs").insert(db_payload).execute()
             except Exception as e:
                 print(f"[AUDIT] Failed to save audit log to Supabase: {e}")
 
