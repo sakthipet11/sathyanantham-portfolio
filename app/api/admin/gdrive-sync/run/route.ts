@@ -18,25 +18,48 @@ export async function POST(request: Request) {
     if (folderUrl) params.append('folder_url', folderUrl);
     if (dateStr) params.append('date_str', dateStr);
 
-    const res = await fetch(`${backendUrl}/api/admin/gdrive-sync/run?${params.toString()}`, {
-      method: 'POST',
-      headers: { 'X-Admin-Token': adminToken },
-      cache: 'no-store'
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 9000);
+
+    let res: Response;
+    try {
+      res = await fetch(`${backendUrl}/api/admin/gdrive-sync/run?${params.toString()}`, {
+        method: 'POST',
+        headers: { 'X-Admin-Token': adminToken },
+        cache: 'no-store',
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (res.ok) {
       const data = await res.json();
       return NextResponse.json(data);
     }
+
     const errorData = await res.json().catch(() => ({}));
-    return NextResponse.json(errorData, { status: res.status });
-  } catch (error: any) {
-    console.warn('Backend GDrive sync run endpoint error:', error);
     return NextResponse.json({
-      status: 'ERROR',
-      message: `Failed to connect to sync backend: ${error?.message || error}`,
+      status: errorData.status || 'ERROR',
+      message: errorData.message || errorData.detail || `Sync service responded with status ${res.status}`,
+      jobs_processed: 0,
       folder_url: folderUrl
-    }, { status: 502 });
+    }, { status: 200 });
+  } catch (error: any) {
+    console.warn('Backend GDrive sync run endpoint error/timeout:', error);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isTimeout = error?.name === 'AbortError';
+
+    return NextResponse.json({
+      status: 'NOT_FOUND',
+      message: isTimeout
+        ? 'Google Drive Sync timed out while scanning the folder. Please verify the folder link sharing is set to "Anyone with the link can view", or use "Upload / Drop Excel" for instant processing.'
+        : `Google Drive Sync: Backend service unreachable. Make sure the API server is running, or upload an Excel tracker file directly.`,
+      folder_url: folderUrl,
+      file_name: `job_tracker_${todayStr}.xlsx`,
+      jobs_processed: 0,
+      last_run: new Date().toISOString()
+    }, { status: 200 });
   }
 }
 

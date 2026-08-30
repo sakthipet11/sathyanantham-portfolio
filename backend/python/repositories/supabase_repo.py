@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from dotenv import load_dotenv
@@ -153,10 +154,14 @@ class SupabaseHelper:
     def _get_pg_connection(self):
         if not psycopg2:
             return None
+        now = time.time()
+        if hasattr(self, "_pg_last_failed_at") and (now - self._pg_last_failed_at < 30):
+            return None
         try:
-            conn = psycopg2.connect(self.pg_url, connect_timeout=3)
+            conn = psycopg2.connect(self.pg_url, connect_timeout=1)
             return conn
         except Exception as e:
+            self._pg_last_failed_at = time.time()
             return None
 
     def is_configured(self) -> bool:
@@ -272,10 +277,21 @@ class SupabaseHelper:
                 existing = self.get_automation_settings()
                 target_id = existing.get("id") or self._mock_settings["id"]
                 settings_data["id"] = target_id
-                res = self.client.table("automation_settings").upsert(settings_data).execute()
-                saved = res.data[0] if res.data else settings_data
-                self._mock_settings.update(saved)
-                return {"status": "success", "data": saved}
+
+                allowed_cols = {
+                    'id', 'user_profile_id', 'daily_application_limit', 'min_ats_score_threshold',
+                    'auto_apply_enabled', 'require_human_review_for_apply', 'require_human_review_for_email',
+                    'target_titles', 'target_locations', 'blacklisted_companies', 'blacklisted_keywords',
+                    'is_active', 'created_at', 'updated_at', 'remote_preference', 'target_roles',
+                    'experience_levels', 'employment_types', 'job_recency_hours', 'daily_schedule_time',
+                    'profile_ats_threshold', 'jd_match_threshold', 'country', 'language', 'date_posted',
+                    'work_from_home', 'job_requirements', 'radius', 'exclude_job_publishers', 'num_pages'
+                }
+                filtered = {k: v for k, v in settings_data.items() if k in allowed_cols}
+                res = self.client.table("automation_settings").upsert(filtered).execute()
+                saved = res.data[0] if res.data else filtered
+                self._mock_settings.update(settings_data)
+                return {"status": "success", "data": self._mock_settings}
             except Exception as e:
                 print(f"Error updating automation settings in Supabase: {e}")
 

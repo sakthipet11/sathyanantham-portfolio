@@ -109,10 +109,13 @@ def list_applications(
             except Exception:
                 meta = {}
 
+        company = a.get("company") or "Enterprise"
+        role_title = a.get("job_title") or a.get("role_title") or a.get("title") or "Lead Engineer"
         enriched_apps.append({
             **a,
-            "role_title": a.get("job_title") or a.get("role_title") or "Lead Engineer",
-            "role": a.get("job_title") or "Lead Engineer",
+            "company": company,
+            "role_title": role_title,
+            "role": role_title,
             "cover_letter": meta.get("cover_letter") or a.get("cover_letter"),
             "matched_resume_url": meta.get("matched_resume_url") or a.get("resume_download_url") or "/downloads/Sathyanantham_V_Frontend_Architect_2026.pdf",
             "matched_resume_role": meta.get("matched_resume_role") or a.get("resume_role") or "Lead Frontend Architect",

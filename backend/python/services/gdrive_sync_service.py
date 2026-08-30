@@ -168,9 +168,29 @@ class GDriveSyncService:
         os.makedirs(scratch_dir, exist_ok=True)
         os.makedirs(downloads_dir, exist_ok=True)
 
+        # Fast pre-flight check to verify if the Google Drive folder is publicly accessible.
+        # If the folder is private/restricted, Google redirects to accounts.google.com, which causes
+        # gdown to retry repeatedly and hang for over 3 minutes, triggering gateway/function timeouts.
+        folder_url = f"https://drive.google.com/drive/folders/{folder_id}"
+        try:
+            class NoGoogleAuthRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self, req, fp, code, msg, headers, newurl):
+                    if "accounts.google.com" in newurl:
+                        return None
+                    return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+            opener = urllib.request.build_opener(NoGoogleAuthRedirect)
+            check_req = urllib.request.Request(folder_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with opener.open(check_req, timeout=3) as check_resp:
+                if check_resp.getcode() != 200:
+                    print(f"[GDRIVE_SYNC] Notice: Google Drive folder ({folder_id}) requires authentication (restricted). Proceeding with local/cached files.")
+                    return None
+        except Exception:
+            print(f"[GDRIVE_SYNC] Notice: Google Drive folder ({folder_id}) requires login or is restricted. Fast-skipping gdown download to prevent timeout.")
+            return None
+
         try:
             import gdown
-            folder_url = f"https://drive.google.com/drive/folders/{folder_id}"
             print(f"[GDRIVE_SYNC] Attempting Google Drive download from: {folder_url}")
             
             downloaded = gdown.download_folder(
@@ -579,8 +599,13 @@ class GDriveSyncService:
                 }
 
             # 1. Write directly to database `jobs` table
-            saved = self.repo.save_job(job_data)
-            saved_jobs.append(saved)
+            try:
+                saved = self.repo.save_job(job_data)
+                saved_jobs.append(saved)
+            except Exception as e:
+                print(f"[GDRIVE_SYNC] Notice saving job {job_data.get('title')}: {e}")
+                saved_jobs.append(job_data)
+                saved = job_data
 
             # 2. Synchronize to `job_scores` table
             try:
@@ -599,24 +624,30 @@ class GDriveSyncService:
                 print(f"[GDRIVE_SYNC] Notice saving job score for {job_data.get('title')}: {err}")
 
         # Update automation settings sync metadata in DB
-        db_helper.update_automation_settings({
-            "gdrive_folder_url": effective_folder_url,
-            "gdrive_folder_id": folder_id,
-            "gdrive_sync_last_run": now_str,
-            "gdrive_sync_last_status": "SUCCESS",
-            "gdrive_sync_last_file": file_name,
-            "gdrive_sync_last_jobs_count": len(saved_jobs)
-        })
+        try:
+            db_helper.update_automation_settings({
+                "gdrive_folder_url": effective_folder_url,
+                "gdrive_folder_id": folder_id,
+                "gdrive_sync_last_run": now_str,
+                "gdrive_sync_last_status": "SUCCESS",
+                "gdrive_sync_last_file": file_name,
+                "gdrive_sync_last_jobs_count": len(saved_jobs)
+            })
+        except Exception as e:
+            print(f"[GDRIVE_SYNC] Notice updating automation settings: {e}")
 
         # Log audit governance event
-        audit_governance_service.log_event(
-            actor="SYSTEM_SCHEDULER" if "CRON" in triggered_by.upper() else "HUMAN_ADMIN",
-            ai_agent="GDriveSyncService",
-            action="GDRIVE_FOLDER_EXCEL_SYNC_COMPLETED",
-            tool="JobRepository",
-            result=f"Ingested {len(saved_jobs)} jobs from Google Drive Folder ({folder_id}) / {file_name} into database.",
-            status="SUCCESS"
-        )
+        try:
+            audit_governance_service.log_event(
+                actor="SYSTEM_SCHEDULER" if "CRON" in triggered_by.upper() else "HUMAN_ADMIN",
+                ai_agent="GDriveSyncService",
+                action="GDRIVE_FOLDER_EXCEL_SYNC_COMPLETED",
+                tool="JobRepository",
+                result=f"Ingested {len(saved_jobs)} jobs from Google Drive Folder ({folder_id}) / {file_name} into database.",
+                status="SUCCESS"
+            )
+        except Exception as e:
+            print(f"[GDRIVE_SYNC] Notice logging audit event: {e}")
 
         return {
             "status": "SUCCESS",

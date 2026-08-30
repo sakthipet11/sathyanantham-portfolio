@@ -88,6 +88,18 @@ class JobRepository:
         clean_name = "jsearch"
         url = base_url or os.getenv("JSEARCH_BASE_URL", "https://api.openwebninja.com/jsearch/search-v2")
 
+        if self.db.client:
+            try:
+                res = self.db.client.table("job_sources").select("*").ilike("name", clean_name).limit(1).execute()
+                if res.data and len(res.data) > 0:
+                    return res.data[0]
+                new_src = {"name": clean_name, "base_url": url, "source_type": source_type, "is_active": True}
+                insert_res = self.db.client.table("job_sources").insert(new_src).execute()
+                if insert_res.data and len(insert_res.data) > 0:
+                    return insert_res.data[0]
+            except Exception as e:
+                print(f"[JOB_REPO] Supabase get_or_create_job_source error: {e}")
+
         pg_conn = self.db._get_pg_connection()
         if pg_conn:
             try:
@@ -212,7 +224,7 @@ class JobRepository:
 
         # Single Authoritative Job Source: JSearch
         source_rec = self.get_or_create_job_source("jsearch")
-        source_id = source_rec.get("id") if source_rec else "00000000-0000-0000-0000-000000000010"
+        source_id = source_rec.get("id") if (source_rec and source_rec.get("id") != "00000000-0000-0000-0000-000000000010") else None
         job_data["source_id"] = source_id
         job_data["source"] = "jsearch"
         if not job_data.get("portal_type") or job_data.get("portal_type") in ("custom", "undefined"):
@@ -220,7 +232,15 @@ class JobRepository:
 
         if self.db.client:
             try:
-                res = self.db.client.table("jobs").upsert(job_data, on_conflict="idempotency_key").execute()
+                allowed_job_cols = {
+                    "id", "source_id", "external_job_id", "title", "company", "location",
+                    "location_type", "employment_type", "salary_min", "salary_max",
+                    "salary_currency", "description_raw", "requirements_clean", "tech_stack",
+                    "apply_url", "portal_type", "status", "idempotency_key", "discovered_at",
+                    "updated_at", "company_domain", "match_score", "posted_date", "job_url"
+                }
+                filtered_job = {k: v for k, v in job_data.items() if k in allowed_job_cols}
+                res = self.db.client.table("jobs").upsert(filtered_job, on_conflict="idempotency_key").execute()
                 if res.data and len(res.data) > 0:
                     saved = res.data[0]
                     self._in_memory_jobs[saved["id"]] = saved
@@ -360,7 +380,18 @@ class JobRepository:
 
         if self.db.client:
             try:
-                res = self.db.client.table("job_scores").upsert(score_data).execute()
+                supabase_score = {
+                    "job_id": score_data["job_id"],
+                    "overall_score": score_data.get("overall_score", 90.0),
+                    "skills_match_score": score_data.get("skills_match_score", score_data.get("skills_match", 90.0)),
+                    "experience_match_score": score_data.get("experience_match_score", score_data.get("experience_match", 90.0)),
+                    "seniority_match_score": score_data.get("seniority_match_score", score_data.get("seniority_match", 90.0)),
+                    "evaluation_summary": score_data.get("evaluation_summary", ""),
+                    "score_breakdown": score_data.get("score_breakdown", {}),
+                    "llm_model_used": score_data.get("llm_model_used", "scoring_engine"),
+                    "evaluated_at": score_data.get("evaluated_at")
+                }
+                res = self.db.client.table("job_scores").upsert(supabase_score).execute()
                 if res.data and len(res.data) > 0:
                     saved = res.data[0]
                     self._in_memory_scores[score_data["job_id"]] = saved

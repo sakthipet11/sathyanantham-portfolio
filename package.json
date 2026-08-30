@@ -14,7 +14,8 @@
     "apply:auto": "python -m backend.python.cli.chromium_apply --auto-submit",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "capture:screens": "playwright test e2e/capture-screenshots.spec.ts --project=chromium"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -46,6 +47,7 @@
     "shiki": "^1.29.2",
     "tailwind-merge": "^2.5.0",
     "three": "^0.169.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.0",
     "zustand": "^4.5.5"
   },

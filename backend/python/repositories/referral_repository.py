@@ -73,7 +73,37 @@ class ReferralRepository:
         return base
 
     def list_referrals(self, company: Optional[str] = None, status: Optional[str] = None, min_score: Optional[int] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        clean_limit = int(limit) if isinstance(limit, (int, str)) and str(limit).isdigit() else 100
         results = []
+        if self.db.client:
+            try:
+                sb_q = self.db.client.table("referrals").select("*, jobs(title, company, location, apply_url, match_score, company_domain)")
+                if company:
+                    sb_q = sb_q.ilike("company", f"%{company}%")
+                if status and status != "ALL":
+                    sb_q = sb_q.eq("status", status)
+                res = sb_q.order("created_at", desc=True).limit(clean_limit).execute()
+                if res.data and len(res.data) > 0:
+                    for r in res.data:
+                        job = r.get("jobs") or {}
+                        hydrated = self._hydrate_referral({
+                            **r,
+                            "job_title": job.get("title") or r.get("job_title"),
+                            "company": r.get("company") or job.get("company"),
+                            "job_ats_score": job.get("match_score") or r.get("job_ats_score", 94),
+                            "company_domain": job.get("company_domain")
+                        })
+                        results.append(hydrated)
+                    return results
+            except Exception as e:
+                # If foreign table join fails, select referrals directly
+                try:
+                    res_direct = self.db.client.table("referrals").select("*").order("created_at", desc=True).limit(limit).execute()
+                    if res_direct.data:
+                        return [self._hydrate_referral(r) for r in res_direct.data]
+                except Exception:
+                    pass
+                print(f"[REFERRAL_REPO] Supabase list error: {e}")
 
         pg_conn = self.db._get_pg_connection()
         if pg_conn:
@@ -91,7 +121,7 @@ class ReferralRepository:
                     if conds:
                         sql += " WHERE " + " AND ".join(conds)
                     sql += " ORDER BY created_at DESC LIMIT %s;"
-                    params.append(limit)
+                    params.append(clean_limit)
                     cur.execute(sql, tuple(params))
                     rows = cur.fetchall()
                     if rows:
@@ -110,10 +140,31 @@ class ReferralRepository:
         if status and status != "ALL":
             results = [r for r in results if r.get("status") == status]
 
-        return results[:limit]
+        return results[:clean_limit]
 
     def get_referral_by_id(self, referral_id: str) -> Optional[Dict[str, Any]]:
         ref_id_str = str(referral_id)
+        if self.db.client:
+            try:
+                res = self.db.client.table("referrals").select("*, jobs(title, company, location, apply_url, match_score, company_domain)").eq("id", ref_id_str).execute()
+                if res.data and len(res.data) > 0:
+                    r = res.data[0]
+                    job = r.get("jobs") or {}
+                    return self._hydrate_referral({
+                        **r,
+                        "job_title": job.get("title") or r.get("job_title"),
+                        "company": r.get("company") or job.get("company"),
+                        "job_ats_score": job.get("match_score") or r.get("job_ats_score", 94),
+                        "company_domain": job.get("company_domain")
+                    })
+            except Exception as e:
+                try:
+                    res_dir = self.db.client.table("referrals").select("*").eq("id", ref_id_str).execute()
+                    if res_dir.data and len(res_dir.data) > 0:
+                        return self._hydrate_referral(res_dir.data[0])
+                except Exception:
+                    pass
+                print(f"[REFERRAL_REPO] Supabase get error: {e}")
 
         pg_conn = self.db._get_pg_connection()
         if pg_conn:
@@ -136,12 +187,15 @@ class ReferralRepository:
     def save_referral(self, referral_data: Dict[str, Any]) -> Dict[str, Any]:
         ref_id = referral_data.get("id")
         try:
-            # Validate or generate standard UUID string
+            # Validate standard UUID string
             uuid.UUID(str(ref_id))
             ref_id_clean = str(ref_id)
         except Exception:
-            key_to_hash = referral_data.get('person_name') or referral_data.get('company') or str(ref_id) or str(datetime.now(timezone.utc).timestamp())
-            ref_id_clean = str(uuid.uuid5(uuid.NAMESPACE_DNS, str(key_to_hash)))
+            clean_job_id = str(referral_data.get("job_id") or "")
+            comp = str(referral_data.get("company") or "").strip().lower()
+            p_name = str(referral_data.get("person_name") or referral_data.get("contact_name") or "").strip().lower()
+            key_to_hash = f"{clean_job_id}:{comp}:{p_name}:{ref_id or str(uuid.uuid4())}"
+            ref_id_clean = str(uuid.uuid5(uuid.NAMESPACE_DNS, key_to_hash))
 
         referral_data["id"] = ref_id_clean
         now = datetime.now(timezone.utc).isoformat()
@@ -151,6 +205,26 @@ class ReferralRepository:
 
         # Keep in-memory cache updated
         self._in_memory_referrals[ref_id_clean] = referral_data
+
+        if self.db.client:
+            try:
+                clean_job_id = referral_data.get("job_id")
+                if clean_job_id and len(str(clean_job_id)) != 36:
+                    clean_job_id = None
+                sb_payload = {
+                    "id": ref_id_clean,
+                    "job_id": clean_job_id,
+                    "company": referral_data.get("company", "TechCorp"),
+                    "contact_name": referral_data.get("contact_name", referral_data.get("person_name", "Talent Acquisition Team")),
+                    "contact_email": referral_data.get("contact_email"),
+                    "contact_linkedin": referral_data.get("contact_linkedin") or referral_data.get("profile_url"),
+                    "connection_degree": (referral_data.get("connection_degree") or referral_data.get("connection_type", "Recruiter"))[:20],
+                    "status": referral_data.get("status", "READY_FOR_REVIEW"),
+                    "updated_at": now
+                }
+                self.db.client.table("referrals").upsert(sb_payload).execute()
+            except Exception as e:
+                print(f"[REFERRAL_REPO] Supabase save_referral error: {e}")
 
         pg_conn = self.db._get_pg_connection()
         if pg_conn:
@@ -253,6 +327,21 @@ class ReferralRepository:
 
         if referral_id in self._in_memory_referrals:
             self._in_memory_referrals[referral_id].update(updates)
+
+        if self.db.client:
+            try:
+                allowed = {"company", "contact_name", "contact_email", "contact_linkedin", "connection_degree", "status", "updated_at"}
+                sb_up = {k: v for k, v in updates.items() if k in allowed}
+                if "person_name" in updates and "contact_name" not in sb_up:
+                    sb_up["contact_name"] = updates["person_name"]
+                if "profile_url" in updates and "contact_linkedin" not in sb_up:
+                    sb_up["contact_linkedin"] = updates["profile_url"]
+                if "connection_type" in updates and "connection_degree" not in sb_up:
+                    sb_up["connection_degree"] = str(updates["connection_type"])[:20]
+                if sb_up:
+                    self.db.client.table("referrals").update(sb_up).eq("id", str(referral_id)).execute()
+            except Exception as e:
+                print(f"[REFERRAL_REPO] Supabase update_referral error: {e}")
 
         if ref:
             ref.update(updates)

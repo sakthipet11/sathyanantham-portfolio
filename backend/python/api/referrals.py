@@ -7,6 +7,10 @@ from backend.python.services.referral_messaging_service import referral_messagin
 from backend.python.services.cover_letter_service import cover_letter_service
 from backend.python.repositories.job_repository import job_repository
 
+from backend.python.repositories.connection_repository import connection_repository
+from backend.python.services.apify_recruiter_service import apify_recruiter_service
+from backend.python.services.company_normalization_service import company_normalization_service
+
 router = APIRouter(prefix="/api/v2/referrals", tags=["referrals_v2"])
 
 class GenerateMessageRequest(BaseModel):
@@ -23,6 +27,12 @@ class UpdateReferralDetailsRequest(BaseModel):
     cover_letter_text: Optional[str] = None
     resume_id: Optional[str] = None
 
+class ResolveEmailRequest(BaseModel):
+    company: Optional[str] = None
+    company_domain: Optional[str] = None
+    job_id: Optional[str] = None
+    referral_id: Optional[str] = None
+
 class ApproveOutreachRequest(BaseModel):
     approved_by: Optional[str] = "HUMAN_ADMIN"
 
@@ -38,7 +48,7 @@ class NudgeRequest(BaseModel):
 @router.get("/metrics")
 def get_referral_metrics():
     """HUD Metrics for Referral Opportunities"""
-    return {"status": "success", "metrics": referral_repository.get_metrics()}
+    return referral_repository.get_metrics()
 
 @router.get("")
 async def list_referral_opportunities(
@@ -48,13 +58,37 @@ async def list_referral_opportunities(
     limit: int = Query(100, ge=1, le=200),
     auto_sync: bool = Query(False, description="Whether to trigger discovery sync")
 ):
-    if auto_sync:
+    clean_comp = company if isinstance(company, str) else None
+    clean_status = status if isinstance(status, str) else None
+    clean_min = min_score if isinstance(min_score, int) else None
+    clean_limit = int(limit) if isinstance(limit, (int, str)) and str(limit).isdigit() else 100
+    clean_sync = bool(auto_sync) if isinstance(auto_sync, bool) else False
+
+    referrals = referral_repository.list_referrals(company=clean_comp, status=clean_status, min_score=clean_min, limit=clean_limit)
+    if not referrals or clean_sync:
         try:
-            await referral_discovery_service.discover_referral_opportunities(threshold=90)
+            discovered = await referral_discovery_service.discover_referral_opportunities(threshold=90)
+            if discovered:
+                referrals = referral_repository.list_referrals(company=clean_comp, status=clean_status, min_score=clean_min, limit=clean_limit)
         except Exception as e:
             print(f"[REFERRAL_API] Notice during auto-sync from qualified jobs: {e}")
 
-    referrals = referral_repository.list_referrals(company=company, status=status, min_score=min_score, limit=limit)
+    # Ensure every referral record has contact_email resolved from connections table or domain
+    for ref in referrals:
+        if not ref.get("contact_email"):
+            comp = ref.get("company", "")
+            conns = connection_repository.find_connections_by_company(comp)
+            best_c = next((c for c in conns if c.get("email")), None)
+            if best_c:
+                ref["contact_email"] = best_c["email"]
+                if best_c.get("full_name"):
+                    ref["person_name"] = best_c["full_name"]
+            else:
+                comp_dom = ref.get("company_domain") or apify_recruiter_service.extract_domain(comp)
+                if comp_dom:
+                    ref["contact_email"] = f"careers@{comp_dom}"
+            referral_repository.update_referral(ref["id"], {"contact_email": ref["contact_email"]})
+
     return {"status": "success", "count": len(referrals), "referrals": referrals}
 
 @router.get("/{referral_id}")
@@ -76,6 +110,95 @@ async def trigger_referral_discovery(threshold: Optional[int] = Query(90, ge=70,
         "message": f"Referral discovery complete for jobs with ATS >= {threshold}.",
         "newly_discovered_count": len(discovered),
         "referrals": discovered
+    }
+
+@router.post("/resolve-email")
+@router.post("/{referral_id}/resolve-email")
+async def resolve_referral_recipient_email(
+    referral_id: Optional[str] = None,
+    req: Optional[ResolveEmailRequest] = Body(default=None)
+):
+    """
+    Resolves recipient email:
+    1. Looks up in Connections table for matching company with email.
+    2. If not found in Connections table, calls Apify with company domain to extract HR/recruiter details.
+    3. Saves discovered recruiter into Connections table (in Supabase).
+    4. Updates the referral record with the verified contact email and details.
+    5. Returns email and contact details to update UI immediately.
+    """
+    ref_id = referral_id or (req.referral_id if req else None)
+    ref = referral_repository.get_referral_by_id(ref_id) if ref_id else None
+
+    company = (req.company if req and req.company else None) or (ref.get("company") if ref else "")
+    job_id = (req.job_id if req and req.job_id else None) or (ref.get("job_id") if ref else None)
+
+    job = job_repository.get_job_by_id(job_id) if job_id else None
+    company_domain = (
+        (req.company_domain if req and req.company_domain else None)
+        or (job.get("company_domain") if job else None)
+        or (ref.get("company_domain") if ref else None)
+    )
+
+    norm_company = company_normalization_service.normalize(company) if company else company
+
+    # Step 1: Check Connections table
+    conns = connection_repository.find_connections_by_company(norm_company)
+    best_conn = None
+    if conns:
+        with_email = [c for c in conns if c.get("email")]
+        if with_email:
+            recruiters = [c for c in with_email if any(k in (c.get("position") or "").lower() for k in ["recruiter", "talent", "hr", "people", "sourcer"])]
+            best_conn = recruiters[0] if recruiters else with_email[0]
+        else:
+            best_conn = conns[0]
+
+    if best_conn and best_conn.get("email"):
+        resolved_email = best_conn["email"]
+        contact_name = best_conn.get("full_name") or f"{best_conn.get('first_name', '')} {best_conn.get('last_name', '')}".strip()
+        contact_role = best_conn.get("position") or "Company Connection"
+        profile_url = best_conn.get("linkedin_url")
+        source = "CONNECTIONS_TABLE"
+    else:
+        # Step 2: Not in connections table -> Call Apify with company domain
+        clean_domain = company_domain or apify_recruiter_service.extract_domain(norm_company or company)
+        apify_res = await apify_recruiter_service.get_precise_hr_details(
+            company_name=norm_company or company,
+            company_domain=clean_domain,
+            location=(job.get("location") if job else "India"),
+            job_url=(job.get("apply_url") if job else None)
+        )
+        recruiter = apify_res.get("recruiter") or {}
+        resolved_email = recruiter.get("email") or f"careers@{clean_domain}"
+        contact_name = recruiter.get("full_name") or recruiter.get("name") or "Talent Acquisition Team"
+        contact_role = recruiter.get("position") or recruiter.get("title") or "Talent Acquisition & Hiring Team"
+        profile_url = recruiter.get("linkedin_url") or recruiter.get("profile_url")
+        source = "APIFY_HR_DISCOVERY"
+
+    # Step 3: Update Referral record in repository and Supabase
+    if ref_id:
+        referral_repository.update_referral(
+            referral_id=ref_id,
+            updates={
+                "contact_email": resolved_email,
+                "person_name": contact_name,
+                "contact_name": contact_name,
+                "role": contact_role,
+                "profile_url": profile_url,
+                "contact_linkedin": profile_url,
+                "connection_type": "1ST_DEGREE_LINKEDIN" if source == "CONNECTIONS_TABLE" else "Recruiter"
+            }
+        )
+
+    return {
+        "status": "success",
+        "email": resolved_email,
+        "contact_email": resolved_email,
+        "person_name": contact_name,
+        "role": contact_role,
+        "profile_url": profile_url,
+        "source": source,
+        "company": company,
+        "company_domain": company_domain
     }
 
 @router.post("/{referral_id}/generate-message")

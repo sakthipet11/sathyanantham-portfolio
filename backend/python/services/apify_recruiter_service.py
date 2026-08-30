@@ -61,15 +61,18 @@ class ApifyRecruiterService:
     def extract_domain(company_or_url: str) -> str:
         """
         Extracts a clean, normalized domain string from a company name, website, or URL.
-        Examples:
-        - "https://www.personio.com/careers" -> "personio.com"
-        - "factorialhr.com" -> "factorialhr.com"
-        - "Personio" -> "personio.com"
-        - "Factorial HR" -> "factorialhr.com"
+        Ignores generic job portal URLs (e.g. instahyre.com, linkedin.com, naukri.com).
         """
         raw = (company_or_url or "").strip()
         if not raw:
             return ""
+
+        JOB_PORTAL_DOMAINS = {
+            "instahyre.com", "naukri.com", "linkedin.com", "indeed.com",
+            "hirist.tech", "cutshort.io", "wellfound.com", "foundit.in",
+            "glassdoor.com", "google.com", "ziprecruiter.com", "monster.com",
+            "greenhouse.io", "lever.co", "workday.com"
+        }
 
         # If it's a URL
         if "://" in raw or "/" in raw:
@@ -80,7 +83,7 @@ class ApifyRecruiterService:
                 domain = netloc.split(":")[0].lower()
                 if domain.startswith("www."):
                     domain = domain[4:]
-                if "." in domain:
+                if "." in domain and not any(portal in domain for portal in JOB_PORTAL_DOMAINS):
                     return domain
             except Exception:
                 pass
@@ -90,7 +93,9 @@ class ApifyRecruiterService:
             clean = raw.lower().strip()
             if clean.startswith("www."):
                 clean = clean[4:]
-            return clean.split("/")[0]
+            dom = clean.split("/")[0]
+            if not any(portal in dom for portal in JOB_PORTAL_DOMAINS):
+                return dom
 
         # Convert company name into standard domain string (e.g. "Factorial HR" -> "factorialhr.com")
         cleaned_name = re.sub(r"[^a-zA-Z0-9]", "", raw).lower()
@@ -275,6 +280,7 @@ class ApifyRecruiterService:
     async def get_precise_hr_details(
         self,
         company_name: str,
+        company_domain: Optional[str] = None,
         location: Optional[str] = None,
         job_url: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -284,8 +290,12 @@ class ApifyRecruiterService:
         loc_str = location or "India"
         company_clean = company_name.strip()
         
-        # Derive domain lookup query
-        domain_query = self.extract_domain(job_url or company_clean)
+        # Derive domain lookup query - prefer explicit company_domain
+        domain_query = (company_domain or "").strip()
+        if not domain_query or "." not in domain_query:
+            domain_query = self.extract_domain(job_url or company_clean)
+        if not domain_query or "." not in domain_query:
+            domain_query = self.extract_domain(company_clean)
 
         try:
             scraped_contacts = await self.get_hr_emails(
@@ -319,7 +329,7 @@ class ApifyRecruiterService:
             print(f"[APIFY_RECRUITER] Discovery notice for {company_name}: {e}")
 
         # Fallback saved contact
-        clean_domain = self.extract_domain(company_clean)
+        clean_domain = domain_query or self.extract_domain(company_clean)
         saved_fallback = self._save_discovered_recruiter(
             company=company_clean,
             name="Talent Acquisition Lead",
@@ -354,8 +364,9 @@ class ApifyRecruiterService:
         lookup_targets = []
         for item in items:
             comp = item.get("company", "").strip()
-            job_url = item.get("job_url") or item.get("apply_url") or ""
-            dom = self.extract_domain(job_url or comp)
+            dom = (item.get("company_domain") or "").strip()
+            if not dom or "." not in dom:
+                dom = self.extract_domain(comp)
             if dom and dom not in lookup_targets:
                 lookup_targets.append(dom)
 
@@ -390,6 +401,7 @@ class ApifyRecruiterService:
                 if not comp:
                     continue
                 
+                comp_dom = (item.get("company_domain") or "").strip() or self.extract_domain(comp)
                 place_data = scraped_by_comp.get(comp)
                 if place_data:
                     email = place_data.get("primary_email") or place_data.get("email")
@@ -398,7 +410,7 @@ class ApifyRecruiterService:
                     name = place_data.get("full_name") or "Talent Acquisition Team"
                     title = place_data.get("role") or place_data.get("position") or "Talent Acquisition & Hiring Team"
                 else:
-                    clean_dom = self.extract_domain(comp)
+                    clean_dom = comp_dom or self.extract_domain(comp)
                     email = f"careers@{clean_dom}" if clean_dom else None
                     url = f"https://www.linkedin.com/company/{clean_dom.split('.')[0] if clean_dom else comp.lower().replace(' ', '')}"
                     addr = item.get("location") or "India"
@@ -424,7 +436,7 @@ class ApifyRecruiterService:
             for item in items:
                 comp = item.get("company", "").strip()
                 if comp:
-                    clean_dom = self.extract_domain(comp)
+                    clean_dom = (item.get("company_domain") or "").strip() or self.extract_domain(comp)
                     saved = self._save_discovered_recruiter(
                         company=comp,
                         name="Talent Acquisition Team",
