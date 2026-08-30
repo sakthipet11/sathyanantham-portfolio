@@ -28,6 +28,7 @@ export function LiveHandoffSection() {
   const { trackEvent } = useAnalytics();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const {
     register,
@@ -40,24 +41,62 @@ export function LiveHandoffSection() {
 
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
+    setSubmitError(null);
+    let success = false;
+
+    // 1. Primary transmission via Next.js server-side route (/api/contact with nodemailer)
     try {
-      const apiHost = getApiHost();
-      await fetch(`${apiHost}/api/contact`, {
+      const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: data.name,
           email: data.email,
-          message: data.notes
+          message: data.notes,
+          purpose: 'Direct Portfolio Inquiry'
         })
       });
+      const result = await res.json().catch(() => ({}));
+      if (res.ok && result.status === 'success') {
+        success = true;
+      }
+    } catch (primaryErr) {
+      console.warn('Next.js contact API call failed, attempting backend fallback:', primaryErr);
+    }
+
+    // 2. Fallback to configured apiHost (FastAPI backend) if primary call didn't succeed
+    if (!success) {
+      try {
+        const apiHost = getApiHost();
+        if (apiHost && typeof window !== 'undefined' && !apiHost.includes(window.location.host)) {
+          const fallbackRes = await fetch(`${apiHost}/api/contact`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: data.name,
+              email: data.email,
+              message: data.notes,
+              purpose: 'Direct Portfolio Inquiry'
+            })
+          });
+          const fbResult = await fallbackRes.json().catch(() => ({}));
+          if (fallbackRes.ok && (fbResult.status === 'success' || fbResult.data)) {
+            success = true;
+          }
+        }
+      } catch (fallbackErr) {
+        console.warn('Fallback backend contact API failed:', fallbackErr);
+      }
+    }
+
+    setIsSubmitting(false);
+
+    if (success) {
       trackEvent('contact_submit', { email: data.email, name: data.name });
-    } catch (e) {
-      console.warn('Contact API offline, logging locally:', data);
-    } finally {
-      setIsSubmitting(false);
       setIsSubmitted(true);
       reset();
+    } else {
+      setSubmitError('Unable to transmit message automatically. You can email Sathyanantham directly at v.sathyanantham@gmail.com');
     }
   };
 
@@ -208,6 +247,18 @@ export function LiveHandoffSection() {
                   />
                   {errors.notes && <p className="text-[11px] text-destructive font-mono mt-1">{errors.notes.message}</p>}
                 </div>
+
+                {submitError && (
+                  <div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/20 text-[12px] font-mono text-destructive space-y-1">
+                    <p>{submitError}</p>
+                    <a
+                      href="mailto:v.sathyanantham@gmail.com"
+                      className="underline font-semibold inline-block text-primary hover:opacity-80"
+                    >
+                      Click to email directly &rarr;
+                    </a>
+                  </div>
+                )}
 
                 <Button
                   type="submit"
