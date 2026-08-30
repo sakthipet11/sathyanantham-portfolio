@@ -30,6 +30,129 @@ An autonomous AI agent platform that runs the entire job search, referral loop, 
 
 ---
 
+## 🖥️ Live Platform Walkthrough & Full System Screens
+
+> High-resolution desktop captures from the running application, showcasing the public AI digital twin portfolio and all 11 modules of the Recruiter OS Admin suite.
+
+### 1. Public Portfolio & Interactive AI Digital Twin (`/`)
+The public-facing portfolio features dynamic glassmorphic design, a 3D canvas backdrop, an interactive terminal statement, and a direct AI Digital Twin chatbot allowing recruiters to query Sathyanantham's 13.5+ years of engineering leadership, system design, and tech stack in natural language.
+
+![Public Portfolio & AI Digital Twin Landing](docs/images/screens/01_homepage.png)
+
+---
+
+### 2. Admin Security Gateway (`/admin`)
+Protected entry point requiring a master passkey to unlock the autonomous command center, preventing unauthorized access to outbound automation, API keys, and candidate communications.
+
+![Admin Security Gateway](docs/images/screens/02_admin_login.png)
+
+---
+
+### 3. Executive Control Center & Top-Line Funnel KPIs (`/admin/dashboard`)
+Real-time mission control tracking 10 dynamic funnel KPIs, active execution subsystems (Job Discovery, Application Engine, Referral Outreach), the 9-stage conversion pipeline, and live agent scheduler health.
+
+![Executive Control Center Dashboard](docs/images/screens/03_admin_dashboard.png)
+
+---
+
+### 4. AI Job Discovery, ATS Radar & 1-Click Staging (`/admin/jobs`)
+Ingests live job opportunities across JSearch, Naukri, LinkedIn, and Instahyre. Evaluates ATS fit scores (e.g. 97%, 95%), highlights matched vs gap skills, offers in-depth ATS Radar modals, and provides interactive 1-click **Stage** / **Staged** controls with bulk application capabilities.
+
+![AI Job Discovery & Matching](docs/images/screens/04_admin_jobs.png)
+
+---
+
+### 5. Application Packages & Automation Pipeline (`/admin/applications`)
+Tracks staged candidate resumes, tailored candidate-grounded cover letters, direct recruiter outreach, and headless Playwright auto-apply batches across 9 standardized lifecycle stages.
+
+![Application Packages & Automation](docs/images/screens/05_admin_applications.png)
+
+---
+
+### 6. Automated Referral Request & Outreach Center (`/admin/referrals`)
+Automatically maps ATS $\ge 90\%$ opportunities to warm 1st-degree LinkedIn connections or verified Apify Google Maps corporate contacts. Synthesizes tailored physical PDF resumes and cover letters, staging them for 1-click approved Gmail SMTP dispatch.
+
+![Automated Referral Outreach Center](docs/images/screens/06_admin_referrals.png)
+
+---
+
+### 7. Authoritative LinkedIn Network & Recruiter Directory (`/admin/connections`)
+Authoritative 7-column candidate network management indexing **732 contacts**, 570 1st-degree connections, 162 corporate recruiters, 505 unique companies, and 636 verified emails with CSV sync and manual entry controls.
+
+![LinkedIn Network & Recruiter Directory](docs/images/screens/07_admin_connections.png)
+
+---
+
+### 8. Recruiter Inbox & Gmail Automation Center (`/admin/recruiter-inbox`)
+Autonomous recruiter message triage, LLM intent classification (`JOB_OPPORTUNITY`, `INTERVIEW_INVITE`, `REJECTION`), tailored resume auto-drafting, and live visitor WebSocket presence handoff.
+
+![Recruiter Inbox & Live Handoff](docs/images/screens/08_admin_recruiter_inbox.png)
+
+---
+
+### 9. Resume & Cover Letter Version Manager (`/admin/resumes`)
+Multi-variant resume manager storing specialized, version-controlled physical PDFs (Lead Frontend Architect, AI-Assisted Lead, Micro-Frontend Specialist, Full-Stack Lead) with Google Drive cloud sync integration.
+
+![Resume & Cover Letter Version Manager](docs/images/screens/09_admin_resumes.png)
+
+---
+
+### 10. Multi-Agent Automation & Google Drive Ingestion (`/admin/automation`)
+Configures background cron schedules and on-demand synchronization between Google Drive folder spreadsheets (`job_tracker_*.xlsx`) and the local PostgreSQL database, with automated data retention policies.
+
+![Multi-Agent Automation Workflows](docs/images/screens/10_admin_automation.png)
+
+---
+
+### 11. Interactive AI Job Search Copilot (`/admin/agent`)
+Interactive natural-language copilot assisting the candidate with targeted company discovery, interview preparation, cover letter revisions, and compensation strategy.
+
+![Interactive AI Job Search Copilot](docs/images/screens/11_admin_copilot_agent.png)
+
+---
+
+### 12. Live Portfolio & Digital Twin Analytics Hub (`/admin/analytics`)
+100% dynamic telemetry hub computing live page views, unique visitors, resume downloads, 14-day traffic timeseries, device breakdowns, and geographical distribution with zero static fallback numbers.
+
+![Live Telemetry & Portfolio Analytics](docs/images/screens/12_admin_analytics.png)
+
+---
+
+### 13. Settings, SRE Governance & Control Center (`/admin/settings`)
+System governance console managing backend API host endpoints, deployment modes, LLM models (Google Gemini / NVIDIA NIM), candidate profile master attributes, and emergency automation kill-switches.
+
+![Settings & Governance Cockpit](docs/images/screens/13_admin_settings.png)
+
+---
+
+### 14. Interactive Application Modals & Playwright Execution Flow
+
+#### A. ATS Radar & Candidate Truth Evaluation Modal
+Clicking **Radar** on any job card opens an in-depth score breakdown (Skills, Experience, Title), candidate strengths, identified gaps, and 1-click **Stage** or **Auto-Apply (Playwright)** triggers:
+
+![ATS Radar Candidate Truth Evaluation](docs/images/screens/14_ats_radar_modal.png)
+
+#### B. Dynamic Bulk Action Bar & Batch Staging
+Selecting jobs activates the floating `BulkActionBar`, enabling 1-click batch actions (**Stage Package**, **Auto-Apply**, **Bulk Delete**):
+
+![Dynamic Bulk Action Bar](docs/images/screens/15_bulk_action_bar.png)
+
+#### C. Interactive AI Digital Twin Slide-Over Drawer
+Recruiters and visitors can open the AI Digital Twin drawer to ask questions about architecture experience, system design, or initiate a live human handoff:
+
+![AI Digital Twin Interactive Drawer](docs/images/screens/16_ai_twin_chat_modal.png)
+
+#### D. Live Playwright Headless Auto-Apply Execution
+The headless Playwright automation engine dynamically fills portal application fields using semantic LLM mapping, uploads tailored PDF resumes, and captures audit screenshots:
+
+![Playwright Live Form Auto-Fill](docs/images/auto_apply_form_filling_sample.png)
+
+![Playwright Resume Upload & Parsing](docs/images/auto_apply_resume_upload_sample.png)
+
+![Playwright Portal Gate & Auth Wall Detection](docs/images/auto_apply_portal_auth_sample.png)
+
+---
+
 ## 🏗️ System Architecture
 
 The platform operates on a clean, 4-tier decoupled architecture:

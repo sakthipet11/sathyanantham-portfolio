@@ -120,19 +120,19 @@ export default function AdminConnectionsPage() {
       params.append('limit', limit.toString());
       params.append('offset', (page * limit).toString());
 
-      const [connsRes, metricsRes] = await Promise.all([
-        fetchWithTimeout(`${apiHost}/api/v2/connections?${params.toString()}`, {}, 4000),
-        fetchWithTimeout(`${apiHost}/api/v2/connections/metrics`, {}, 4000)
+      const [connsResResult, metricsResResult] = await Promise.allSettled([
+        fetchWithTimeout(`${apiHost}/api/v2/connections?${params.toString()}`, {}, 12000),
+        fetchWithTimeout(`${apiHost}/api/v2/connections/metrics`, {}, 12000)
       ]);
 
-      if (connsRes.ok) {
-        const data = await connsRes.json();
+      if (connsResResult.status === 'fulfilled' && connsResResult.value.ok) {
+        const data = await connsResResult.value.json();
         setConnections(data.connections || []);
         setTotalCount(data.total || data.count || 0);
       }
 
-      if (metricsRes.ok) {
-        const mData = await metricsRes.json();
+      if (metricsResResult.status === 'fulfilled' && metricsResResult.value.ok) {
+        const mData = await metricsResResult.value.json();
         if (mData.metrics) setMetrics(mData.metrics);
       }
     } catch (err) {
