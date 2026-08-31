@@ -42,7 +42,7 @@ export const useAppStore = create<AppState>((set) => ({
   setAIDrawerOpen: (open: boolean) => set({ isAIDrawerOpen: open }),
   toggleAIDrawer: () => set((state: AppState) => ({ isAIDrawerOpen: !state.isAIDrawerOpen })),
 
-  selectedModel: process.env.NEXT_PUBLIC_LLM_MODEL || '',
+  selectedModel: process.env.LLM_MODEL || '',
   setSelectedModel: (model: string) => set({ selectedModel: model }),
 
   isSathyananthamOnline: false,

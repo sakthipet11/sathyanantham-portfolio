@@ -36,16 +36,6 @@ class GmailMCPClient:
         return (os.getenv("EMAIL_APP_PASSWORD") or "qhvllsexeewpgpww").strip()
 
     @property
-    def backup_email_address(self) -> str:
-        load_dotenv()
-        return (os.getenv("BACKUP_EMAIL_ADDRESS") or "v.sathyanantham@gmail.com").strip()
-
-    @property
-    def backup_app_password(self) -> str:
-        load_dotenv()
-        return (os.getenv("BACKUP_EMAIL_APP_PASSWORD") or "qhvllsexeewpgpww").strip()
-
-    @property
     def smtp_server(self) -> str:
         load_dotenv()
         return (os.getenv("EMAIL_SMTP_SERVER") or "smtp.gmail.com").strip()
@@ -64,10 +54,7 @@ class GmailMCPClient:
         return (os.getenv("USE_EMAIL", "true")).lower() == "true"
 
     def is_configured(self) -> bool:
-        return bool(
-            (self.email_address and self.app_password) or
-            (self.backup_email_address and self.backup_app_password)
-        ) and self.use_email
+        return bool(self.email_address and self.app_password) and self.use_email
 
     def _decode_mime_words(self, s: str) -> str:
         if not s:
@@ -195,49 +182,41 @@ class GmailMCPClient:
 
     def _send_smtp_sync(self, msg: MIMEMultipart, to: str, attached_files: List[str]) -> None:
         """
-        Synchronous SMTP delivery with automatic port and credential fallback.
+        Synchronous SMTP delivery using primary credentials with port fallback (465 SSL -> 587 STARTTLS).
         Executed in threadpool via asyncio.to_thread.
         """
         if not self.is_configured():
             print(f"[GMAIL_MCP] Live email dispatch simulation: Recipient: {to}, Subject: {msg['Subject']}, Attached: {attached_files}")
             return
 
-        credential_pairs = [
-            (self.email_address, self.app_password),
-            (self.backup_email_address, self.backup_app_password)
-        ]
-        last_error = None
-        for user, pwd in credential_pairs:
-            if not user or not pwd:
-                continue
+        user = self.email_address
+        pwd = self.app_password
+
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context, timeout=15) as server:
+                server.login(user, pwd)
+                server.send_message(msg)
+            print(f"[GMAIL_MCP] Successfully transmitted live email to {to} via {user} on {self.smtp_server}:{self.smtp_port}")
+            return
+        except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ssl.SSLError) as conn_err:
+            print(f"[GMAIL_MCP] Port {self.smtp_port} failed ({conn_err}), attempting STARTTLS on port 587...")
             try:
-                context = ssl.create_default_context()
-                with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context, timeout=15) as server:
+                with smtplib.SMTP(self.smtp_server, 587, timeout=15) as server:
+                    server.starttls(context=context)
                     server.login(user, pwd)
                     server.send_message(msg)
-                print(f"[GMAIL_MCP] Successfully transmitted live email to {to} via {user} on {self.smtp_server}:{self.smtp_port}")
+                print(f"[GMAIL_MCP] Successfully transmitted live email via STARTTLS port 587 using {user}!")
                 return
-            except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ssl.SSLError) as conn_err:
-                print(f"[GMAIL_MCP] Port {self.smtp_port} failed ({conn_err}), attempting STARTTLS on port 587...")
-                try:
-                    with smtplib.SMTP(self.smtp_server, 587, timeout=15) as server:
-                        server.starttls(context=context)
-                        server.login(user, pwd)
-                        server.send_message(msg)
-                    print(f"[GMAIL_MCP] Successfully transmitted live email via STARTTLS port 587 using {user}!")
-                    return
-                except Exception as err2:
-                    print(f"[GMAIL_MCP] SMTP STARTTLS warning for {user}: {err2}")
-                    last_error = err2
-            except smtplib.SMTPAuthenticationError as auth_err:
-                print(f"[GMAIL_MCP] Auth failed for {user}: {auth_err}. Trying backup credentials if available...")
-                last_error = auth_err
-            except Exception as e:
-                print(f"[GMAIL_MCP] Error transmitting via {user}: {e}")
-                last_error = e
-
-        if last_error:
-            raise RuntimeError(f"SMTP transmission failed for {to}: {last_error}")
+            except Exception as err2:
+                print(f"[GMAIL_MCP] SMTP STARTTLS failed for {user}: {err2}")
+                raise RuntimeError(f"SMTP transmission failed on port 587 for {to}: {err2}") from err2
+        except smtplib.SMTPAuthenticationError as auth_err:
+            print(f"[GMAIL_MCP] Auth failed for {user}: {auth_err}")
+            raise RuntimeError(f"SMTP authentication failed for {user}: {auth_err}") from auth_err
+        except Exception as e:
+            print(f"[GMAIL_MCP] Error transmitting via {user}: {e}")
+            raise RuntimeError(f"SMTP transmission failed for {to}: {e}") from e
 
     async def send_message(
         self,

@@ -26,7 +26,6 @@ def get_llm_base_url() -> str:
 def get_llm_default_model() -> str:
     return (
         os.getenv("LLM_MODEL") or
-        os.getenv("NEXT_PUBLIC_LLM_MODEL") or
         ""
     ).strip()
 
