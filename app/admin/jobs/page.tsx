@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { CustomSelect } from '@/components/ui/custom-select';
 import {
   Briefcase,
   Search,
@@ -560,7 +561,7 @@ export default function AdminJobsPage() {
     if (selectedIds.length === filteredJobs.length && filteredJobs.length > 0) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(filteredJobs.map(j => j.id));
+      setSelectedIds(filteredJobs.map((j: any) => j.id));
     }
   };
 
@@ -608,26 +609,166 @@ export default function AdminJobsPage() {
     }));
   };
 
-  // Filter Jobs
-  const filteredJobs = jobs.filter(job => {
-    const matchesSearch =
-      (job.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (job.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (job.location || '').toLowerCase().includes(searchTerm.toLowerCase());
+  // Dynamically compute available sources and counts from loaded jobs & API sources
+  const availableSources = useMemo(() => {
+    const counts: Record<string, number> = {};
+    jobs.forEach(j => {
+      const src = (j.portal_type || j.source || 'other').toLowerCase();
+      counts[src] = (counts[src] || 0) + 1;
+    });
+    // Merge any from sources API
+    sources.forEach((s: any) => {
+      const name = (s.name || '').toLowerCase();
+      if (name && !(name in counts)) {
+        counts[name] = s.job_count ?? 0;
+      }
+    });
+    return Object.entries(counts).map(([name, count]) => ({
+      name,
+      label: name.toUpperCase(),
+      count
+    })).sort((a, b) => b.count - a.count);
+  }, [jobs, sources]);
 
-    const matchesStatus = selectedStatus === 'ALL' || job.status === selectedStatus;
-    const matchesSource = selectedSource === 'ALL' || (job.portal_type || job.source || '').toLowerCase() === selectedSource.toLowerCase();
+  // Comprehensive Multi-Facet Filter for Jobs
+  const filteredJobs = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
 
-    const matchesType =
-      selectedMatchType === 'ALL' ||
-      (selectedMatchType === 'PROFILE_MATCH' && (job.match_type === 'PROFILE_MATCH' || !job.match_type)) ||
-      (selectedMatchType === 'JD_MATCH' && job.match_type === 'JD_MATCH');
+    return jobs.filter(job => {
+      // 1. Search Query Match
+      const matchesSearch = !term ||
+        (job.title || '').toLowerCase().includes(term) ||
+        (job.company || '').toLowerCase().includes(term) ||
+        (job.location || '').toLowerCase().includes(term) ||
+        (job.location_type || '').toLowerCase().includes(term) ||
+        (job.portal_type || job.source || '').toLowerCase().includes(term) ||
+        (job.description_raw || '').toLowerCase().includes(term) ||
+        (job.requirements_clean || '').toLowerCase().includes(term) ||
+        (Array.isArray(job.tech_stack) && job.tech_stack.some((t: any) => String(t).toLowerCase().includes(term))) ||
+        (Array.isArray(job.skills) && job.skills.some((s: any) => String(s).toLowerCase().includes(term)));
 
-    const score = job.match_score ?? job.score_details?.overall_score ?? 0;
-    const matchesMinScore = score >= minScoreFilter;
+      // 2. Status Match
+      const jobStatusUpper = (job.status || 'DISCOVERED').toUpperCase();
+      const score = Number(job.match_score ?? job.score_details?.overall_score ?? 0);
 
-    return matchesSearch && matchesStatus && matchesSource && matchesType && matchesMinScore;
-  });
+      const matchesStatus =
+        selectedStatus === 'ALL' ||
+        (selectedStatus === 'DISCOVERED' && jobStatusUpper === 'DISCOVERED') ||
+        (selectedStatus === 'QUALIFIED' && (jobStatusUpper === 'QUALIFIED' || score >= 75)) ||
+        (selectedStatus === 'READY_FOR_REVIEW' && (jobStatusUpper === 'READY_FOR_REVIEW' || stagedJobIds.has(job.id))) ||
+        (selectedStatus === 'APPROVED' && jobStatusUpper === 'APPROVED') ||
+        (selectedStatus === 'APPLIED' && (jobStatusUpper === 'APPLIED' || jobStatusUpper === 'SUBMITTED')) ||
+        (selectedStatus === 'REJECTED' && jobStatusUpper === 'REJECTED') ||
+        jobStatusUpper === selectedStatus.toUpperCase();
+
+      // 3. Source Match
+      const jobSource = (job.portal_type || job.source || '').toLowerCase();
+      const matchesSource = selectedSource === 'ALL' || jobSource === selectedSource.toLowerCase();
+
+      // 4. Match Type
+      const jobMatchType = (job.match_type || 'PROFILE_MATCH').toUpperCase();
+      const matchesType =
+        selectedMatchType === 'ALL' ||
+        (selectedMatchType === 'PROFILE_MATCH' && (jobMatchType === 'PROFILE_MATCH' || !job.match_type)) ||
+        (selectedMatchType === 'JD_MATCH' && jobMatchType === 'JD_MATCH');
+
+      // 5. Minimum Score
+      const matchesMinScore = score >= minScoreFilter;
+
+      return matchesSearch && matchesStatus && matchesSource && matchesType && matchesMinScore;
+    });
+  }, [jobs, searchTerm, selectedStatus, selectedSource, selectedMatchType, minScoreFilter, stagedJobIds]);
+
+  // Dropdown Select Options with Real Live Counts
+  const matchTypeOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Match Types', count: jobs.length },
+    {
+      value: 'PROFILE_MATCH',
+      label: 'Profile Matches (≥75%)',
+      count: jobs.filter(j => (j.match_type || 'PROFILE_MATCH').toUpperCase() === 'PROFILE_MATCH').length
+    },
+    {
+      value: 'JD_MATCH',
+      label: 'JD Matches (≥50%)',
+      count: jobs.filter(j => (j.match_type || '').toUpperCase() === 'JD_MATCH').length
+    }
+  ], [jobs]);
+
+  const statusOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Statuses', count: jobs.length },
+    {
+      value: 'DISCOVERED',
+      label: 'Discovered',
+      count: jobs.filter(j => (j.status || 'DISCOVERED').toUpperCase() === 'DISCOVERED').length
+    },
+    {
+      value: 'QUALIFIED',
+      label: 'Qualified (≥75% ATS)',
+      count: jobs.filter(j => (j.status || '').toUpperCase() === 'QUALIFIED' || Number(j.match_score ?? j.score_details?.overall_score ?? 0) >= 75).length
+    },
+    {
+      value: 'READY_FOR_REVIEW',
+      label: 'Ready for Review',
+      count: jobs.filter(j => (j.status || '').toUpperCase() === 'READY_FOR_REVIEW' || stagedJobIds.has(j.id)).length
+    },
+    {
+      value: 'APPROVED',
+      label: 'Approved',
+      count: jobs.filter(j => (j.status || '').toUpperCase() === 'APPROVED').length
+    },
+    {
+      value: 'APPLIED',
+      label: 'Applied',
+      count: jobs.filter(j => (j.status || '').toUpperCase() === 'APPLIED' || (j.status || '').toUpperCase() === 'SUBMITTED').length
+    },
+    {
+      value: 'REJECTED',
+      label: 'Rejected',
+      count: jobs.filter(j => (j.status || '').toUpperCase() === 'REJECTED').length
+    }
+  ], [jobs, stagedJobIds]);
+
+  const sourceOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Portals', count: jobs.length },
+    ...availableSources.map((s: any) => ({
+      value: s.name,
+      label: s.label,
+      count: s.count
+    }))
+  ], [jobs, availableSources]);
+
+  const scoreOptions = useMemo(() => [
+    { value: 0, label: 'Any Score', count: jobs.length },
+    {
+      value: 50,
+      label: '≥ 50% (JD)',
+      count: jobs.filter(j => Number(j.match_score ?? j.score_details?.overall_score ?? 0) >= 50).length
+    },
+    {
+      value: 75,
+      label: '≥ 75% (Profile)',
+      count: jobs.filter(j => Number(j.match_score ?? j.score_details?.overall_score ?? 0) >= 75).length
+    },
+    {
+      value: 85,
+      label: '≥ 85% (Strong)',
+      count: jobs.filter(j => Number(j.match_score ?? j.score_details?.overall_score ?? 0) >= 85).length
+    },
+    {
+      value: 90,
+      label: '≥ 90% (Top Tier)',
+      count: jobs.filter(j => Number(j.match_score ?? j.score_details?.overall_score ?? 0) >= 90).length
+    }
+  ], [jobs]);
+
+  const cardStatusOptions = useMemo(() => [
+    { value: 'DISCOVERED', label: 'Discovered' },
+    { value: 'QUALIFIED', label: 'Qualified' },
+    { value: 'READY_FOR_REVIEW', label: 'Review' },
+    { value: 'APPROVED', label: 'Approved' },
+    { value: 'APPLIED', label: 'Applied' },
+    { value: 'REJECTED', label: 'Rejected' }
+  ], []);
 
   const getScoreBadgeClass = (score: number) => {
     if (score >= 90) return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30';
@@ -775,63 +916,43 @@ export default function AdminJobsPage() {
 
             {/* Dropdown Filters */}
             <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 flex-wrap">
-              <select
+              {/* Match Type Filter */}
+              <CustomSelect
                 value={selectedMatchType}
-                onChange={e => setSelectedMatchType(e.target.value)}
-                className="px-3.5 py-2.5 bg-card/80 dark:bg-card/80 border border-border/80 rounded-xl text-xs text-foreground font-medium focus:outline-none focus:border-primary shadow-xs transition"
-              >
-                <option value="ALL">All Match Types</option>
-                <option value="PROFILE_MATCH">Profile Matches (≥75%)</option>
-                <option value="JD_MATCH">JD Matches (≥50%)</option>
-              </select>
+                onChange={(val) => setSelectedMatchType(String(val))}
+                options={matchTypeOptions}
+                title="Filter by match type"
+              />
 
-              <select
+              {/* Status Filter */}
+              <CustomSelect
                 value={selectedStatus}
-                onChange={e => setSelectedStatus(e.target.value)}
-                className="px-3.5 py-2.5 bg-card/80 dark:bg-card/80 border border-border/80 rounded-xl text-xs text-foreground font-medium focus:outline-none focus:border-primary shadow-xs transition"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="QUALIFIED">Qualified</option>
-                <option value="READY_FOR_REVIEW">Review</option>
-                <option value="APPROVED">Approved</option>
-                <option value="APPLIED">Applied</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
+                onChange={(val) => setSelectedStatus(String(val))}
+                options={statusOptions}
+                title="Filter by job status"
+              />
 
-              <select
+              {/* Source Filter */}
+              <CustomSelect
                 value={selectedSource}
-                onChange={e => setSelectedSource(e.target.value)}
-                className="px-3.5 py-2.5 bg-card/80 dark:bg-card/80 border border-border/80 rounded-xl text-xs text-foreground font-medium focus:outline-none focus:border-primary shadow-xs transition"
-              >
-                <option value="ALL">All Sources</option>
-                {sources.length > 0 ? (
-                  sources.map((s: any) => (
-                    <option key={s.id || s.name} value={s.name}>
-                      {s.name.toUpperCase()} (Google for Jobs) ({s.job_count ?? 0})
-                    </option>
-                  ))
-                ) : (
-                  <option value="jsearch">JSEARCH (Google for Jobs)</option>
-                )}
-              </select>
+                onChange={(val) => setSelectedSource(String(val))}
+                options={sourceOptions}
+                title="Filter by job discovery portal"
+              />
 
-              <select
+              {/* Min ATS Score Filter */}
+              <CustomSelect
                 value={minScoreFilter}
-                onChange={e => setMinScoreFilter(Number(e.target.value))}
-                className="px-3.5 py-2.5 bg-card/80 dark:bg-card/80 border border-border/80 rounded-xl text-xs text-foreground font-medium focus:outline-none focus:border-primary shadow-xs transition"
-              >
-                <option value={0}>Any Score</option>
-                <option value={50}>≥ 50% (JD)</option>
-                <option value={75}>≥ 75% (Profile)</option>
-                <option value={85}>≥ 85% (Strong)</option>
-                <option value={90}>≥ 90% (Top Tier)</option>
-              </select>
+                onChange={(val) => setMinScoreFilter(Number(val))}
+                options={scoreOptions}
+                title="Filter by minimum match score"
+              />
             </div>
           </div>
 
           {/* Active Filter Chips & Selection Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-muted-foreground pt-2 border-t border-border/60">
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               {filteredJobs.length > 0 && (
                 <button
                   onClick={toggleSelectAll}
@@ -855,6 +976,16 @@ export default function AdminJobsPage() {
               {selectedStatus !== 'ALL' && (
                 <span className="px-2 py-0.5 rounded-lg bg-muted text-foreground border border-border text-[10px] font-mono">
                   {selectedStatus}
+                </span>
+              )}
+              {selectedSource !== 'ALL' && (
+                <span className="px-2 py-0.5 rounded-lg bg-muted text-foreground border border-border text-[10px] font-mono uppercase">
+                  {selectedSource}
+                </span>
+              )}
+              {minScoreFilter > 0 && (
+                <span className="px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[10px] font-mono">
+                  Score ≥ {minScoreFilter}%
                 </span>
               )}
             </div>
@@ -922,7 +1053,7 @@ export default function AdminJobsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredJobs.map(job => {
+            {filteredJobs.map((job: any) => {
               const score = job.match_score ?? job.score_details?.overall_score ?? 0;
               const isSelected = selectedIds.includes(job.id);
               const matchType = job.match_type || 'PROFILE_MATCH';
@@ -1089,17 +1220,14 @@ export default function AdminJobsPage() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <select
+                      <CustomSelect
                         value={job.status || 'DISCOVERED'}
-                        onChange={e => handleUpdateStatus(job.id, e.target.value)}
-                        className="px-2.5 py-1.5 rounded-xl bg-card/80 dark:bg-card/80 border border-border/80 text-[11px] font-mono text-foreground focus:outline-none focus:border-primary shadow-xs transition"
-                      >
-                        <option value="QUALIFIED">Qualified</option>
-                        <option value="READY_FOR_REVIEW">Review</option>
-                        <option value="APPROVED">Approved</option>
-                        <option value="APPLIED">Applied</option>
-                        <option value="REJECTED">Rejected</option>
-                      </select>
+                        onChange={(val) => handleUpdateStatus(job.id, String(val))}
+                        options={cardStatusOptions}
+                        size="sm"
+                        triggerClassName="w-28 py-1 text-[11px] font-mono"
+                        title="Update job status"
+                      />
 
                       <button
                         onClick={() => promptSingleDelete(job.id)}
@@ -1121,8 +1249,8 @@ export default function AdminJobsPage() {
           MODAL 1: Search by Job Description (Mobile & Desktop Responsive)
       ========================================================================= */}
       {jdSearchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-5 my-auto text-foreground animate-fade-in">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-5 my-auto text-foreground animate-fade-in overscroll-contain">
             <div className="flex items-start justify-between border-b border-border pb-4 gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
@@ -1271,8 +1399,8 @@ export default function AdminJobsPage() {
           MODAL 2: Job Discovery Settings (Mobile & Desktop Responsive)
       ========================================================================= */}
       {settingsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-5 my-auto text-foreground animate-fade-in">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-5 my-auto text-foreground animate-fade-in overscroll-contain">
             <div className="flex items-start justify-between border-b border-border pb-4 gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
@@ -1353,18 +1481,18 @@ export default function AdminJobsPage() {
                     <select
                       value={discoverySettings.country || 'in'}
                       onChange={e => setDiscoverySettings((p: any) => ({ ...p, country: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-xl bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary"
+                      className="theme-select w-full px-3 py-2 rounded-xl bg-card border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary cursor-pointer"
                     >
-                      <option value="india">🇮🇳 India (in)</option>
-                      <option value="us">🇺🇸 United States (us)</option>
-                      <option value="gb">🇬🇧 United Kingdom (gb)</option>
-                      <option value="de">🇩🇪 Germany (de)</option>
-                      <option value="ca">🇨🇦 Canada (ca)</option>
-                      <option value="au">🇦🇺 Australia (au)</option>
-                      <option value="sg">🇸🇬 Singapore (sg)</option>
-                      <option value="ae">🇦🇪 UAE (ae)</option>
-                      <option value="fr">🇫🇷 France (fr)</option>
-                      <option value="nl">🇳🇱 Netherlands (nl)</option>
+                      <option value="india" className="bg-card text-foreground">🇮🇳 India (in)</option>
+                      <option value="us" className="bg-card text-foreground">🇺🇸 United States (us)</option>
+                      <option value="gb" className="bg-card text-foreground">🇬🇧 United Kingdom (gb)</option>
+                      <option value="de" className="bg-card text-foreground">🇩🇪 Germany (de)</option>
+                      <option value="ca" className="bg-card text-foreground">🇨🇦 Canada (ca)</option>
+                      <option value="au" className="bg-card text-foreground">🇦🇺 Australia (au)</option>
+                      <option value="sg" className="bg-card text-foreground">🇸🇬 Singapore (sg)</option>
+                      <option value="ae" className="bg-card text-foreground">🇦🇪 UAE (ae)</option>
+                      <option value="fr" className="bg-card text-foreground">🇫🇷 France (fr)</option>
+                      <option value="nl" className="bg-card text-foreground">🇳🇱 Netherlands (nl)</option>
                     </select>
                   </div>
 
@@ -1375,13 +1503,13 @@ export default function AdminJobsPage() {
                     <select
                       value={discoverySettings.language || 'en'}
                       onChange={e => setDiscoverySettings((p: any) => ({ ...p, language: e.target.value }))}
-                      className="w-full px-3 py-2 rounded-xl bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary"
+                      className="theme-select w-full px-3 py-2 rounded-xl bg-card border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary cursor-pointer"
                     >
-                      <option value="en">English (en)</option>
-                      <option value="de">German (de)</option>
-                      <option value="fr">French (fr)</option>
-                      <option value="es">Spanish (es)</option>
-                      <option value="ja">Japanese (ja)</option>
+                      <option value="en" className="bg-card text-foreground">English (en)</option>
+                      <option value="de" className="bg-card text-foreground">German (de)</option>
+                      <option value="fr" className="bg-card text-foreground">French (fr)</option>
+                      <option value="es" className="bg-card text-foreground">Spanish (es)</option>
+                      <option value="ja" className="bg-card text-foreground">Japanese (ja)</option>
                     </select>
                   </div>
                 </div>
@@ -1396,11 +1524,11 @@ export default function AdminJobsPage() {
                   <select
                     value={discoverySettings.remote_preference}
                     onChange={e => setDiscoverySettings((p: any) => ({ ...p, remote_preference: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary shadow-xs transition"
+                    className="theme-select w-full px-3.5 py-2.5 rounded-xl bg-card border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary shadow-xs transition cursor-pointer"
                   >
-                    <option value="Local + Remote">Local + Remote</option>
-                    <option value="Remote">Remote Only</option>
-                    <option value="Local">Local Only</option>
+                    <option value="Local + Remote" className="bg-card text-foreground">Local + Remote</option>
+                    <option value="Remote" className="bg-card text-foreground">Remote Only</option>
+                    <option value="Local" className="bg-card text-foreground">Local Only</option>
                   </select>
                 </div>
 
@@ -1419,13 +1547,12 @@ export default function AdminJobsPage() {
                         job_recency_hours: hrsMap[val] || 168
                       }));
                     }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-card/80 border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary shadow-xs transition"
+                    className="theme-select w-full px-3.5 py-2.5 rounded-xl bg-card border border-border/80 text-xs text-foreground focus:outline-none focus:border-primary shadow-xs transition cursor-pointer"
                   >
-                    <option value="today">Today (24 Hours)</option>
-                    <option value="3days">Last 3 Days</option>
-                    <option value="week">Last 7 Days (Week)</option>
-                    <option value="month">Last Month</option>
-                    <option value="all">All Postings</option>
+                    <option value="today" className="bg-card text-foreground">Past 24 Hours</option>
+                    <option value="3days" className="bg-card text-foreground">Past 3 Days</option>
+                    <option value="week" className="bg-card text-foreground">Past Week</option>
+                    <option value="month" className="bg-card text-foreground">Past Month</option>
                   </select>
                 </div>
 
@@ -1580,12 +1707,12 @@ export default function AdminJobsPage() {
                 <select
                   value={discoverySettings.num_pages || 1}
                   onChange={e => setDiscoverySettings((p: any) => ({ ...p, num_pages: Number(e.target.value) }))}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-card/80 border border-border/80 text-xs font-mono text-foreground focus:outline-none focus:border-primary shadow-xs transition"
+                  className="theme-select w-full px-3.5 py-2.5 rounded-xl bg-card border border-border/80 text-xs font-mono text-foreground focus:outline-none focus:border-primary shadow-xs transition cursor-pointer"
                 >
-                  <option value={1}>1 Page (Up to 10 jobs)</option>
-                  <option value={2}>2 Pages (Up to 20 jobs)</option>
-                  <option value={3}>3 Pages (Up to 30 jobs)</option>
-                  <option value={5}>5 Pages (Up to 50 jobs)</option>
+                  <option value={1} className="bg-card text-foreground">1 Page (Up to 10 jobs)</option>
+                  <option value={2} className="bg-card text-foreground">2 Pages (Up to 20 jobs)</option>
+                  <option value={3} className="bg-card text-foreground">3 Pages (Up to 30 jobs)</option>
+                  <option value={5} className="bg-card text-foreground">5 Pages (Up to 50 jobs)</option>
                 </select>
               </div>
 
@@ -1737,8 +1864,8 @@ export default function AdminJobsPage() {
           MODAL 3: ATS Radar & Score Breakdown (Mobile & Desktop Responsive)
       ========================================================================= */}
       {selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-5 my-auto text-foreground animate-fade-in">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-5 my-auto text-foreground animate-fade-in overscroll-contain">
             <div className="flex items-start justify-between border-b border-border pb-4 gap-3">
               <div>
                 <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-[10px] uppercase font-mono tracking-wider font-bold">

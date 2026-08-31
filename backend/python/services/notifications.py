@@ -29,10 +29,6 @@ EMAIL_SMTP_PORT = int(os.getenv("EMAIL_SMTP_PORT", "465"))
 EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS", "v.sathyanantham@gmail.com").strip()
 EMAIL_APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD", "qhvllsexeewpgpww").strip()
 
-# Resilient Backup Relay Connection Settings
-BACKUP_EMAIL_ADDRESS = os.getenv("BACKUP_EMAIL_ADDRESS", "v.sathyanantham@gmail.com").strip()
-BACKUP_EMAIL_APP_PASSWORD = os.getenv("BACKUP_EMAIL_APP_PASSWORD", "qhvllsexeewpgpww").strip()
-
 # Pushover & Other Integrations
 PUSHOVER_USER = os.getenv("PUSHOVER_USER", "").strip()
 PUSHOVER_TOKEN = os.getenv("PUSHOVER_TOKEN", "").strip()
@@ -47,59 +43,52 @@ def _send_smtp_sync(
     reply_to: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Synchronous SMTP dispatch with resilient authentication.
-    Attempts primary account first, falling back to backup relay if needed.
+    Synchronous SMTP dispatch.
+    Uses main EMAIL_ADDRESS and EMAIL_APP_PASSWORD credentials with SSL (465)
+    and automatic STARTTLS (587) fallback.
     """
-    # Try primary credentials first, then backup credentials
-    credential_pairs = [
-        (EMAIL_ADDRESS, EMAIL_APP_PASSWORD, "primary"),
-        (BACKUP_EMAIL_ADDRESS, BACKUP_EMAIL_APP_PASSWORD, "backup_relay")
-    ]
+    if not EMAIL_ADDRESS or not EMAIL_APP_PASSWORD:
+        return {"status": "error", "error": "Email credentials not configured"}
 
-    last_error = None
+    user = EMAIL_ADDRESS
+    pwd = EMAIL_APP_PASSWORD
 
-    for user, pwd, cred_type in credential_pairs:
-        if not user or not pwd:
-            continue
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"Sathyanantham Portfolio <{user}>"
+        msg["To"] = to
+        if reply_to:
+            msg["Reply-To"] = reply_to
 
+        if text_content:
+            msg.attach(MIMEText(text_content, "plain", "utf-8"))
+        if html_content:
+            msg.attach(MIMEText(html_content, "html", "utf-8"))
+
+        # Port 465 (SSL) with automatic fallback to port 587 (STARTTLS)
+        context = ssl.create_default_context()
         try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = f"Sathyanantham Portfolio <{user}>"
-            msg["To"] = to
-            if reply_to:
-                msg["Reply-To"] = reply_to
+            with smtplib.SMTP_SSL(EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT, context=context, timeout=12) as server:
+                server.login(user, pwd)
+                server.send_message(msg)
+            print(f"[SMTP] Email delivered to {to} via {user} on port {EMAIL_SMTP_PORT}")
+            return {"status": "success", "user": user, "to": to}
+        except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ssl.SSLError) as conn_err:
+            print(f"[SMTP] Port {EMAIL_SMTP_PORT} failed ({conn_err}), attempting STARTTLS on port 587...")
+            with smtplib.SMTP(EMAIL_SMTP_SERVER, 587, timeout=12) as server:
+                server.starttls(context=context)
+                server.login(user, pwd)
+                server.send_message(msg)
+            print(f"[SMTP] Email delivered to {to} via {user} on port 587")
+            return {"status": "success", "user": user, "to": to}
 
-            if text_content:
-                msg.attach(MIMEText(text_content, "plain", "utf-8"))
-            if html_content:
-                msg.attach(MIMEText(html_content, "html", "utf-8"))
-
-            # Port 465 (SSL)
-            context = ssl.create_default_context()
-            try:
-                with smtplib.SMTP_SSL(EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT, context=context, timeout=12) as server:
-                    server.login(user, pwd)
-                    server.send_message(msg)
-                print(f"[SMTP] Email delivered to {to} via {user} ({cred_type}) on port {EMAIL_SMTP_PORT}")
-                return {"status": "success", "user": user, "to": to, "cred_type": cred_type}
-            except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ssl.SSLError) as conn_err:
-                print(f"[SMTP] Port {EMAIL_SMTP_PORT} failed ({conn_err}), attempting STARTTLS on port 587...")
-                with smtplib.SMTP(EMAIL_SMTP_SERVER, 587, timeout=12) as server:
-                    server.starttls(context=context)
-                    server.login(user, pwd)
-                    server.send_message(msg)
-                print(f"[SMTP] Email delivered to {to} via {user} ({cred_type}) on port 587")
-                return {"status": "success", "user": user, "to": to, "cred_type": cred_type}
-
-        except smtplib.SMTPAuthenticationError as auth_err:
-            print(f"[SMTP] Auth failed for {user} ({cred_type}): {auth_err}. Trying backup credentials if available...")
-            last_error = auth_err
-        except Exception as ex:
-            print(f"[SMTP] Failed sending email via {user} ({cred_type}): {ex}")
-            last_error = ex
-
-    return {"status": "error", "error": str(last_error)}
+    except smtplib.SMTPAuthenticationError as auth_err:
+        print(f"[SMTP] Auth failed for {user}: {auth_err}")
+        return {"status": "error", "error": f"SMTP Authentication failed: {auth_err}"}
+    except Exception as ex:
+        print(f"[SMTP] Failed sending email via {user}: {ex}")
+        return {"status": "error", "error": str(ex)}
 
 
 async def send_smtp_email(

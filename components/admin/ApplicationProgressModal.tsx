@@ -61,7 +61,7 @@ export function ApplicationProgressModal({
 
   const hasNotifiedCompleteRef = useRef(false);
 
-  useLockBodyScroll(isOpen);
+  useLockBodyScroll(isOpen || !!selectedScreenshot);
 
   // Reset completion flag and state when batchId changes
   useEffect(() => {
@@ -236,8 +236,8 @@ export function ApplicationProgressModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md">
-      <div className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl sm:rounded-3xl bg-card border border-border/80 shadow-2xl flex flex-col">
+    <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overscroll-contain">
+      <div data-lenis-prevent className="w-full max-w-4xl max-h-[92vh] overflow-hidden rounded-2xl sm:rounded-3xl bg-card border border-border/80 shadow-2xl flex flex-col overscroll-contain">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border/80 shrink-0">
           <div>
@@ -307,7 +307,7 @@ export function ApplicationProgressModal({
         )}
 
         {/* Applications List */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div data-lenis-prevent className="flex-1 overflow-y-auto p-4 sm:p-6 overscroll-contain">
           {loading && !batchStatus && (
             <div className="flex flex-col items-center justify-center py-12">
               <RefreshCw className="w-8 h-8 text-primary animate-spin mb-3" />
@@ -417,10 +417,11 @@ export function ApplicationProgressModal({
       {/* Screenshot Modal */}
       {selectedScreenshot && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-background/95 backdrop-blur-lg"
+          data-lenis-prevent
+          className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-background/95 backdrop-blur-lg overscroll-contain"
           onClick={() => setSelectedScreenshot(null)}
         >
-          <div className="relative max-w-6xl max-h-[90vh] overflow-auto rounded-2xl bg-card border border-border shadow-2xl">
+          <div data-lenis-prevent className="relative max-w-6xl max-h-[90vh] overflow-auto rounded-2xl bg-card border border-border shadow-2xl overscroll-contain">
             <button
               onClick={() => setSelectedScreenshot(null)}
               className="absolute top-4 right-4 p-2 rounded-xl bg-background/80 hover:bg-background text-foreground shadow-lg"

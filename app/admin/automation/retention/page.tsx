@@ -417,8 +417,8 @@ export default function RetentionManagementPage() {
 
       {/* Preview Modal */}
       {previewData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in font-sans">
-          <div className="w-full max-w-lg bg-card/95 border border-primary/40 rounded-2xl p-6 shadow-2xl backdrop-blur-2xl space-y-5">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in font-sans overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-lg bg-card/95 border border-primary/40 rounded-2xl p-6 shadow-2xl backdrop-blur-2xl space-y-5 overscroll-contain">
             <div className="flex items-center justify-between border-b border-border/80 pb-4">
               <h3 className="text-sm font-bold text-foreground uppercase tracking-wider font-mono flex items-center gap-2">
                 <Eye className="w-4 h-4 text-primary" /> Retention Purge Preview: {previewData.pipeline}

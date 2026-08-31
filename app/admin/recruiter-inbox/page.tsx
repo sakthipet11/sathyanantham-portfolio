@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { CustomSelect } from '@/components/ui/custom-select';
 import {
   Inbox,
   Search,
@@ -64,7 +65,6 @@ export default function AdminRecruiterInboxPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<any | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  useLockBodyScroll(!!selectedEmail);
 
   const [draftBody, setDraftBody] = useState<string>('');
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
@@ -81,6 +81,8 @@ export default function AdminRecruiterInboxPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useLockBodyScroll(!!selectedEmail || settingsModalOpen || deleteModalOpen);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -332,6 +334,74 @@ export default function AdminRecruiterInboxPage() {
     return matchesSearch && matchesClass && matchesStat && matchesReview;
   });
 
+  const classificationOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Classifications', count: emails.length },
+    {
+      value: 'INTERVIEW_REQUEST',
+      label: 'Interview Request',
+      count: emails.filter(e => e.classification === 'INTERVIEW_REQUEST' || e.classification === 'INTERVIEW_INVITE').length
+    },
+    {
+      value: 'RESUME_REQUEST',
+      label: 'Resume Request',
+      count: emails.filter(e => e.classification === 'RESUME_REQUEST').length
+    },
+    {
+      value: 'JOB_OFFER',
+      label: 'Job Offer',
+      count: emails.filter(e => e.classification === 'JOB_OFFER').length
+    },
+    {
+      value: 'SALARY_NEGOTIATION',
+      label: 'Salary Negotiation',
+      count: emails.filter(e => e.classification === 'SALARY_NEGOTIATION').length
+    },
+    {
+      value: 'TECHNICAL_ASSESSMENT',
+      label: 'Technical Assessment',
+      count: emails.filter(e => e.classification === 'TECHNICAL_ASSESSMENT').length
+    },
+    {
+      value: 'FOLLOW_UP',
+      label: 'Follow Up',
+      count: emails.filter(e => e.classification === 'FOLLOW_UP').length
+    },
+    {
+      value: 'RECRUITER_CONTACT',
+      label: 'Recruiter Outreach',
+      count: emails.filter(e => e.classification === 'RECRUITER_CONTACT').length
+    },
+    {
+      value: 'APPLICATION_CONFIRMATION',
+      label: 'Application Confirmation',
+      count: emails.filter(e => e.classification === 'APPLICATION_CONFIRMATION').length
+    },
+    {
+      value: 'REJECTION',
+      label: 'Rejection',
+      count: emails.filter(e => e.classification === 'REJECTION').length
+    }
+  ], [emails]);
+
+  const emailStatusOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Statuses', count: emails.length },
+    {
+      value: 'DRAFT_READY',
+      label: 'Draft Ready',
+      count: emails.filter(e => e.status === 'DRAFT_READY').length
+    },
+    {
+      value: 'SENT',
+      label: 'Sent',
+      count: emails.filter(e => e.status === 'SENT').length
+    },
+    {
+      value: 'REJECTED',
+      label: 'Declined',
+      count: emails.filter(e => e.status === 'REJECTED').length
+    }
+  ], [emails]);
+
   const getClassificationBadge = (classification: string) => {
     switch (classification) {
       case 'INTERVIEW_REQUEST':
@@ -534,33 +604,19 @@ export default function AdminRecruiterInboxPage() {
           />
         </div>
 
-        <select
+        <CustomSelect
           value={selectedClassification}
-          onChange={(e) => setSelectedClassification(e.target.value)}
-          className="px-3 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80 transition-colors cursor-pointer"
-        >
-          <option value="ALL">All Classifications</option>
-          <option value="INTERVIEW_REQUEST">Interview Request</option>
-          <option value="RESUME_REQUEST">Resume Request</option>
-          <option value="JOB_OFFER">Job Offer</option>
-          <option value="SALARY_NEGOTIATION">Salary Negotiation</option>
-          <option value="TECHNICAL_ASSESSMENT">Technical Assessment</option>
-          <option value="FOLLOW_UP">Follow Up</option>
-          <option value="RECRUITER_CONTACT">Recruiter Outreach</option>
-          <option value="APPLICATION_CONFIRMATION">Application Confirmation</option>
-          <option value="REJECTION">Rejection</option>
-        </select>
+          onChange={(val) => setSelectedClassification(String(val))}
+          options={classificationOptions}
+          title="Filter by classification"
+        />
 
-        <select
+        <CustomSelect
           value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
-          className="px-3 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80 transition-colors cursor-pointer"
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="DRAFT_READY">Draft Ready</option>
-          <option value="SENT">Sent</option>
-          <option value="REJECTED">Declined</option>
-        </select>
+          onChange={(val) => setSelectedStatus(String(val))}
+          options={emailStatusOptions}
+          title="Filter by status"
+        />
       </div>
 
       {/* Inbound Emails Table */}
@@ -710,8 +766,8 @@ export default function AdminRecruiterInboxPage() {
 
       {/* Comprehensive Email Detail & Reply Drawer */}
       {selectedEmail && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-2xl bg-card/95 border-l border-border/80 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl backdrop-blur-2xl">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-md animate-fade-in overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl bg-card/95 border-l border-border/80 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl backdrop-blur-2xl overscroll-contain">
             {/* Drawer Header */}
             <div className="flex items-start justify-between border-b border-border/80 pb-5">
               <div>
@@ -797,10 +853,10 @@ export default function AdminRecruiterInboxPage() {
                 <select
                   value={selectedResumeId}
                   onChange={(e) => setSelectedResumeId(e.target.value)}
-                  className="flex-1 px-3.5 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground font-mono focus:outline-none focus:border-primary/80 cursor-pointer"
+                  className="theme-select flex-1 px-3.5 py-2.5 bg-card border border-border/80 rounded-xl text-xs text-foreground font-mono focus:outline-none focus:border-primary shadow-xs cursor-pointer"
                 >
                   {availableResumes.map((r) => (
-                    <option key={r.id} value={r.id}>
+                    <option key={r.id} value={r.id} className="bg-card text-foreground">
                       {r.role} ({r.name}) - Score: {r.score}
                     </option>
                   ))}
@@ -896,8 +952,8 @@ export default function AdminRecruiterInboxPage() {
 
       {/* Automation Policy Modal */}
       {settingsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-card border border-border/80 rounded-2xl p-6 shadow-2xl space-y-5">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4 animate-fade-in overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-md bg-card border border-border/80 rounded-2xl p-6 shadow-2xl space-y-5 overscroll-contain">
             <div className="flex items-center justify-between border-b border-border/80 pb-3">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-primary" /> Recruiter Automation Policy

@@ -29,6 +29,9 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
           wheelMultiplier: 1,
         });
 
+        // Store reference globally for body scroll locking coordination
+        (window as any).__lenis = lenisInstance;
+
         function raf(time: number) {
           if (lenisInstance && isMounted) {
             lenisInstance.raf(time);
@@ -43,9 +46,33 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
 
     initLenis();
 
+    const handleLock = () => {
+      if (lenisInstance) {
+        try {
+          lenisInstance.stop();
+        } catch {}
+      }
+    };
+
+    const handleUnlock = () => {
+      if (lenisInstance) {
+        try {
+          lenisInstance.start();
+        } catch {}
+      }
+    };
+
+    window.addEventListener('lock-body-scroll', handleLock);
+    window.addEventListener('unlock-body-scroll', handleUnlock);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('lock-body-scroll', handleLock);
+      window.removeEventListener('unlock-body-scroll', handleUnlock);
       if (lenisInstance) {
+        if ((window as any).__lenis === lenisInstance) {
+          delete (window as any).__lenis;
+        }
         lenisInstance.destroy();
       }
     };

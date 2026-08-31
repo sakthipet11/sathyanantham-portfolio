@@ -34,6 +34,7 @@ import {
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import Link from 'next/link';
 
 interface ApplicationItem {
@@ -136,6 +137,8 @@ export default function ApplicationsPage() {
   const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  useLockBodyScroll(!!selectedApp || !!emailModalApp || deleteModalOpen);
+
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -158,17 +161,20 @@ export default function ApplicationsPage() {
         const data = await res.json();
         const appsList: ApplicationItem[] = data.applications || [];
         setApplications(appsList);
-        if (data.metrics) {
+        
+        const fallbackMetrics: ApplicationMetrics = {
+          total_applications: appsList.length,
+          ready_for_review_count: appsList.filter(a => a.status === 'READY_FOR_REVIEW' || a.status === 'DRAFT').length,
+          submitted_count: appsList.filter(a => a.status === 'SUBMITTED' || a.status === 'EMAIL_SENT' || a.status === 'APPLIED').length,
+          in_progress_count: appsList.filter(a => a.status === 'QUEUED' || a.status === 'PROCESSING' || a.status === 'SUBMITTING').length,
+          failed_count: appsList.filter(a => a.status === 'FAILED' || a.status === 'MANUAL_REQUIRED').length,
+          email_sent_count: appsList.filter(a => !!a.email_sent_to || a.status === 'EMAIL_SENT').length
+        };
+
+        if (data.metrics && (data.metrics.total_applications > 0 || appsList.length === 0)) {
           setMetrics(data.metrics);
         } else {
-          setMetrics({
-            total_applications: appsList.length,
-            ready_for_review_count: appsList.filter(a => a.status === 'READY_FOR_REVIEW').length,
-            submitted_count: appsList.filter(a => a.status === 'SUBMITTED' || a.status === 'EMAIL_SENT').length,
-            in_progress_count: appsList.filter(a => a.status === 'QUEUED' || a.status === 'PROCESSING').length,
-            failed_count: appsList.filter(a => a.status === 'FAILED').length,
-            email_sent_count: appsList.filter(a => !!a.email_sent_to).length
-          });
+          setMetrics(fallbackMetrics);
         }
       }
     } catch (err) {
@@ -197,10 +203,21 @@ export default function ApplicationsPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.application) {
-          setSelectedApp(data.application);
-          setEditCoverLetter(data.application.cover_letter || '');
-          setEditResumeRole(data.application.matched_resume_role || 'Lead Frontend Architect');
-          setEditResumeUrl(data.application.matched_resume_url || '/downloads/Sathyanantham_V_Frontend_Architect_2026.pdf');
+          setSelectedApp(prev => ({
+            ...prev,
+            ...data.application,
+            company: data.application.company || prev?.company || app.company,
+            role_title: data.application.role_title || data.application.job_title || prev?.role_title || app.role_title,
+            job_title: data.application.job_title || data.application.role_title || prev?.job_title || app.job_title,
+            location: data.application.location || prev?.location || app.location,
+            apply_url: data.application.apply_url || prev?.apply_url || app.apply_url,
+            cover_letter: data.application.cover_letter || prev?.cover_letter || app.cover_letter,
+            matched_resume_url: data.application.matched_resume_url || prev?.matched_resume_url || app.matched_resume_url,
+            matched_resume_role: data.application.matched_resume_role || prev?.matched_resume_role || app.matched_resume_role
+          }));
+          setEditCoverLetter(data.application.cover_letter || app.cover_letter || '');
+          setEditResumeRole(data.application.matched_resume_role || app.matched_resume_role || 'Lead Frontend Architect');
+          setEditResumeUrl(data.application.matched_resume_url || app.matched_resume_url || '/downloads/Sathyanantham_V_Frontend_Architect_2026.pdf');
         }
         if (data.events) {
           setAppEvents(data.events);
@@ -249,16 +266,17 @@ export default function ApplicationsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          application_id: emailModalApp.id,
           recipient_email: emailRecipient.trim(),
           subject: emailSubject.trim(),
           cover_letter: emailBody.trim(),
           resume_file_name: emailResumeFile
         })
-      }, 15000);
+      }, 45000);
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Failed to dispatch email');
+        throw new Error(errData.detail || `Failed to dispatch email (HTTP ${res.status})`);
       }
 
       const data = await res.json();
@@ -266,7 +284,10 @@ export default function ApplicationsPage() {
       setEmailModalApp(null);
       fetchApplications();
     } catch (err: any) {
-      showToast(err.message || 'Error dispatching application email');
+      const msg = err.name === 'AbortError' 
+        ? 'Request timed out while dispatching email via SMTP. Please try again.'
+        : (err.message || 'Error dispatching application email');
+      showToast(msg);
     } finally {
       setIsSendingEmail(false);
     }
@@ -408,7 +429,7 @@ export default function ApplicationsPage() {
 
       // Status
       if (statusFilter === 'READY_FOR_REVIEW') return app.status === 'READY_FOR_REVIEW' || app.status === 'DRAFT';
-      if (statusFilter === 'SUBMITTED') return app.status === 'SUBMITTED' || app.status === 'EMAIL_SENT';
+      if (statusFilter === 'SUBMITTED') return app.status === 'SUBMITTED' || app.status === 'EMAIL_SENT' || app.status === 'APPLIED';
       if (statusFilter === 'IN_PROGRESS') return app.status === 'QUEUED' || app.status === 'PROCESSING' || app.status === 'SUBMITTING';
       if (statusFilter === 'FAILED') return app.status === 'FAILED' || app.status === 'MANUAL_REQUIRED';
 
@@ -806,8 +827,8 @@ export default function ApplicationsPage() {
 
       {/* Review & Edit Drawer / Modal */}
       {selectedApp && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl bg-card border-l border-border/80 h-full overflow-y-auto p-6 space-y-6 shadow-2xl flex flex-col justify-between">
+        <div data-lenis-prevent className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex justify-end animate-in fade-in duration-200 overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl bg-card border-l border-border/80 h-full overflow-y-auto p-6 space-y-6 shadow-2xl flex flex-col justify-between overscroll-contain">
             <div className="space-y-6">
               {/* Drawer Header */}
               <div className="flex items-start justify-between border-b border-border/60 pb-4">
@@ -1009,8 +1030,8 @@ export default function ApplicationsPage() {
 
       {/* Email Application Dispatch Modal */}
       {emailModalApp && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-card border border-border/80 rounded-3xl p-5 sm:p-7 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div data-lenis-prevent className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl bg-card border border-border/80 rounded-3xl p-5 sm:p-7 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain">
             <div className="flex items-start justify-between border-b border-border/60 pb-4">
               <div>
                 <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">

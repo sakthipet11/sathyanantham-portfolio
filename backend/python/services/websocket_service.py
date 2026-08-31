@@ -22,14 +22,15 @@ class WebSocketConnectionManager:
         await websocket.accept()
         self.sathyanantham_hosts.append(websocket)
         self.is_sathyanantham_online = True
-        await self.broadcast_presence_to_visitors(True)
+        await self.broadcast_presence(True)
         await self.broadcast_sessions_update()
 
-    def disconnect_sathyanantham(self, websocket: WebSocket):
+    async def disconnect_sathyanantham(self, websocket: WebSocket):
         if websocket in self.sathyanantham_hosts:
             self.sathyanantham_hosts.remove(websocket)
         if len(self.sathyanantham_hosts) == 0:
             self.is_sathyanantham_online = False
+            await self.broadcast_presence(False)
 
     async def broadcast_to_sathyanantham(self, message: Dict[str, Any]):
         for host_ws in list(self.sathyanantham_hosts):
@@ -54,7 +55,8 @@ class WebSocketConnectionManager:
             except Exception:
                 pass
 
-    async def broadcast_presence_to_visitors(self, online: bool):
+    async def broadcast_presence(self, online: bool):
+        self.is_sathyanantham_online = online
         payload = {
             "type": "presence_update",
             "is_online": online,
@@ -65,5 +67,13 @@ class WebSocketConnectionManager:
                 await visitor_ws.send_json(payload)
             except Exception:
                 pass
+        for host_ws in list(self.sathyanantham_hosts):
+            try:
+                await host_ws.send_json(payload)
+            except Exception:
+                pass
+
+    async def broadcast_presence_to_visitors(self, online: bool):
+        await self.broadcast_presence(online)
 
 ws_manager = WebSocketConnectionManager()

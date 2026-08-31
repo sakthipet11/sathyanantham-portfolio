@@ -10,6 +10,7 @@ from email.mime.application import MIMEApplication
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 import hashlib
+import asyncio
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -35,16 +36,6 @@ class GmailMCPClient:
         return (os.getenv("EMAIL_APP_PASSWORD") or "qhvllsexeewpgpww").strip()
 
     @property
-    def backup_email_address(self) -> str:
-        load_dotenv()
-        return (os.getenv("BACKUP_EMAIL_ADDRESS") or "v.sathyanantham@gmail.com").strip()
-
-    @property
-    def backup_app_password(self) -> str:
-        load_dotenv()
-        return (os.getenv("BACKUP_EMAIL_APP_PASSWORD") or "qhvllsexeewpgpww").strip()
-
-    @property
     def smtp_server(self) -> str:
         load_dotenv()
         return (os.getenv("EMAIL_SMTP_SERVER") or "smtp.gmail.com").strip()
@@ -63,10 +54,7 @@ class GmailMCPClient:
         return (os.getenv("USE_EMAIL", "true")).lower() == "true"
 
     def is_configured(self) -> bool:
-        return bool(
-            (self.email_address and self.app_password) or
-            (self.backup_email_address and self.backup_app_password)
-        ) and self.use_email
+        return bool(self.email_address and self.app_password) and self.use_email
 
     def _decode_mime_words(self, s: str) -> str:
         if not s:
@@ -192,6 +180,44 @@ class GmailMCPClient:
 
         return messages_list
 
+    def _send_smtp_sync(self, msg: MIMEMultipart, to: str, attached_files: List[str]) -> None:
+        """
+        Synchronous SMTP delivery using primary credentials with port fallback (465 SSL -> 587 STARTTLS).
+        Executed in threadpool via asyncio.to_thread.
+        """
+        if not self.is_configured():
+            print(f"[GMAIL_MCP] Live email dispatch simulation: Recipient: {to}, Subject: {msg['Subject']}, Attached: {attached_files}")
+            return
+
+        user = self.email_address
+        pwd = self.app_password
+
+        try:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context, timeout=15) as server:
+                server.login(user, pwd)
+                server.send_message(msg)
+            print(f"[GMAIL_MCP] Successfully transmitted live email to {to} via {user} on {self.smtp_server}:{self.smtp_port}")
+            return
+        except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ssl.SSLError) as conn_err:
+            print(f"[GMAIL_MCP] Port {self.smtp_port} failed ({conn_err}), attempting STARTTLS on port 587...")
+            try:
+                with smtplib.SMTP(self.smtp_server, 587, timeout=15) as server:
+                    server.starttls(context=context)
+                    server.login(user, pwd)
+                    server.send_message(msg)
+                print(f"[GMAIL_MCP] Successfully transmitted live email via STARTTLS port 587 using {user}!")
+                return
+            except Exception as err2:
+                print(f"[GMAIL_MCP] SMTP STARTTLS failed for {user}: {err2}")
+                raise RuntimeError(f"SMTP transmission failed on port 587 for {to}: {err2}") from err2
+        except smtplib.SMTPAuthenticationError as auth_err:
+            print(f"[GMAIL_MCP] Auth failed for {user}: {auth_err}")
+            raise RuntimeError(f"SMTP authentication failed for {user}: {auth_err}") from auth_err
+        except Exception as e:
+            print(f"[GMAIL_MCP] Error transmitting via {user}: {e}")
+            raise RuntimeError(f"SMTP transmission failed for {to}: {e}") from e
+
     async def send_message(
         self,
         to: str,
@@ -262,44 +288,8 @@ class GmailMCPClient:
             except Exception as e:
                 print(f"[GMAIL_MCP] Error attaching file {target_p}: {e}")
 
-        # Real SMTP Transmission
-        if self.is_configured():
-            credential_pairs = [
-                (self.email_address, self.app_password),
-                (self.backup_email_address, self.backup_app_password)
-            ]
-            sent_success = False
-            for user, pwd in credential_pairs:
-                if not user or not pwd:
-                    continue
-                try:
-                    context = ssl.create_default_context()
-                    with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, context=context, timeout=12) as server:
-                        server.login(user, pwd)
-                        server.send_message(msg)
-                    print(f"[GMAIL_MCP] Successfully transmitted live email to {to} via {user} on {self.smtp_server}:{self.smtp_port}")
-                    sent_success = True
-                    break
-                except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ssl.SSLError) as conn_err:
-                    print(f"[GMAIL_MCP] Port {self.smtp_port} failed ({conn_err}), attempting STARTTLS on port 587...")
-                    try:
-                        with smtplib.SMTP(self.smtp_server, 587, timeout=12) as server:
-                            server.starttls(context=context)
-                            server.login(user, pwd)
-                            server.send_message(msg)
-                        print(f"[GMAIL_MCP] Successfully transmitted live email via STARTTLS port 587 using {user}!")
-                        sent_success = True
-                        break
-                    except Exception as err2:
-                        print(f"[GMAIL_MCP] SMTP transmission warning for {user}: {err2}")
-                except smtplib.SMTPAuthenticationError as auth_err:
-                    print(f"[GMAIL_MCP] Auth failed for {user}: {auth_err}. Trying backup credentials if available...")
-                    continue
-                except Exception as e:
-                    print(f"[GMAIL_MCP] Error transmitting via {user}: {e}")
-                    continue
-        else:
-            print(f"[GMAIL_MCP] Live email dispatch simulation: Recipient: {to}, Subject: {subject}, Attached: {attached_files}")
+        # Real SMTP Transmission via threadpool to avoid blocking FastAPI event loop
+        await asyncio.to_thread(self._send_smtp_sync, msg, to, attached_files)
 
         return {
             "status": "SENT",

@@ -371,14 +371,15 @@ export function AdminSidebar() {
 
       {/* MOBILE SLIDE-OVER DRAWER OVERLAY */}
       {isMobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
+        <div data-lenis-prevent className="md:hidden fixed inset-0 z-50 flex overscroll-contain">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
+            data-lenis-prevent
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity overscroll-contain"
             onClick={() => setIsMobileOpen(false)}
           />
           {/* Drawer Content */}
-          <div className="relative z-50 w-72 max-w-[85vw] bg-card border-r border-border/80 h-full flex flex-col justify-between shadow-2xl overflow-y-auto">
+          <div data-lenis-prevent className="relative z-50 w-72 max-w-[85vw] bg-card border-r border-border/80 h-full flex flex-col justify-between shadow-2xl overflow-y-auto overscroll-contain">
             {renderNavContent(() => setIsMobileOpen(false))}
           </div>
         </div>

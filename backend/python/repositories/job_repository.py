@@ -135,54 +135,106 @@ class JobRepository:
 
     def list_job_sources(self) -> List[Dict[str, Any]]:
         """
-        Lists single authoritative JSearch job source with live job counts and health tracking.
+        Lists all active job sources with live job counts and health tracking.
+        Aggregates both configured API sources and actual portal types from indexed jobs.
         """
-        sources: List[Dict[str, Any]] = []
+        sources_dict: Dict[str, Dict[str, Any]] = {}
         url = os.getenv("JSEARCH_BASE_URL", "https://api.openwebninja.com/jsearch/search-v2")
-        pg_conn = self.db._get_pg_connection()
-        if pg_conn:
-            try:
-                with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                    cur.execute("""
-                        SELECT 
-                            js.id,
-                            js.name,
-                            js.base_url,
-                            js.source_type,
-                            js.is_active,
-                            js.last_scanned_at,
-                            js.created_at,
-                            COUNT(j.id) AS job_count
-                        FROM job_sources js
-                        LEFT JOIN jobs j ON (j.source_id = js.id OR LOWER(j.source) = LOWER(js.name) OR LOWER(j.portal_type) = LOWER(js.name))
-                        WHERE LOWER(js.name) = 'jsearch'
-                        GROUP BY js.id, js.name, js.base_url, js.source_type, js.is_active, js.last_scanned_at, js.created_at;
-                    """)
-                    rows = cur.fetchall()
-                    if rows:
-                        sources = [_sanitize_record(dict(r)) for r in rows]
-                    else:
-                        jsearch_src = self.get_or_create_job_source("jsearch", url)
-                        if jsearch_src:
-                            cur.execute("SELECT COUNT(*) FROM jobs;")
-                            cnt = cur.fetchone().get("count", 0) if cur.rowcount else 0
-                            jsearch_src["job_count"] = cnt
-                            sources = [jsearch_src]
-            except Exception as e:
-                print(f"[JOB_REPO] Error in list_job_sources: {e}")
-            finally:
-                pg_conn.close()
 
-        if not sources:
-            sources = [{
+        # 1. Supabase Client Path
+        if self.db.client:
+            try:
+                # Fetch configured job sources
+                js_res = self.db.client.table("job_sources").select("*").execute()
+                for js in (js_res.data or []):
+                    name = (js.get("name") or "").lower()
+                    if name:
+                        sources_dict[name] = {
+                            "id": js.get("id"),
+                            "name": name,
+                            "base_url": js.get("base_url", ""),
+                            "source_type": js.get("source_type", "api"),
+                            "is_active": js.get("is_active", True),
+                            "job_count": 0
+                        }
+
+                # Query distinct jobs to get real job counts per portal_type/source
+                jobs_res = self.db.client.table("jobs").select("portal_type, source").execute()
+                for j in (jobs_res.data or []):
+                    pt = (j.get("portal_type") or j.get("source") or "unknown").lower()
+                    if pt:
+                        if pt not in sources_dict:
+                            sources_dict[pt] = {
+                                "id": f"source-{pt}",
+                                "name": pt,
+                                "base_url": "",
+                                "source_type": "portal",
+                                "is_active": True,
+                                "job_count": 0
+                            }
+                        sources_dict[pt]["job_count"] += 1
+            except Exception as e:
+                print(f"[JOB_REPO] Error in Supabase list_job_sources: {e}")
+
+        # 2. PostgreSQL Direct Connection Path
+        if not sources_dict:
+            pg_conn = self.db._get_pg_connection()
+            if pg_conn:
+                try:
+                    with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                        cur.execute("""
+                            SELECT 
+                                js.id,
+                                js.name,
+                                js.base_url,
+                                js.source_type,
+                                js.is_active,
+                                js.last_scanned_at,
+                                js.created_at,
+                                COUNT(j.id) AS job_count
+                            FROM job_sources js
+                            LEFT JOIN jobs j ON (j.source_id = js.id OR LOWER(j.source) = LOWER(js.name) OR LOWER(j.portal_type) = LOWER(js.name))
+                            GROUP BY js.id, js.name, js.base_url, js.source_type, js.is_active, js.last_scanned_at, js.created_at;
+                        """)
+                        rows = cur.fetchall()
+                        if rows:
+                            for r in rows:
+                                item = _sanitize_record(dict(r))
+                                name = (item.get("name") or "").lower()
+                                sources_dict[name] = item
+                except Exception as e:
+                    print(f"[JOB_REPO] Error in PG list_job_sources: {e}")
+                finally:
+                    pg_conn.close()
+
+        # 3. Fallback to in-memory jobs if empty
+        if not sources_dict:
+            for j in self._in_memory_jobs.values():
+                pt = (j.get("portal_type") or j.get("source") or "unknown").lower()
+                if pt not in sources_dict:
+                    sources_dict[pt] = {
+                        "id": f"source-{pt}",
+                        "name": pt,
+                        "base_url": "",
+                        "source_type": "portal",
+                        "is_active": True,
+                        "job_count": 0
+                    }
+                sources_dict[pt]["job_count"] += 1
+
+        # Always guarantee jsearch is present
+        if "jsearch" not in sources_dict:
+            sources_dict["jsearch"] = {
                 "id": "00000000-0000-0000-0000-000000000010",
                 "name": "jsearch",
                 "base_url": url,
                 "source_type": "api",
                 "is_active": True,
-                "job_count": len(self._in_memory_jobs)
-            }]
-        return sources
+                "job_count": 0
+            }
+
+        # Sort sources with jobs first, then alphabetically
+        return sorted(list(sources_dict.values()), key=lambda s: (-s.get("job_count", 0), s.get("name", "")))
 
     def get_job_by_id(self, job_id: str) -> Optional[Dict[str, Any]]:
         if self.db.client:

@@ -592,11 +592,11 @@ function AdminSettingsContent() {
                 <select
                   value={generalConfig.environment}
                   onChange={(e) => setGeneralConfig({ ...generalConfig, environment: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs font-mono text-foreground focus:outline-none focus:border-primary/80"
+                  className="theme-select w-full px-3.5 py-2.5 bg-card border border-border/80 rounded-xl text-xs font-mono text-foreground focus:outline-none focus:border-primary cursor-pointer shadow-xs transition"
                 >
-                  <option value="production">Production (Hardened Security)</option>
-                  <option value="staging">Staging Sandbox</option>
-                  <option value="development">Local Development</option>
+                  <option value="production" className="bg-card text-foreground">Production (Hardened Security)</option>
+                  <option value="staging" className="bg-card text-foreground">Staging Sandbox</option>
+                  <option value="development" className="bg-card text-foreground">Local Development</option>
                 </select>
               </div>
 
@@ -605,10 +605,10 @@ function AdminSettingsContent() {
                 <select
                   value={aiConfig.primary_provider}
                   onChange={(e) => setAiConfig({ ...aiConfig, primary_provider: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs font-mono text-foreground focus:outline-none focus:border-primary/80"
+                  className="theme-select w-full px-3.5 py-2.5 bg-card border border-border/80 rounded-xl text-xs font-mono text-foreground focus:outline-none focus:border-primary cursor-pointer shadow-xs transition"
                 >
-                  <option value="Gemini 2.0 Flash / Pro">Google Gemini 2.0 Flash / Pro (Default)</option>
-                  <option value="OpenRouter RAG Fallback">OpenRouter RAG Engine</option>
+                  <option value="Gemini 2.0 Flash / Pro" className="bg-card text-foreground">Google Gemini 2.0 Flash / Pro (Default)</option>
+                  <option value="OpenRouter RAG Fallback" className="bg-card text-foreground">OpenRouter RAG Engine</option>
                 </select>
               </div>
 

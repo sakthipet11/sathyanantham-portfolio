@@ -168,5 +168,66 @@ Highlight Sathyanantham's 13+ years of software engineering leadership, Micro Fr
 3. Be helpful, concise, and structured in markdown.
 """
 
+    def build_fallback_answer(self, user_query: str = "") -> str:
+        q = (user_query or "").lower().strip()
+        if any(k in q for k in ["explain", "yourself", "who are you", "summary", "about you", "introduction", "bio", "tell me"]):
+            return (
+                "**Sathyanantham V — Lead Software Engineer & AI Architect**\n\n"
+                "I am a Lead Software Engineer, Frontend Architect, and Generative AI Practitioner with **13+ years of enterprise experience** based in **Coimbatore, Tamil Nadu, India**.\n\n"
+                "### Core Highlights:\n"
+                "- **Leadership & Engineering**: Currently leading an 8-engineer team at **Nextuple Inc.**, architecting enterprise Order Management Systems (SKU Ranking, Promise Engine, Picking, Packing, Staging, Hub) and Micro Frontends using Module Federation across 15+ enterprise applications.\n"
+                "- **AI & Claude Skills Innovation**: Spearheaded the **Claude Skills Initiative**, developing reusable AI skills that automated UI Schema generation, test suites, and documentation—compressing development time from ~20 days to 5 days. Integrated IBM watsonx / AI chatbots into enterprise call center applications.\n"
+                "- **Proven Enterprise Delivery**: Architected 30+ global digital platforms for Bayer and the US Bank authentication portal at Cognizant, plus Kohl's Mobile & Tablet (m.kohls.com), Adidas, and Kraft platforms at Infosys/Skava.\n"
+                "- **Education & Awards**: Master of Computer Applications (MCA, 8.28 CGPA / 82.8%) from Dr. Mahalingam College of Engineering & Technology; Top Performer of 2023 at Nextuple, Best Performer 2019 & 2020 at Cognizant.\n\n"
+                "Feel free to ask about any specific project, architectural challenge, or how to connect!"
+            )
+        elif any(k in q for k in ["experience", "work", "background", "company", "career", "nextuple", "cognizant", "infosys", "skava"]):
+            return (
+                "### Professional Experience (13+ Years)\n\n"
+                "1. **Nextuple Inc. (Aug 2022 – Present)** — *Lead Software Engineer*\n"
+                "   - Leads a high-performing 8-member engineering team across frontend and backend.\n"
+                "   - Architected Micro Frontends using Module Federation across 15+ modules and built Nextuple Enterprise OMS platforms.\n"
+                "   - Spearheaded the Claude Skills Initiative (reducing dev cycle from ~20 to 5 days) and integrated IBM AI chatbots.\n"
+                "   - *Awards*: Top Performer 2023 & Monthly Spot Award.\n\n"
+                "2. **Cognizant Technology Solutions (Nov 2018 – Aug 2022)** — *Senior Associate*\n"
+                "   - Architected 30+ global digital platforms for Bayer and the US Bank authentication portal.\n"
+                "   - *Awards*: Best Performer Award 2019 & 2020.\n\n"
+                "3. **Skava Systems / Infosys (July 2012 – Nov 2018)** — *Dev Lead & Senior Software Engineer*\n"
+                "   - Led Kohl's Omnichannel Mobile & Tablet platforms (m.kohls.com), Toys\"R\"Us, Kraft Foods, Adidas & Reebok.\n"
+                "   - *Awards*: Skava Star Performer 2013 & 2015."
+            )
+        elif any(k in q for k in ["skill", "tech", "stack", "react", "typescript", "architecture", "ai", "claude"]):
+            return (
+                "### Core Technical Architecture & Skills\n\n"
+                "- **Frontend Engineering**: React 19, Next.js 15, TypeScript, Micro Frontend Architecture (Webpack Module Federation), Redux Toolkit, Tailwind CSS, Vite.\n"
+                "- **AI & Automation**: Claude AI & Agentic Skills, IBM AI Chatbot Integration, RAG Pipelines, Prompt Engineering, Automated UI/Test Gen.\n"
+                "- **Enterprise & Backend**: Order Management Systems (OMS), IBM Sterling OMS, Python (FastAPI), Node.js, Spring Boot, PostgreSQL, Docker, AWS/GCP."
+            )
+        elif any(k in q for k in ["education", "college", "degree", "mca", "university"]):
+            return (
+                "### Educational Qualifications\n\n"
+                "- **Master of Computer Applications (MCA)**: Dr. Mahalingam College of Engineering and Technology, Pollachi, Tamil Nadu (2009 – 2012) — **8.28 CGPA / 82.8%**\n"
+                "- **Bachelor of Science in Computer Science (B.Sc CS)**: Nallamuthu Gounder Mahalingam College, Pollachi, Tamil Nadu (2006 – 2009) — **78.51%**"
+            )
+        elif any(k in q for k in ["location", "city", "where", "contact", "email", "phone", "reach"]):
+            return (
+                "### Location & Contact Information\n\n"
+                "- **Location**: Coimbatore, Tamil Nadu, India (Open to Remote / Strategic Relocation)\n"
+                "- **Email**: [v.sathyanantham@gmail.com](mailto:v.sathyanantham@gmail.com)\n"
+                "- **Phone**: +91 8870956756\n"
+                "- **LinkedIn**: [linkedin.com/in/sathyanantham-v-646b911b](https://www.linkedin.com/in/sathyanantham-v-646b911b)\n"
+                "- **GitHub**: [github.com/sakthipet11](https://github.com/sakthipet11)"
+            )
+        else:
+            return (
+                f"**Sathyanantham V — AI Digital Twin**\n\n"
+                "I can assist you with details regarding Sathyanantham's 13+ years of experience as a Lead Software Engineer & Frontend Architect, including:\n\n"
+                "- **Enterprise Leadership at Nextuple**: Micro Frontends, OMS architecture, and Claude Skills automation.\n"
+                "- **Cognizant & Bayer**: 30+ enterprise digital sites and US Bank portal.\n"
+                "- **Infosys / Skava**: Kohl's Mobile, Adidas, and Reebok e-commerce engines.\n"
+                "- **Education & Certifications**: MCA (8.28 CGPA), Claude Agentic Skills, and Cloud architectures.\n\n"
+                "You can also download his complete [Resume PDF](/resume.pdf) directly."
+            )
+
 kb = KnowledgeBase()
 

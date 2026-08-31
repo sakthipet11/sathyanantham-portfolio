@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getApiHost } from '@/lib/utils';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 export interface ProjectItem {
   id: string | number;
@@ -72,16 +73,7 @@ export function ProjectsSection() {
     loadProjectsFromDB();
   }, []);
 
-  useEffect(() => {
-    if (selectedProject) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [selectedProject]);
+  useLockBodyScroll(!!selectedProject);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (containerRef.current) {
@@ -207,16 +199,18 @@ export function ProjectsSection() {
       {/* Deep-Dive Glass Modal */}
       {mounted && selectedProject && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-2xl animate-in fade-in duration-200"
+          data-lenis-prevent
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-background/80 backdrop-blur-2xl animate-in fade-in duration-200 overscroll-contain"
           onClick={() => setSelectedProject(null)}
         >
           <Card
-            className="relative w-full max-w-2xl bg-card/95 border border-border/90 rounded-3xl shadow-2xl max-h-[85vh] flex flex-col backdrop-blur-2xl overflow-hidden my-auto"
+            data-lenis-prevent
+            className="relative w-full max-w-2xl bg-card/95 border border-border/90 rounded-3xl shadow-2xl max-h-[85vh] flex flex-col backdrop-blur-2xl overflow-hidden my-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
 
             {/* Header */}
-            <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/70 p-6 sm:p-8 flex items-start justify-between gap-4 shrink-0">
+            <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-xl border-b border-border/70 p-6 sm:p-8 flex items-start justify-between gap-4 shrink-0 overscroll-contain">
               <div>
                 <Badge variant="default" className="text-xs font-mono px-3 py-1 bg-primary/10 text-primary border-primary/20">
                   {selectedProject.num} // {selectedProject.category}
@@ -234,7 +228,7 @@ export function ProjectsSection() {
             </div>
 
             {/* Content */}
-            <div className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1">
+            <div data-lenis-prevent className="p-6 sm:p-8 space-y-6 overflow-y-auto flex-1 overscroll-contain">
               <div>
                 <h4 className="text-xs font-mono font-semibold uppercase text-muted-foreground mb-2">// OVERVIEW</h4>
                 <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed font-normal">{selectedProject.description}</p>
