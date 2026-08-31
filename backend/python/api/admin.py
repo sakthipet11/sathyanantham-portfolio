@@ -153,10 +153,32 @@ class AdminChatSendRequest(BaseModel):
     session_id: str
     content: str
 
+class SessionStatusUpdateRequest(BaseModel):
+    session_id: str
+    status: str
+    content: Optional[str] = None
+
+@router.post("/chat/sessions/status", dependencies=[Depends(verify_admin_token)])
+async def update_chat_session_status(req: SessionStatusUpdateRequest):
+    db_helper.upsert_chat_session(req.session_id, status=req.status)
+    announcement = req.content or ("Sathyanantham V has joined the chat in person." if req.status == "live_human" else "Sathyanantham AI Twin has resumed autonomous conversation mode.")
+    db_helper.insert_chat_message(req.session_id, "system", announcement)
+    await ws_manager.send_to_visitor(req.session_id, {
+        "type": "mode_update",
+        "mode": req.status,
+        "message": announcement
+    })
+    await ws_manager.broadcast_sessions_update()
+    return {"status": "success", "session_id": req.session_id, "mode": req.status}
+
 @router.post("/chat/send", dependencies=[Depends(verify_admin_token)])
 async def send_admin_chat_message(req: AdminChatSendRequest):
     db_helper.upsert_chat_session(req.session_id, status="live_human")
     db_helper.insert_chat_message(req.session_id, "assistant", f"[Live] {req.content}")
+    await ws_manager.send_to_visitor(req.session_id, {
+        "type": "mode_update",
+        "mode": "live_human"
+    })
     await ws_manager.send_to_visitor(req.session_id, {
         "type": "human_response",
         "sender": "Sathyanantham V (Live)",
@@ -182,8 +204,7 @@ def delete_cms_item(req: CmsDeleteRequest):
 
 @router.post("/presence", dependencies=[Depends(verify_admin_token)])
 async def toggle_admin_presence(req: PresenceToggleRequest):
-    ws_manager.is_sathyanantham_online = req.is_online
-    await ws_manager.broadcast_presence_to_visitors(req.is_online)
+    await ws_manager.broadcast_presence(req.is_online)
     return {
         "status": "success",
         "is_online": ws_manager.is_sathyanantham_online,

@@ -182,6 +182,13 @@ export function useAITwin() {
       setIsLoading(false);
     }
   }, [selectedModel, sessionId, addMessage, updateLastAssistantMessage]);
+  // Reset offline takeover tracker when admin comes online
+  useEffect(() => {
+    if (isSathyananthamOnline) {
+      addedOfflineTakeoverRef.current = false;
+    }
+  }, [isSathyananthamOnline]);
+
   // Fallback to AI Twin if visitor switches to live mode while admin is offline
   useEffect(() => {
     if (chatMode === 'live_human' && !isSathyananthamOnline) {
@@ -265,6 +272,19 @@ export function useAITwin() {
           
           if (data.type === 'presence_update') {
             setSathyananthamOnline(data.is_online);
+          } else if (data.type === 'mode_update') {
+            if (data.mode === 'live_human' || data.mode === 'ai_twin') {
+              setChatMode(data.mode);
+            }
+            if (data.message) {
+              addMessage({
+                id: `system-mode-${Date.now()}`,
+                role: 'assistant',
+                senderName: 'System Monitor',
+                content: data.message,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              });
+            }
           } else if (data.type === 'ai_stream_chunk') {
             setIsLoading(false);
             const currentMsgs = messagesRef.current;
@@ -285,6 +305,7 @@ export function useAITwin() {
             setIsLoading(false);
           } else if (data.type === 'human_response') {
             setIsLoading(false);
+            setChatMode('live_human');
             addMessage({
               id: `live-${Date.now()}`,
               role: 'assistant',
@@ -292,17 +313,6 @@ export function useAITwin() {
               content: data.content,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
-
-            // If visitor has live mode off, guide them on how to respond!
-            if (chatModeRef.current === 'ai_twin') {
-              addMessage({
-                id: `system-live-prompt-${Date.now()}`,
-                role: 'assistant',
-                senderName: 'Sathyanantham AI Twin',
-                content: "Sathyanantham V is currently online and has messaged you! If you would like to reply directly, please enable **Live Handoff Mode** at the top of the chat (which will notify him). Otherwise, you can continue chatting with me (his AI Twin).",
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              });
-            }
           } else if (data.type === 'system') {
             setIsLoading(false);
             addMessage({
@@ -333,16 +343,13 @@ export function useAITwin() {
       console.error('Error creating WebSocket:', err);
       return null;
     }
-  }, [sessionId, addMessage, updateLastAssistantMessage, setSathyananthamOnline]);
+  }, [sessionId, addMessage, updateLastAssistantMessage, setSathyananthamOnline, setChatMode]);
 
   // Connect on mount or when session ID is set
   useEffect(() => {
     if (sessionId && typeof window !== 'undefined') {
       connectWebSocket();
     }
-    return () => {
-      // Keep socket open so chat is persistent, but clean up listeners if needed
-    };
   }, [sessionId, connectWebSocket]);
 
   // Handle live chat takeover request
@@ -354,7 +361,6 @@ export function useAITwin() {
         notes: reason
       }));
     } else {
-      // If server is offline, just simulate the response
       setIsLoading(true);
       setTimeout(() => {
         addMessage({
@@ -369,12 +375,28 @@ export function useAITwin() {
     }
   }, [connectWebSocket, addMessage]);
 
-  // Monitor chatMode changes. If switched to live, trigger handoff request.
-  useEffect(() => {
-    if (chatMode === 'live_human') {
-      requestHandoff("Visitor switched chat panel to Live Takeover Mode");
+  // Release live chat back to AI Twin
+  const releaseHandoff = useCallback(() => {
+    const socket = connectWebSocket();
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        type: 'release_handoff'
+      }));
     }
-  }, [chatMode, requestHandoff]);
+  }, [connectWebSocket]);
+
+  // Monitor chatMode changes. If switched to live, trigger handoff request. If switched to ai_twin, release handoff.
+  const prevChatModeRef = useRef(chatMode);
+  useEffect(() => {
+    if (prevChatModeRef.current !== chatMode) {
+      if (chatMode === 'live_human') {
+        requestHandoff("Visitor switched chat panel to Live Takeover Mode");
+      } else if (chatMode === 'ai_twin' && prevChatModeRef.current === 'live_human') {
+        releaseHandoff();
+      }
+      prevChatModeRef.current = chatMode;
+    }
+  }, [chatMode, requestHandoff, releaseHandoff]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isLoading) return;

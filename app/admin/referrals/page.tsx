@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { CustomSelect } from '@/components/ui/custom-select';
 import {
   Users,
   Search,
@@ -459,6 +460,62 @@ export default function AdminReferralsPage() {
     return matchesSearch && matchesStat && matchesConn;
   });
 
+  const connectionTypeOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Network Types', count: referrals.length },
+    {
+      value: '1ST_DEGREE_LINKEDIN',
+      label: '1st-Degree (LinkedIn Network)',
+      count: referrals.filter(r => (r.connection_type || '').toUpperCase().includes('1ST')).length
+    },
+    {
+      value: 'APIFY_RECRUITER',
+      label: 'Apify / Maps Recruiter',
+      count: referrals.filter(r => {
+        const ct = (r.connection_type || '').toUpperCase();
+        return ct.includes('RECRUITER') || ct.includes('APIFY') || ct.includes('MAPS');
+      }).length
+    },
+    {
+      value: 'NO_CONTACT',
+      label: 'No Contact Found',
+      count: referrals.filter(r => (r.connection_type || '').toUpperCase().includes('NO_CONTACT') || r.status === 'NO_CONTACT_FOUND').length
+    }
+  ], [referrals]);
+
+  const referralStatusOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Statuses', count: referrals.length },
+    {
+      value: 'READY_FOR_REVIEW',
+      label: 'Ready for Review',
+      count: referrals.filter(r => r.status === 'READY_FOR_REVIEW' || !r.status).length
+    },
+    {
+      value: 'APPROVED',
+      label: 'Approved',
+      count: referrals.filter(r => r.status === 'APPROVED').length
+    },
+    {
+      value: 'SENT',
+      label: 'Sent',
+      count: referrals.filter(r => r.status === 'SENT').length
+    },
+    {
+      value: 'NO_CONTACT_FOUND',
+      label: 'No Contact Found',
+      count: referrals.filter(r => r.status === 'NO_CONTACT_FOUND').length
+    },
+    {
+      value: 'QUALIFIED',
+      label: 'Qualified',
+      count: referrals.filter(r => r.status === 'QUALIFIED').length
+    },
+    {
+      value: 'DECLINED',
+      label: 'Skipped',
+      count: referrals.filter(r => r.status === 'DECLINED').length
+    }
+  ], [referrals]);
+
   const getConnectionBadge = (type: string) => {
     const t = (type || '').toUpperCase();
     if (t.includes('1ST') || t === '1ST_DEGREE_LINKEDIN') {
@@ -647,30 +704,19 @@ export default function AdminReferralsPage() {
           />
         </div>
 
-        <select
+        <CustomSelect
           value={selectedConnectionType}
-          onChange={(e) => setSelectedConnectionType(e.target.value)}
-          className="px-3 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80 font-sans"
-        >
-          <option value="ALL">All Network Types</option>
-          <option value="1ST_DEGREE_LINKEDIN">1st-Degree (LinkedIn Network)</option>
-          <option value="APIFY_RECRUITER">Apify / Maps Recruiter</option>
-          <option value="NO_CONTACT">No Contact Found</option>
-        </select>
+          onChange={(val) => setSelectedConnectionType(String(val))}
+          options={connectionTypeOptions}
+          title="Filter by network type"
+        />
 
-        <select
+        <CustomSelect
           value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
-          className="px-3 py-2.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80 font-sans"
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="READY_FOR_REVIEW">Ready for Review</option>
-          <option value="APPROVED">Approved</option>
-          <option value="SENT">Sent (Outreach Dispatched)</option>
-          <option value="NO_CONTACT_FOUND">No Contact Found</option>
-          <option value="QUALIFIED">Qualified</option>
-          <option value="DECLINED">Skipped</option>
-        </select>
+          onChange={(val) => setSelectedStatus(String(val))}
+          options={referralStatusOptions}
+          title="Filter by status"
+        />
       </div>
 
       {/* Referrals Table */}

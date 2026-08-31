@@ -30,6 +30,7 @@
 
 /* Light Theme Variables - Anthropic/Claude Monochrome + Terracotta */
 :root {
+  color-scheme: light;
   --background: oklch(0.99 0 0);
   --foreground: oklch(0.15 0 0);
   --card: oklch(0.97 0 0);
@@ -56,6 +57,7 @@
 
 /* Dark Theme Variables - Claude Black Base + Terracotta Warmth */
 .dark {
+  color-scheme: dark;
   --background: oklch(0.09 0 0);
   --foreground: oklch(0.95 0 0);
   --card: oklch(0.13 0 0);
@@ -77,6 +79,48 @@
   --ring: oklch(0.70 0.14 45);
 
   --grid-line-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Base Select & Option Styles matching design system */
+select {
+  color-scheme: light;
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+.dark select {
+  color-scheme: dark;
+  background-color: var(--card);
+  color: var(--foreground);
+}
+
+select option {
+  background-color: #f7f7f7;
+  color: #1a1a1a;
+  padding: 8px 12px;
+}
+
+.dark select option {
+  background-color: #171717;
+  color: #ededed;
+  padding: 8px 12px;
+}
+
+/* Premium theme select with refined SVG chevron indicator */
+.theme-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(120,120,120,0.8)' stroke-width='2.2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 0.9rem 0.9rem;
+  padding-right: 2.25rem !important;
+  cursor: pointer;
+}
+
+.dark .theme-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(210,210,210,0.7)' stroke-width='2.2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
 }
 
 body {

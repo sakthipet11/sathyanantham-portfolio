@@ -65,7 +65,18 @@ export const useAppStore = create<AppState>((set) => ({
       modelName: 'Verified Knowledge Base'
     }
   ],
-  addMessage: (msg: ChatMessage) => set((state: AppState) => ({ messages: [...state.messages, msg] })),
+  addMessage: (msg: ChatMessage) => set((state: AppState) => {
+    // Check if the last message in history has the same role and exact content
+    const lastMsg = state.messages[state.messages.length - 1];
+    if (lastMsg && lastMsg.role === msg.role && lastMsg.content.trim() === msg.content.trim()) {
+      return state;
+    }
+    // Also check if an identical message ID already exists
+    if (state.messages.some((m) => m.id === msg.id)) {
+      return state;
+    }
+    return { messages: [...state.messages, msg] };
+  }),
   updateLastAssistantMessage: (chunk: string) => set((state: AppState) => {
     const msgs = [...state.messages];
     const last = msgs[msgs.length - 1];

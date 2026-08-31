@@ -273,10 +273,10 @@ export default function AdminAutomationPage() {
                 <select
                   value={frequency}
                   onChange={(e) => setFrequency(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded-lg bg-card border border-border/80 text-xs font-mono text-foreground focus:outline-none focus:border-primary"
+                  className="theme-select w-full px-3 py-1.5 rounded-lg bg-card border border-border/80 text-xs font-mono text-foreground focus:outline-none focus:border-primary cursor-pointer shadow-xs transition"
                 >
-                  <option value="DAILY">DAILY (Default)</option>
-                  <option value="HOURLY">HOURLY</option>
+                  <option value="DAILY" className="bg-card text-foreground">DAILY (Default)</option>
+                  <option value="HOURLY" className="bg-card text-foreground">HOURLY</option>
                 </select>
               </div>
             </div>

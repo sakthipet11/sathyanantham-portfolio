@@ -503,7 +503,30 @@ class ApplicationV2Repository:
             finally:
                 pg_conn.close()
 
-        return self.get_application(clean_app_id)
+        # Fallback Supabase or client
+        app = self.get_application(clean_app_id)
+        if not app:
+            return None
+
+        # Fetch joined job details
+        job_id = app.get("job_id")
+        if job_id:
+            try:
+                from backend.python.repositories.job_repository import job_repository
+                job = job_repository.get_job_by_id(str(job_id))
+                if job:
+                    app["job_title"] = job.get("title") or app.get("job_title")
+                    app["company"] = job.get("company") or app.get("company")
+                    app["location"] = job.get("location") or app.get("location")
+                    app["apply_url"] = job.get("apply_url") or app.get("apply_url")
+                    app["description_raw"] = job.get("description_raw") or app.get("description_raw")
+                    app["tech_stack"] = job.get("tech_stack") or app.get("tech_stack")
+                    if not app.get("match_score"):
+                        app["match_score"] = job.get("match_score") or job.get("ats_score")
+            except Exception as e:
+                print(f"[APP_V2_REPO] Fallback job details join error: {e}")
+
+        return app
 
     def get_metrics(self) -> Dict[str, Any]:
         """Calculates aggregated metrics for Applications HUD."""
@@ -528,6 +551,38 @@ class ApplicationV2Repository:
                 print(f"[APP_V2_REPO] Metrics error: {e}")
             finally:
                 pg_conn.close()
+
+        # Fallback Supabase
+        if self.db.client:
+            try:
+                res = self.db.client.table("applications_v2").select("id, status, automation_metadata").execute()
+                if res.data is not None:
+                    rows = res.data
+                    ready = sum(1 for r in rows if (r.get("status") or "").upper() in ["READY_FOR_REVIEW", "DRAFT"])
+                    submitted = sum(1 for r in rows if (r.get("status") or "").upper() in ["SUBMITTED", "EMAIL_SENT", "APPLIED"])
+                    in_progress = sum(1 for r in rows if (r.get("status") or "").upper() in ["QUEUED", "PROCESSING", "SUBMITTING"])
+                    failed = sum(1 for r in rows if (r.get("status") or "").upper() in ["FAILED", "MANUAL_REQUIRED"])
+
+                    def has_email(r):
+                        meta = r.get("automation_metadata") or {}
+                        if isinstance(meta, str):
+                            try:
+                                meta = json.loads(meta)
+                            except Exception:
+                                meta = {}
+                        return bool(meta.get("email_sent_to")) or (r.get("status") or "").upper() == "EMAIL_SENT"
+
+                    emailed = sum(1 for r in rows if has_email(r))
+                    return {
+                        "total_applications": len(rows),
+                        "ready_for_review_count": ready,
+                        "submitted_count": submitted,
+                        "in_progress_count": in_progress,
+                        "failed_count": failed,
+                        "email_sent_count": emailed
+                    }
+            except Exception as e:
+                print(f"[APP_V2_REPO] Supabase metrics error: {e}")
 
         return {
             "total_applications": 0,
@@ -642,6 +697,22 @@ class ApplicationV2Repository:
             finally:
                 pg_conn.close()
 
+        if self.db.client:
+            try:
+                self.db.client.table("application_events").insert({
+                    "id": event_id,
+                    "application_id": clean_app_id,
+                    "event_type": event_type,
+                    "previous_status": previous_status,
+                    "new_status": new_status,
+                    "message": message,
+                    "metadata": metadata or {},
+                    "created_at": now
+                }).execute()
+                return True
+            except Exception as e:
+                print(f"[APP_V2_REPO] Supabase log event error: {e}")
+
         return False
 
     def get_application_events(self, app_id: str) -> List[Dict[str, Any]]:
@@ -665,6 +736,14 @@ class ApplicationV2Repository:
                 print(f"[APP_V2_REPO] Get events error: {e}")
             finally:
                 pg_conn.close()
+
+        if self.db.client:
+            try:
+                res = self.db.client.table("application_events").select("*").eq("application_id", clean_app_id).order("created_at", desc=True).execute()
+                if res.data:
+                    return res.data
+            except Exception as e:
+                print(f"[APP_V2_REPO] Supabase get events error: {e}")
 
         return []
 

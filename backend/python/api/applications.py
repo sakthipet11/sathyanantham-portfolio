@@ -38,12 +38,16 @@ class StagePackageRequest(BaseModel):
 
 
 class SendApplicationEmailRequest(BaseModel):
-    """Request to dispatch tailored application email"""
+    """Request to dispatch tailored application or direct email"""
+    application_id: Optional[str] = Field(None, description="Optional application UUID")
+    to: Optional[str] = Field(None, description="Target recipient email (alias)")
     recipient_email: Optional[str] = Field(None, description="Target recruiter or referral email")
     recipient_name: Optional[str] = Field(None, description="Recipient name")
     subject: Optional[str] = Field(None, description="Email subject")
+    body: Optional[str] = Field(None, description="Email text body (alias)")
     cover_letter: Optional[str] = Field(None, description="Cover letter text body")
     resume_file_name: Optional[str] = Field(None, description="Tailored resume PDF filename")
+    attachments: Optional[List[Any]] = Field(None, description="List of attachment paths or filenames")
 
 
 class UpdateApplicationRequest(BaseModel):
@@ -160,6 +164,7 @@ def get_application_details(application_id: str):
         except Exception:
             meta = {}
 
+    company_name = app.get("company") or "Enterprise"
     events = application_v2_repository.get_application_events(application_id)
     if not events:
         events = [
@@ -167,24 +172,29 @@ def get_application_details(application_id: str):
                 "id": f"evt-{application_id[:8]}-init",
                 "application_id": application_id,
                 "event_type": "PACKAGE_STAGED",
-                "message": f"Application package staged for {app.get('company')} in status {app.get('status')}",
+                "message": f"Application package staged for {company_name} in status {app.get('status')}",
                 "created_at": app.get("created_at")
             }
         ]
 
     # Find matching 1st-degree connections at company
-    company_name = app.get("company", "")
     connections = connection_repository.search_by_company(company_name) if company_name else []
 
+    role_title = app.get("job_title") or app.get("role_title") or "Lead Architect"
     enriched = {
         **app,
-        "role_title": app.get("job_title") or "Lead Architect",
-        "cover_letter": meta.get("cover_letter"),
-        "matched_resume_url": meta.get("matched_resume_url") or "/downloads/Sathyanantham_V_Frontend_Architect_2026.pdf",
-        "matched_resume_role": meta.get("matched_resume_role") or "Lead Frontend Architect",
-        "referral_contact": meta.get("referral_contact"),
-        "email_sent_to": meta.get("email_sent_to"),
-        "email_sent_at": meta.get("email_sent_at"),
+        "company": company_name,
+        "job_title": role_title,
+        "role_title": role_title,
+        "role": role_title,
+        "location": app.get("location") or "Remote / Hybrid",
+        "apply_url": app.get("apply_url"),
+        "cover_letter": meta.get("cover_letter") or app.get("cover_letter"),
+        "matched_resume_url": meta.get("matched_resume_url") or app.get("matched_resume_url") or "/downloads/Sathyanantham_V_Frontend_Architect_2026.pdf",
+        "matched_resume_role": meta.get("matched_resume_role") or app.get("matched_resume_role") or "Lead Frontend Architect",
+        "referral_contact": meta.get("referral_contact") or app.get("referral_contact"),
+        "email_sent_to": meta.get("email_sent_to") or app.get("email_sent_to"),
+        "email_sent_at": meta.get("email_sent_at") or app.get("email_sent_at"),
         "company_connections": connections[:5]
     }
 
@@ -333,38 +343,52 @@ async def stage_application_package(request: StagePackageRequest):
     }
 
 
-@router.post("/{application_id}/send-email")
-async def send_application_email(application_id: str, request: SendApplicationEmailRequest = Body(default=SendApplicationEmailRequest())):
+async def dispatch_application_email(
+    application_id: Optional[str] = None,
+    request: SendApplicationEmailRequest = Body(default=SendApplicationEmailRequest())
+):
     """
-    Direct Email Application Dispatch:
-    Transmits the candidate's tailored resume PDF and cover letter
-    directly to the company recruiter, referral contact, or hiring team via SMTP/Gmail.
+    Unified Email Dispatch Service:
+    Handles both linked job application dispatch and standalone direct email dispatch.
     """
-    app_data = application_v2_repository.get_application_with_details(application_id)
-    if not app_data:
-        app_data = application_repository.get_application_by_id(application_id)
-    if not app_data:
-        raise HTTPException(status_code=404, detail="Application not found")
+    target_app_id = (application_id or request.application_id or "").strip()
+    if target_app_id == "send-email":
+        target_app_id = ""
 
-    job_title = app_data.get("job_title") or app_data.get("role_title") or "Lead Software Engineer"
-    company = app_data.get("company") or "Target Company"
-    auto_meta = app_data.get("automation_metadata") or {}
+    app_data = None
+    if target_app_id:
+        app_data = application_v2_repository.get_application_with_details(target_app_id)
+        if not app_data:
+            app_data = application_repository.get_application_by_id(target_app_id)
+        if not app_data and application_id:
+            raise HTTPException(status_code=404, detail=f"Application '{target_app_id}' not found")
+
+    job_title = (app_data.get("job_title") or app_data.get("role_title") or "Lead Software Engineer") if app_data else "Lead Software Engineer"
+    company = (app_data.get("company") or "Target Company") if app_data else "Target Company"
+    auto_meta = (app_data.get("automation_metadata") or {}) if app_data else {}
     if isinstance(auto_meta, str):
         try:
             auto_meta = json.loads(auto_meta)
         except Exception:
             auto_meta = {}
 
-    to_email = (request.recipient_email or "").strip()
-    if not to_email:
+    to_email = (request.recipient_email or request.to or "").strip()
+    if not to_email and app_data:
         to_email = auto_meta.get("referral_email") or auto_meta.get("recruiter_email") or ""
-    if not to_email:
+    if not to_email and app_data:
         clean_comp = company.lower().replace(" ", "").replace(",", "").replace(".", "")
         to_email = f"careers@{clean_comp}.com"
 
-    subject = (request.subject or "").strip() or f"Application: {job_title} - Sathyanantham V"
+    if not to_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Recipient email address ('recipient_email' or 'to') is required."
+        )
 
-    body_text = (request.cover_letter or "").strip() or auto_meta.get("cover_letter") or (
+    default_subject = f"Application: {job_title} - Sathyanantham V" if app_data else "Message from Sathyanantham V"
+    subject = (request.subject or "").strip() or default_subject
+
+    body_text = (request.cover_letter or request.body or "").strip() or auto_meta.get("cover_letter") or (
         f"Dear Hiring Team at {company},\n\n"
         f"I am writing to express my enthusiastic interest in the {job_title} role at {company}.\n\n"
         f"With over 13.5+ years of software architecture experience leading enterprise systems, "
@@ -374,57 +398,82 @@ async def send_application_email(application_id: str, request: SendApplicationEm
     )
 
     resume_file = request.resume_file_name
-    if not resume_file:
+    if not resume_file and app_data:
         matched_url = auto_meta.get("matched_resume_url") or ""
         if matched_url:
             resume_file = os.path.basename(matched_url)
         else:
             resume_file = "Sathyanantham_V_Frontend_Architect_2026.pdf"
 
-    send_result = await gmail_mcp_client.send_email(
-        to=to_email,
-        subject=subject,
-        body=body_text,
-        attachments=[resume_file]
-    )
+    attachments_to_send = []
+    if request.attachments:
+        attachments_to_send.extend(request.attachments)
+    if resume_file and resume_file not in attachments_to_send:
+        attachments_to_send.append(resume_file)
+
+    try:
+        send_result = await gmail_mcp_client.send_email(
+            to=to_email,
+            subject=subject,
+            body=body_text,
+            attachments=attachments_to_send
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Email transmission error: {str(exc)}")
 
     now_iso = datetime.utcnow().isoformat()
-    auto_meta["email_sent_to"] = to_email
-    auto_meta["email_sent_at"] = now_iso
-    auto_meta["email_subject"] = subject
-    auto_meta["email_message_id"] = send_result.get("message_id")
-    if request.cover_letter:
-        auto_meta["cover_letter"] = request.cover_letter
 
-    application_v2_repository.update_application(
-        app_id=application_id,
-        status="SUBMITTED",
-        submitted_at=now_iso,
-        automation_metadata=auto_meta
-    )
+    if target_app_id and app_data:
+        auto_meta["email_sent_to"] = to_email
+        auto_meta["email_sent_at"] = now_iso
+        auto_meta["email_subject"] = subject
+        auto_meta["email_message_id"] = send_result.get("message_id")
+        if request.cover_letter or request.body:
+            auto_meta["cover_letter"] = request.cover_letter or request.body
 
-    application_v2_repository.log_event(
-        app_id=application_id,
-        event_type="EMAIL_DISPATCHED",
-        message=f"Application package emailed to {to_email} with resume '{resume_file}'",
-        previous_status=app_data.get("status"),
-        new_status="SUBMITTED",
-        metadata={"to": to_email, "subject": subject, "resume": resume_file}
-    )
+        application_v2_repository.update_application(
+            app_id=target_app_id,
+            status="SUBMITTED",
+            submitted_at=now_iso,
+            automation_metadata=auto_meta
+        )
+
+        application_v2_repository.log_event(
+            app_id=target_app_id,
+            event_type="EMAIL_DISPATCHED",
+            message=f"Application package emailed to {to_email} with resume '{resume_file}'",
+            previous_status=app_data.get("status"),
+            new_status="SUBMITTED",
+            metadata={"to": to_email, "subject": subject, "resume": resume_file}
+        )
 
     return {
         "status": "success",
         "success": True,
-        "message": f"Successfully sent tailored application package to {to_email}",
+        "message": f"Successfully sent email to {to_email}",
         "data": {
-            "application_id": application_id,
-            "status": "SUBMITTED",
+            "application_id": target_app_id if target_app_id else None,
+            "status": "SUBMITTED" if target_app_id else "SENT",
             "sent_to": to_email,
             "subject": subject,
             "resume_attached": resume_file,
+            "attachments": send_result.get("attachments", []),
+            "message_id": send_result.get("message_id"),
             "sent_at": now_iso
         }
     }
+
+
+@router.post("/send-email")
+async def send_application_email_root(request: SendApplicationEmailRequest = Body(default=SendApplicationEmailRequest())):
+    """POST /api/v2/applications/send-email (Direct email dispatch or application ID in body)"""
+    return await dispatch_application_email(None, request)
+
+
+@router.post("/{application_id}/send-email")
+async def send_application_email(application_id: str, request: SendApplicationEmailRequest = Body(default=SendApplicationEmailRequest())):
+    """POST /api/v2/applications/{application_id}/send-email"""
+    return await dispatch_application_email(application_id, request)
 
 
 @router.post("/{application_id}/apply-browser")

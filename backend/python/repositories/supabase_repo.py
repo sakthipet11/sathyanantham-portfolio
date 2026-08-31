@@ -509,15 +509,23 @@ class SupabaseHelper:
 
         return {"status": "mock_success", "message": "Saved event locally in offline mode", "data": payload}
 
-    def upsert_chat_session(self, session_id: str, status: str = "ai_twin", visitor_info: Dict[str, Any] = None) -> Dict[str, Any]:
-        payload = {
+    def upsert_chat_session(self, session_id: str, status: Optional[str] = None, visitor_info: Dict[str, Any] = None) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
             "id": session_id,
-            "status": status,
             "visitor_info": visitor_info or {}
         }
+        if status is not None:
+            payload["status"] = status
+        else:
+            payload["status"] = "ai_twin"
 
         if self.client:
             try:
+                # If status is None, don't overwrite existing status on upsert
+                if status is None:
+                    existing = self.client.table("chat_sessions").select("status").eq("id", session_id).execute()
+                    if existing.data and len(existing.data) > 0 and existing.data[0].get("status"):
+                        payload["status"] = existing.data[0]["status"]
                 res = self.client.table("chat_sessions").upsert(payload).execute()
                 return {"status": "success", "data": res.data}
             except Exception as e:
@@ -529,12 +537,12 @@ class SupabaseHelper:
                 with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute("""
                         INSERT INTO chat_sessions (id, status, visitor_info)
-                        VALUES (%s, %s, %s)
+                        VALUES (%s, COALESCE(%s, 'ai_twin'), %s)
                         ON CONFLICT (id) DO UPDATE SET
-                            status = EXCLUDED.status,
-                            visitor_info = EXCLUDED.visitor_info
+                            status = COALESCE(%s, chat_sessions.status),
+                            visitor_info = COALESCE(EXCLUDED.visitor_info, chat_sessions.visitor_info)
                         RETURNING *;
-                    """, (session_id, status, json.dumps(visitor_info or {})))
+                    """, (session_id, status, json.dumps(visitor_info or {}), status))
                     row = cur.fetchone()
                     return {"status": "success", "data": dict(row) if row else payload}
             except Exception as e:
@@ -545,8 +553,8 @@ class SupabaseHelper:
         return {"status": "mock_success", "message": "Saved session locally in offline mode", "data": payload}
 
     def insert_chat_message(self, session_id: str, role: str, content: str) -> Dict[str, Any]:
-        # Always ensure the parent chat session exists first
-        self.upsert_chat_session(session_id)
+        # Ensure parent chat session exists without overriding its active status
+        self.upsert_chat_session(session_id, status=None)
 
         now_str = datetime.utcnow().isoformat()
         payload = {
@@ -566,7 +574,6 @@ class SupabaseHelper:
         pg_conn = self._get_pg_connection()
         if pg_conn:
             try:
-                self.upsert_chat_session(session_id)
                 with pg_conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                     cur.execute("""
                         INSERT INTO chat_messages (session_id, role, content)
@@ -575,8 +582,6 @@ class SupabaseHelper:
                     """, (session_id, role, content))
                     row = cur.fetchone()
                     return {"status": "success", "data": dict(row) if row else payload}
-            except Exception as e:
-                print(f"PostgreSQL insert chat message error: {e}")
             finally:
                 pg_conn.close()
 

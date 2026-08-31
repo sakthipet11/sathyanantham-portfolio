@@ -11,7 +11,7 @@ if _repo_root not in sys.path:
 if _current_dir not in sys.path:
     sys.path.insert(0, _current_dir)
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -65,6 +65,12 @@ app.include_router(hardening.router)
 app.include_router(copilot.router)
 app.include_router(portfolio.router)
 app.include_router(resumes.router)
+ 
+@app.post("/send-email")
+@app.post("/api/send-email")
+async def root_send_email(request: applications.SendApplicationEmailRequest = Body(default=applications.SendApplicationEmailRequest())):
+    """Top-level /send-email and /api/send-email endpoint"""
+    return await applications.dispatch_application_email(request.application_id, request)
 
 @app.on_event("startup")
 async def startup_event_handlers():
@@ -116,11 +122,30 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str = "visit
         try:
             while True:
                 data = await websocket.receive_json()
+                msg_type = data.get("type", "chat")
                 target_session = data.get("target_session_id")
                 content = data.get("content", "")
-                
-                if target_session and content:
+
+                if msg_type == "toggle_session_status":
+                    status = data.get("status", "live_human")
+                    if target_session:
+                        db_helper.upsert_chat_session(target_session, status=status)
+                        announcement = content or ("Sathyanantham V has joined the chat in person." if status == "live_human" else "Sathyanantham AI Twin has resumed autonomous conversation mode.")
+                        db_helper.insert_chat_message(target_session, "system", announcement)
+                        await ws_manager.send_to_visitor(target_session, {
+                            "type": "mode_update",
+                            "mode": status,
+                            "message": announcement
+                        })
+                        await ws_manager.broadcast_sessions_update()
+                elif target_session and content:
+                    db_helper.upsert_chat_session(target_session, status="live_human")
                     db_helper.insert_chat_message(target_session, "assistant", f"[Live] {content}")
+                    # Notify visitor of both the live message and mode switch
+                    await ws_manager.send_to_visitor(target_session, {
+                        "type": "mode_update",
+                        "mode": "live_human"
+                    })
                     await ws_manager.send_to_visitor(target_session, {
                         "type": "human_response",
                         "sender": "Sathyanantham V (Live)",
@@ -128,7 +153,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str = "visit
                     })
                     await ws_manager.broadcast_sessions_update()
         except WebSocketDisconnect:
-            ws_manager.disconnect_sathyanantham(websocket)
+            await ws_manager.disconnect_sathyanantham(websocket)
     else:
         visitor_info = {}
         await ws_manager.connect_visitor(session_id, websocket, visitor_info)
@@ -151,8 +176,29 @@ async def websocket_chat_endpoint(websocket: WebSocket, session_id: str = "visit
                     })
                     await ws_manager.broadcast_sessions_update()
                     await websocket.send_json({
+                        "type": "mode_update",
+                        "mode": "live_human"
+                    })
+                    await websocket.send_json({
                         "type": "system",
                         "content": "Paging Sathyanantham... If he is currently active, he will take over this chat shortly."
+                    })
+
+                elif msg_type == "release_handoff":
+                    db_helper.upsert_chat_session(session_id, status="ai_twin")
+                    await ws_manager.broadcast_to_sathyanantham({
+                        "type": "session_status_update",
+                        "session_id": session_id,
+                        "status": "ai_twin"
+                    })
+                    await ws_manager.broadcast_sessions_update()
+                    await websocket.send_json({
+                        "type": "mode_update",
+                        "mode": "ai_twin"
+                    })
+                    await websocket.send_json({
+                        "type": "system",
+                        "content": "Returned conversation to AI Digital Twin."
                     })
 
                 elif msg_type == "user_message":

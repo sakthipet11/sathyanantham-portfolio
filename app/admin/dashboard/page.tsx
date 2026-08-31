@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { LiveChatConsole } from '@/components/admin/LiveChatConsole';
+import { CustomSelect } from '@/components/ui/custom-select';
 import {
   LayoutDashboard,
   Zap,
@@ -107,6 +108,8 @@ interface JobRecord {
   company: string;
   location?: string;
   ats_score?: number;
+  match_score?: number;
+  score_details?: any;
   status: string;
   source?: string;
   created_at?: string;
@@ -185,6 +188,11 @@ function AdminDashboardContent() {
   // Live Chat Takeover States (for ?tab=live-chat)
   const [chatSessions, setChatSessions] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const selectedSessionIdRef = useRef<string | null>(selectedSessionId);
+  useEffect(() => {
+    selectedSessionIdRef.current = selectedSessionId;
+  }, [selectedSessionId]);
+
   const [currentChatMessages, setCurrentChatMessages] = useState<any[]>([]);
   const [hostReply, setHostReply] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
@@ -302,7 +310,9 @@ function AdminDashboardContent() {
 
       if (presenceRes?.ok) {
         const pData = await presenceRes.json();
-        setIsHostOnline(!!pData.is_online);
+        const online = !!pData.is_online;
+        setIsHostOnline(online);
+        window.dispatchEvent(new CustomEvent('host-presence-changed', { detail: { is_online: online } }));
       }
 
       if (chatSessionsRes?.ok) {
@@ -332,6 +342,17 @@ function AdminDashboardContent() {
     }
   }, [apiHost]);
 
+  // Helper to deduplicate messages by ID or content + role
+  const deduplicateMessages = (msgs: any[]) => {
+    const seen = new Set<string>();
+    return msgs.filter((m) => {
+      const key = m.id ? `id_${m.id}` : `${m.role}_${m.content}_${(m.timestamp || '').slice(0, 16)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   // Fetch Messages for Selected Session
   const fetchSessionMessages = useCallback(async (sessionId: string) => {
     if (!sessionId) return;
@@ -342,7 +363,7 @@ function AdminDashboardContent() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          setCurrentChatMessages(data);
+          setCurrentChatMessages(deduplicateMessages(data));
         }
       }
     } catch (e) {
@@ -368,12 +389,12 @@ function AdminDashboardContent() {
     fetchChatSessions();
     const interval = setInterval(() => {
       fetchChatSessions();
-      if (selectedSessionId) {
-        fetchSessionMessages(selectedSessionId);
+      if (selectedSessionIdRef.current) {
+        fetchSessionMessages(selectedSessionIdRef.current);
       }
     }, 4000);
     return () => clearInterval(interval);
-  }, [isAuthenticated, isLiveChatTab, selectedSessionId, fetchChatSessions, fetchSessionMessages]);
+  }, [isAuthenticated, isLiveChatTab, fetchChatSessions, fetchSessionMessages]);
 
   // Live WebSocket for Chat Takeover (Active when in live-chat mode)
   useEffect(() => {
@@ -399,14 +420,17 @@ function AdminDashboardContent() {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === 'sessions_update' && Array.isArray(data.sessions)) {
+          if (data.type === 'presence_update') {
+            setIsHostOnline(data.is_online);
+            window.dispatchEvent(new CustomEvent('host-presence-changed', { detail: { is_online: data.is_online } }));
+          } else if (data.type === 'sessions_update' && Array.isArray(data.sessions)) {
             setChatSessions(data.sessions);
           } else if (data.type === 'visitor_message' || data.type === 'new_visitor_message') {
-            if (data.session_id === selectedSessionId) {
-              setCurrentChatMessages((prev) => [
+            if (data.session_id === selectedSessionIdRef.current) {
+              setCurrentChatMessages((prev) => deduplicateMessages([
                 ...prev,
                 { role: 'user', content: data.content, timestamp: new Date().toISOString() }
-              ]);
+              ]));
             }
             triggerToast(`New visitor message from ${data.session_id?.slice(0, 8) || 'Visitor'}`);
             fetchChatSessions();
@@ -426,11 +450,11 @@ function AdminDashboardContent() {
     return () => {
       if (ws) ws.close();
     };
-  }, [isAuthenticated, isLiveChatTab, selectedSessionId, apiHost, fetchChatSessions]);
+  }, [isAuthenticated, isLiveChatTab, apiHost, fetchChatSessions]);
 
-  // Send Host Message
+  // Send Host Message (Single dispatch with WS priority, no duplicate REST call)
   const handleSendHostReply = async () => {
-    if (!hostReply.trim() || !selectedSessionId) return;
+    if (!hostReply.trim() || !selectedSessionId || sendingReply) return;
     const text = hostReply.trim();
     setHostReply('');
     setSendingReply(true);
@@ -442,8 +466,9 @@ function AdminDashboardContent() {
       content: `[Live] ${text}`,
       timestamp: new Date().toISOString()
     };
-    setCurrentChatMessages((prev) => [...prev, optimisticMsg]);
+    setCurrentChatMessages((prev) => deduplicateMessages([...prev, optimisticMsg]));
 
+    let wsSent = false;
     // WebSocket send
     if (hostSocketRef.current && hostSocketRef.current.readyState === WebSocket.OPEN) {
       try {
@@ -451,29 +476,32 @@ function AdminDashboardContent() {
           target_session_id: selectedSessionId,
           content: text
         }));
+        wsSent = true;
       } catch (e) {
-        console.warn('WS send error:', e);
+        console.warn('WS send error, will fallback to REST:', e);
       }
     }
 
-    // REST POST fallback
-    try {
-      await fetch(`${apiHost}/api/admin/chat/send`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          session_id: selectedSessionId,
-          content: text
-        })
-      });
-    } catch (e) {
-      console.warn('REST chat send error:', e);
-    } finally {
-      setSendingReply(false);
+    // Only fallback to REST POST if WebSocket send was NOT sent
+    if (!wsSent) {
+      try {
+        await fetch(`${apiHost}/api/admin/chat/send`, {
+          method: 'POST',
+          headers: {
+            ...getAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session_id: selectedSessionId,
+            content: text
+          })
+        });
+      } catch (e) {
+        console.warn('REST chat send error:', e);
+      }
     }
+
+    setSendingReply(false);
 
     setTimeout(() => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -503,28 +531,50 @@ function AdminDashboardContent() {
   // Toggle Session Mode (live_human vs ai_twin)
   const handleToggleSessionMode = async (sessionId: string, currentStatus: string) => {
     const nextStatus = currentStatus === 'live_human' ? 'ai_twin' : 'live_human';
-    try {
-      await fetch(`${apiHost}/api/admin/chat/send`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-          content: nextStatus === 'live_human'
-            ? 'Sathyanantham V has joined the chat in person.'
-            : 'Sathyanantham AI Twin has resumed autonomous conversation mode.'
-        })
-      });
-      setChatSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, status: nextStatus } : s))
-      );
-      triggerToast(nextStatus === 'live_human' ? 'Live Human Takeover enabled' : 'Handed back to AI Twin');
-      fetchSessionMessages(sessionId);
-    } catch (e) {
-      console.warn('Toggle session error:', e);
+    setChatSessions((prev) =>
+      prev.map((s) => (s.id === sessionId ? { ...s, status: nextStatus } : s))
+    );
+
+    const announcement = nextStatus === 'live_human'
+      ? 'Sathyanantham V has joined the chat in person.'
+      : 'Sathyanantham AI Twin has resumed autonomous conversation mode.';
+
+    let wsSent = false;
+    if (hostSocketRef.current && hostSocketRef.current.readyState === WebSocket.OPEN) {
+      try {
+        hostSocketRef.current.send(JSON.stringify({
+          type: 'toggle_session_status',
+          target_session_id: sessionId,
+          status: nextStatus,
+          content: announcement
+        }));
+        wsSent = true;
+      } catch (e) {
+        console.warn('WS session toggle error, will fallback to REST:', e);
+      }
     }
+
+    if (!wsSent) {
+      try {
+        await fetch(`${apiHost}/api/admin/chat/sessions/status`, {
+          method: 'POST',
+          headers: {
+            ...getAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            status: nextStatus,
+            content: announcement
+          })
+        });
+      } catch (e) {
+        console.warn('REST session toggle error:', e);
+      }
+    }
+
+    triggerToast(nextStatus === 'live_human' ? 'Live Human Takeover enabled' : 'Handed back to AI Twin');
+    fetchSessionMessages(sessionId);
   };
 
   // Host Presence Toggle
@@ -651,11 +701,35 @@ function AdminDashboardContent() {
         (j.title || '').toLowerCase().includes(searchLower) ||
         (j.company || '').toLowerCase().includes(searchLower) ||
         (j.location || '').toLowerCase().includes(searchLower);
-      const matchesStat = jobStatusFilter === 'ALL' || j.status === jobStatusFilter;
-      const matchesAts = (j.ats_score || 0) >= minAtsFilter;
+      const score = Number(j.match_score ?? j.ats_score ?? j.score_details?.overall_score ?? 0);
+      const jobStat = (j.status || 'DISCOVERED').toUpperCase();
+      const matchesStat =
+        jobStatusFilter === 'ALL' ||
+        jobStat === jobStatusFilter.toUpperCase() ||
+        (jobStatusFilter === 'DISCOVERED' && jobStat === 'DISCOVERED') ||
+        (jobStatusFilter === 'QUALIFIED' && (jobStat === 'QUALIFIED' || score >= 75));
+      const matchesAts = score >= minAtsFilter;
       return matchesSearch && matchesStat && matchesAts;
     });
   }, [jobsList, jobSearch, jobStatusFilter, minAtsFilter]);
+
+  const dashboardJobStatusOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Statuses', count: jobsList.length },
+    { value: 'DISCOVERED', label: 'Discovered', count: jobsList.filter(j => (j.status || 'DISCOVERED').toUpperCase() === 'DISCOVERED').length },
+    { value: 'QUALIFIED', label: 'Qualified', count: jobsList.filter(j => (j.status || '').toUpperCase() === 'QUALIFIED' || Number(j.match_score ?? j.ats_score ?? j.score_details?.overall_score ?? 0) >= 75).length },
+    { value: 'READY_FOR_REVIEW', label: 'Review', count: jobsList.filter(j => (j.status || '').toUpperCase() === 'READY_FOR_REVIEW').length },
+    { value: 'APPROVED', label: 'Approved', count: jobsList.filter(j => (j.status || '').toUpperCase() === 'APPROVED').length },
+    { value: 'APPLIED', label: 'Applied', count: jobsList.filter(j => (j.status || '').toUpperCase() === 'APPLIED').length },
+    { value: 'INTERVIEW', label: 'Interview', count: jobsList.filter(j => (j.status || '').toUpperCase() === 'INTERVIEW').length },
+    { value: 'REJECTED', label: 'Rejected', count: jobsList.filter(j => (j.status || '').toUpperCase() === 'REJECTED').length }
+  ], [jobsList]);
+
+  const dashboardMinAtsOptions = useMemo(() => [
+    { value: 0, label: 'Min ATS: 0%' },
+    { value: 70, label: 'Min ATS: 70%+' },
+    { value: 80, label: 'Min ATS: 80%+' },
+    { value: 90, label: 'Min ATS: 90%+' }
+  ], []);
 
   // Funnel Leak Detection Diagnostic
   const leakDetection = useMemo(() => {
@@ -1348,32 +1422,21 @@ function AdminDashboardContent() {
                 />
               </div>
 
-              <select
+              <CustomSelect
                 value={jobStatusFilter}
-                onChange={(e) => setJobStatusFilter(e.target.value)}
-                className="px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="DISCOVERED">Discovered</option>
-                <option value="QUALIFIED">Qualified</option>
-                <option value="TAILORING">Tailoring</option>
-                <option value="READY_FOR_REVIEW">Review</option>
-                <option value="APPROVED">Approved</option>
-                <option value="APPLIED">Applied</option>
-                <option value="INTERVIEW">Interview</option>
-                <option value="REJECTED">Rejected</option>
-              </select>
+                onChange={(val) => setJobStatusFilter(String(val))}
+                options={dashboardJobStatusOptions}
+                size="sm"
+                title="Filter by status"
+              />
 
-              <select
+              <CustomSelect
                 value={minAtsFilter}
-                onChange={(e) => setMinAtsFilter(Number(e.target.value))}
-                className="px-3 py-1.5 bg-muted/40 border border-border/80 rounded-xl text-xs text-foreground focus:outline-none focus:border-primary/80"
-              >
-                <option value={0}>Min ATS: 0%</option>
-                <option value={70}>Min ATS: 70%+</option>
-                <option value={80}>Min ATS: 80%+</option>
-                <option value={90}>Min ATS: 90%+</option>
-              </select>
+                onChange={(val) => setMinAtsFilter(Number(val))}
+                options={dashboardMinAtsOptions}
+                size="sm"
+                title="Filter by minimum ATS score"
+              />
             </div>
           </div>
 

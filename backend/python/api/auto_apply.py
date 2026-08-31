@@ -5,7 +5,7 @@ FastAPI routes for bulk job application automation.
 Integrates with ApplicationQueueService for orchestration.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Body
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -20,6 +20,7 @@ from backend.python.services.cover_letter_service import CoverLetterService
 from backend.python.repositories.job_repository import job_repository
 from backend.python.repositories.application_v2_repository import application_v2_repository
 from backend.python.repositories.connection_repository import connection_repository
+from backend.python.api.applications import dispatch_application_email, SendApplicationEmailRequest
 import asyncio
 
 from backend.python.services.gmail_mcp_client import gmail_mcp_client
@@ -212,95 +213,16 @@ async def update_application_details(application_id: str, request: UpdateApplica
     }
 
 
+@router.post("/send-email")
+async def send_application_email_root(request: SendApplicationEmailRequest = Body(default=SendApplicationEmailRequest())):
+    """POST /api/v2/applications/send-email (Delegated to unified dispatcher)"""
+    return await dispatch_application_email(None, request)
+
+
 @router.post("/{application_id}/send-email")
-async def send_application_email(application_id: str, request: SendApplicationEmailRequest):
-    """
-    Direct Email Application Dispatch:
-    Transmits the candidate's tailored resume PDF and cover letter
-    directly to the company recruiter, referral contact, or hiring team via SMTP/Gmail.
-    """
-    app_data = application_v2_repository.get_application_with_details(application_id)
-    if not app_data:
-        raise HTTPException(status_code=404, detail="Application not found")
-
-    job_title = app_data.get("job_title") or "Engineering Role"
-    company = app_data.get("company") or "Target Company"
-    auto_meta = app_data.get("automation_metadata") or {}
-    if isinstance(auto_meta, str):
-        try:
-            auto_meta = json.loads(auto_meta)
-        except Exception:
-            auto_meta = {}
-
-    to_email = (request.recipient_email or "").strip()
-    if not to_email:
-        to_email = auto_meta.get("referral_email") or auto_meta.get("recruiter_email") or ""
-    if not to_email:
-        clean_comp = company.lower().replace(" ", "").replace(",", "").replace(".", "")
-        to_email = f"careers@{clean_comp}.com"
-
-    subject = (request.subject or "").strip() or f"Application: {job_title} - Sathyanantham V"
-
-    body_text = (request.cover_letter or "").strip() or auto_meta.get("cover_letter") or (
-        f"Dear Hiring Team at {company},\n\n"
-        f"I am writing to express my enthusiastic interest in the {job_title} role at {company}.\n\n"
-        f"With over 13.5+ years of software architecture experience leading enterprise systems, "
-        f"I look forward to contributing to your engineering objectives.\n\n"
-        f"Please find my tailored resume attached.\n\n"
-        f"Sincerely,\nSathyanantham V\nLead Frontend & AI Systems Architect\nhttps://sathyanantham.com"
-    )
-
-    resume_file = request.resume_file_name
-    if not resume_file:
-        matched_url = auto_meta.get("matched_resume_url") or ""
-        if matched_url:
-            resume_file = os.path.basename(matched_url)
-        else:
-            resume_file = "Sathyanantham_V_Resume.pdf"
-
-    send_result = await gmail_mcp_client.send_email(
-        to=to_email,
-        subject=subject,
-        body=body_text,
-        attachments=[resume_file]
-    )
-
-    now_iso = datetime.utcnow().isoformat()
-    auto_meta["email_sent_to"] = to_email
-    auto_meta["email_sent_at"] = now_iso
-    auto_meta["email_subject"] = subject
-    auto_meta["email_message_id"] = send_result.get("message_id")
-    if request.cover_letter:
-        auto_meta["cover_letter"] = request.cover_letter
-
-    application_v2_repository.update_application(
-        app_id=application_id,
-        status="EMAIL_SENT",
-        submitted_at=now_iso,
-        automation_metadata=auto_meta
-    )
-
-    application_v2_repository.log_event(
-        app_id=application_id,
-        event_type="EMAIL_DISPATCHED",
-        message=f"Application package emailed to {to_email} with resume '{resume_file}'",
-        previous_status=app_data.get("status"),
-        new_status="EMAIL_SENT",
-        metadata={"to": to_email, "subject": subject, "resume": resume_file}
-    )
-
-    return {
-        "success": True,
-        "message": f"Successfully sent tailored application package to {to_email}",
-        "data": {
-            "application_id": application_id,
-            "status": "EMAIL_SENT",
-            "sent_to": to_email,
-            "subject": subject,
-            "resume_attached": resume_file,
-            "sent_at": now_iso
-        }
-    }
+async def send_application_email(application_id: str, request: SendApplicationEmailRequest = Body(default=SendApplicationEmailRequest())):
+    """POST /api/v2/applications/{application_id}/send-email (Delegated to unified dispatcher)"""
+    return await dispatch_application_email(application_id, request)
 
 
 @router.post("/{application_id}/apply-browser")

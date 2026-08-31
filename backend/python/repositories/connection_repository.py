@@ -45,7 +45,10 @@ class ConnectionRepository:
                 if connection_degree and connection_degree != "ALL":
                     sb_query = sb_query.eq("connection_degree", connection_degree)
                 if source and source != "ALL":
-                    sb_query = sb_query.eq("source", source)
+                    if source in ("APIFY_RECRUITER", "APIFY"):
+                        sb_query = sb_query.in_("source", ["APIFY_RECRUITER", "APIFY_MAPS_DISCOVERY", "APIFY_HR_DISCOVERY"])
+                    else:
+                        sb_query = sb_query.eq("source", source)
                 if query:
                     sb_query = sb_query.or_(f"full_name.ilike.%{query}%,company.ilike.%{query}%,position.ilike.%{query}%")
                 
@@ -70,8 +73,11 @@ class ConnectionRepository:
                         conds.append("connection_degree = %s")
                         params.append(connection_degree)
                     if source and source != "ALL":
-                        conds.append("source = %s")
-                        params.append(source)
+                        if source in ("APIFY_RECRUITER", "APIFY"):
+                            conds.append("source IN ('APIFY_RECRUITER', 'APIFY_MAPS_DISCOVERY', 'APIFY_HR_DISCOVERY')")
+                        else:
+                            conds.append("source = %s")
+                            params.append(source)
                     if query:
                         conds.append("(full_name ILIKE %s OR company ILIKE %s OR position ILIKE %s OR email ILIKE %s)")
                         q_param = f"%{query}%"

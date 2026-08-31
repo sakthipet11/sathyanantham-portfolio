@@ -484,7 +484,9 @@ export function LiveChatConsole({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        onSendReply();
+                        if (!sendingReply && hostReply.trim()) {
+                          onSendReply();
+                        }
                       }
                     }}
                     placeholder="Type your direct reply as Sathyanantham V... (Press Enter to send)"

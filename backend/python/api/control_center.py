@@ -5,6 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 from backend.python.repositories.job_repository import job_repository
 from backend.python.repositories.application_repository import application_repository
+from backend.python.repositories.application_v2_repository import application_v2_repository
 from backend.python.repositories.email_repository import email_repository
 from backend.python.repositories.referral_repository import referral_repository
 
@@ -56,6 +57,7 @@ def get_control_center_overview():
 
     # Fallback to repo lists
     jobs = job_repository.list_jobs(limit=500)
+    v2_apps = application_v2_repository.list_applications(limit=500)
     apps = application_repository.list_applications(limit=500)
     emails = email_repository.list_emails(limit=500)
     referrals = referral_repository.list_referrals(limit=500)
@@ -64,8 +66,8 @@ def get_control_center_overview():
     qualified_jobs = sum(1 for j in jobs if (j.get("ats_score") or 0) >= 80)
     avg_ats = round(sum(j.get("ats_score", 0) for j in jobs) / max(1, len(jobs)), 1)
     matches_90_plus = sum(1 for j in jobs if (j.get("ats_score") or 0) >= 90)
-    apps_pending = sum(1 for a in apps if a.get("status") in ["READY_FOR_REVIEW", "DRAFT"])
-    apps_submitted = sum(1 for a in apps if a.get("status") in ["SUBMITTED", "APPROVED", "EMAIL_SENT"])
+    apps_pending = sum(1 for a in v2_apps if a.get("status") in ["READY_FOR_REVIEW", "DRAFT"]) + sum(1 for a in apps if a.get("status") in ["READY_FOR_REVIEW", "DRAFT"])
+    apps_submitted = sum(1 for a in v2_apps if a.get("status") in ["SUBMITTED", "APPROVED", "EMAIL_SENT"]) + sum(1 for a in apps if a.get("status") in ["SUBMITTED", "APPROVED", "EMAIL_SENT"])
     interview_requests = sum(1 for e in emails if e.get("classification") == "INTERVIEW_REQUEST" or e.get("ai_classification") == "INTERVIEW_REQUEST")
     referral_opportunities = len(referrals)
     recruiter_responses = len(emails)
@@ -130,10 +132,13 @@ def get_pipeline_stages():
 
     # Fallback
     jobs = job_repository.list_jobs(limit=500)
+    v2_apps = application_v2_repository.list_applications(limit=500)
     apps = application_repository.list_applications(limit=500)
     emails = email_repository.list_emails(limit=500)
     referrals = referral_repository.list_referrals(limit=500)
     tailoring_count = sum(1 for a in apps if a.get("status") in ["TAILORING", "DRAFT"] or a.get("tailored_resume_path"))
+    if tailoring_count == 0:
+        tailoring_count = sum(1 for a in v2_apps if (a.get("automation_metadata") or {}).get("matched_resume_url"))
     if tailoring_count == 0:
         tailoring_count = sum(1 for r in referrals if r.get("resume_attachment") or r.get("cover_letter_text"))
 
@@ -141,11 +146,11 @@ def get_pipeline_stages():
         "DISCOVERED": len(jobs),
         "SCORED": sum(1 for j in jobs if j.get("ats_score") is not None),
         "QUALIFIED": sum(1 for j in jobs if (j.get("ats_score") or 0) >= 80),
-        "TAILORING": tailoring_count,
-        "READY_FOR_REVIEW": sum(1 for a in apps if a.get("status") == "READY_FOR_REVIEW") + sum(1 for r in referrals if r.get("status") == "READY_FOR_REVIEW"),
-        "APPROVED": sum(1 for a in apps if a.get("status") == "APPROVED") + sum(1 for r in referrals if r.get("status") == "APPROVED"),
-        "APPLYING": sum(1 for a in apps if a.get("status") == "SUBMITTING"),
-        "APPLIED": sum(1 for a in apps if a.get("status") == "SUBMITTED"),
+        "TAILORING": max(tailoring_count, len(v2_apps)),
+        "READY_FOR_REVIEW": sum(1 for a in v2_apps if a.get("status") in ["READY_FOR_REVIEW", "DRAFT"]) + sum(1 for a in apps if a.get("status") == "READY_FOR_REVIEW") + sum(1 for r in referrals if r.get("status") == "READY_FOR_REVIEW"),
+        "APPROVED": sum(1 for a in v2_apps if a.get("status") == "APPROVED") + sum(1 for a in apps if a.get("status") == "APPROVED") + sum(1 for r in referrals if r.get("status") == "APPROVED"),
+        "APPLYING": sum(1 for a in v2_apps if a.get("status") in ["QUEUED", "PROCESSING", "SUBMITTING"]) + sum(1 for a in apps if a.get("status") == "SUBMITTING"),
+        "APPLIED": sum(1 for a in v2_apps if a.get("status") in ["SUBMITTED", "EMAIL_SENT"]) + sum(1 for a in apps if a.get("status") == "SUBMITTED"),
         "INTERVIEW": sum(1 for e in emails if e.get("classification") == "INTERVIEW_REQUEST" or e.get("ai_classification") == "INTERVIEW_REQUEST")
     }
 

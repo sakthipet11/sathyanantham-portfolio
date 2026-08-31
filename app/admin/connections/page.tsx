@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { CustomSelect } from '@/components/ui/custom-select';
 import {
   Users,
   Search,
@@ -79,6 +80,22 @@ export default function AdminConnectionsPage() {
   const [syncing, setSyncing] = useState(false);
   const [page, setPage] = useState(0);
   const limit = 50;
+
+  const degreeOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Degrees' },
+    { value: '1st', label: '1st-Degree Network' },
+    { value: 'Recruiter', label: 'Recruiters & HR' },
+    { value: '2nd', label: '2nd-Degree' }
+  ], []);
+
+  const sourceOptions = useMemo(() => [
+    { value: 'ALL', label: 'All Sources' },
+    { value: 'LINKEDIN_CSV', label: 'LinkedIn Network (CSV)' },
+    { value: 'APIFY_RECRUITER', label: 'Apify Recruiter & Maps' },
+    { value: 'APIFY_MAPS_DISCOVERY', label: 'Apify Maps Discovery' },
+    { value: 'APIFY_HR_DISCOVERY', label: 'Apify HR Discovery' },
+    { value: 'MANUAL_ENTRY', label: 'Manual Entry' }
+  ], []);
 
   // Add / Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -400,35 +417,28 @@ export default function AdminConnectionsPage() {
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Degree Filter */}
-            <select
+            <CustomSelect
               value={selectedDegree}
-              onChange={(e) => {
-                setSelectedDegree(e.target.value);
+              onChange={(val) => {
+                setSelectedDegree(String(val));
                 setPage(0);
               }}
-              className="bg-background border border-border px-3 py-2 rounded-lg text-xs font-mono text-foreground outline-none cursor-pointer"
-            >
-              <option value="ALL">All Degrees</option>
-              <option value="1st">1st-Degree Network</option>
-              <option value="Recruiter">Recruiters & HR</option>
-              <option value="2nd">2nd-Degree</option>
-            </select>
+              options={degreeOptions}
+              size="sm"
+              title="Filter by degree"
+            />
 
             {/* Source Filter */}
-            <select
+            <CustomSelect
               value={selectedSource}
-              onChange={(e) => {
-                setSelectedSource(e.target.value);
+              onChange={(val) => {
+                setSelectedSource(String(val));
                 setPage(0);
               }}
-              className="bg-background border border-border px-3 py-2 rounded-lg text-xs font-mono text-foreground outline-none cursor-pointer"
-            >
-              <option value="ALL">All Sources</option>
-              <option value="LINKEDIN_CSV">LinkedIn CSV</option>
-              <option value="APIFY_RECRUITER">Apify Recruiter</option>
-              <option value="APIFY_GEO_FALLBACK">Apify Geo Fallback</option>
-              <option value="MANUAL_ENTRY">Manual Entry</option>
-            </select>
+              options={sourceOptions}
+              size="sm"
+              title="Filter by source"
+            />
           </div>
         </div>
 
@@ -707,11 +717,11 @@ export default function AdminConnectionsPage() {
                   <select
                     value={formData.connection_degree}
                     onChange={(e) => setFormData({ ...formData, connection_degree: e.target.value })}
-                    className="w-full bg-background border border-border px-3 py-2 rounded-lg text-foreground outline-none focus:border-primary"
+                    className="theme-select w-full bg-card border border-border/80 px-3 py-2 rounded-xl text-foreground outline-none focus:border-primary cursor-pointer text-xs"
                   >
-                    <option value="1st">1st Degree</option>
-                    <option value="Recruiter">Recruiter / HR</option>
-                    <option value="2nd">2nd Degree</option>
+                    <option value="1st" className="bg-card text-foreground">1st Degree</option>
+                    <option value="Recruiter" className="bg-card text-foreground">Recruiter / HR</option>
+                    <option value="2nd" className="bg-card text-foreground">2nd Degree</option>
                   </select>
                 </div>
                 <div>
