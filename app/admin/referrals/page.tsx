@@ -67,7 +67,6 @@ export default function AdminReferralsPage() {
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [selectedReferral, setSelectedReferral] = useState<any | null>(null);
-  useLockBodyScroll(!!selectedReferral);
 
   // Review Drawer Form States
   const [draftMessage, setDraftMessage] = useState<string>('');
@@ -88,6 +87,8 @@ export default function AdminReferralsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useLockBodyScroll(!!selectedReferral || deleteModalOpen);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -850,8 +851,8 @@ export default function AdminReferralsPage() {
 
       {/* Slide-Over Human Review Gate Drawer */}
       {selectedReferral && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-md animate-fade-in font-sans">
-          <div className="w-full max-w-2xl bg-card/95 border-l border-border/80 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl backdrop-blur-2xl">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-md animate-fade-in font-sans overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl bg-card/95 border-l border-border/80 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl backdrop-blur-2xl overscroll-contain">
             {/* Header */}
             <div className="flex items-start justify-between border-b border-border/80 pb-5">
               <div>

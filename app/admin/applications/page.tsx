@@ -34,6 +34,7 @@ import {
 import { getApiHost, fetchWithTimeout } from '@/lib/utils';
 import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { ConfirmDeleteModal } from '@/components/admin/ConfirmDeleteModal';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 import Link from 'next/link';
 
 interface ApplicationItem {
@@ -135,6 +136,8 @@ export default function ApplicationsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useLockBodyScroll(!!selectedApp || !!emailModalApp || deleteModalOpen);
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -806,8 +809,8 @@ export default function ApplicationsPage() {
 
       {/* Review & Edit Drawer / Modal */}
       {selectedApp && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex justify-end animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl bg-card border-l border-border/80 h-full overflow-y-auto p-6 space-y-6 shadow-2xl flex flex-col justify-between">
+        <div data-lenis-prevent className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex justify-end animate-in fade-in duration-200 overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl bg-card border-l border-border/80 h-full overflow-y-auto p-6 space-y-6 shadow-2xl flex flex-col justify-between overscroll-contain">
             <div className="space-y-6">
               {/* Drawer Header */}
               <div className="flex items-start justify-between border-b border-border/60 pb-4">
@@ -1009,8 +1012,8 @@ export default function ApplicationsPage() {
 
       {/* Email Application Dispatch Modal */}
       {emailModalApp && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-card border border-border/80 rounded-3xl p-5 sm:p-7 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div data-lenis-prevent className="fixed inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl bg-card border border-border/80 rounded-3xl p-5 sm:p-7 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain">
             <div className="flex items-start justify-between border-b border-border/60 pb-4">
               <div>
                 <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20">

@@ -64,7 +64,6 @@ export default function AdminRecruiterInboxPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<any | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
-  useLockBodyScroll(!!selectedEmail);
 
   const [draftBody, setDraftBody] = useState<string>('');
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
@@ -81,6 +80,8 @@ export default function AdminRecruiterInboxPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [itemsToDelete, setItemsToDelete] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useLockBodyScroll(!!selectedEmail || settingsModalOpen || deleteModalOpen);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -710,8 +711,8 @@ export default function AdminRecruiterInboxPage() {
 
       {/* Comprehensive Email Detail & Reply Drawer */}
       {selectedEmail && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-2xl bg-card/95 border-l border-border/80 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl backdrop-blur-2xl">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-md animate-fade-in overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl bg-card/95 border-l border-border/80 h-full overflow-y-auto p-6 md:p-8 space-y-6 shadow-2xl backdrop-blur-2xl overscroll-contain">
             {/* Drawer Header */}
             <div className="flex items-start justify-between border-b border-border/80 pb-5">
               <div>
@@ -896,8 +897,8 @@ export default function AdminRecruiterInboxPage() {
 
       {/* Automation Policy Modal */}
       {settingsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4 animate-fade-in">
-          <div className="w-full max-w-md bg-card border border-border/80 rounded-2xl p-6 shadow-2xl space-y-5">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4 animate-fade-in overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-md bg-card border border-border/80 rounded-2xl p-6 shadow-2xl space-y-5 overscroll-contain">
             <div className="flex items-center justify-between border-b border-border/80 pb-3">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <Sliders className="w-4 h-4 text-primary" /> Recruiter Automation Policy

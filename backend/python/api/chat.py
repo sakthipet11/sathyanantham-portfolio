@@ -1,4 +1,5 @@
 import json
+import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from fastapi.responses import StreamingResponse
 from backend.python.models.pydantic_models import ChatRequest
@@ -30,7 +31,10 @@ async def chat_stream(req: ChatRequest):
     if req.messages:
         last_msg = req.messages[-1]
         if last_msg.role == "user":
-            db_helper.insert_chat_message(req.session_id, "user", last_msg.content)
+            try:
+                db_helper.insert_chat_message(req.session_id, "user", last_msg.content)
+            except Exception:
+                pass
             
     for m in reversed(req.messages):
         if m.role == "user":
@@ -42,13 +46,37 @@ async def chat_stream(req: ChatRequest):
 
     async def event_generator():
         full_reply = ""
-        async for chunk in provider.chat_completion(messages_payload, stream=True):
-            full_reply += chunk
-            data_str = json.dumps({"content": chunk})
-            yield f"data: {data_str}\n\n"
+        has_yielded_model_chunk = False
+        try:
+            async for chunk in provider.chat_completion(messages_payload, stream=True):
+                if chunk:
+                    if not has_yielded_model_chunk:
+                        has_yielded_model_chunk = True
+                        meta_str = json.dumps({"source_type": "model", "model_name": provider.model})
+                        yield f"data: {meta_str}\n\n"
+                    full_reply += chunk
+                    data_str = json.dumps({"content": chunk})
+                    yield f"data: {data_str}\n\n"
+        except Exception as err:
+            print(f"[CHAT_STREAM] LLM streaming error: {err}. Triggering RAG fallback.")
+
+        # Fallback to intelligent RAG answer if provider yielded no tokens
+        if not full_reply.strip():
+            meta_str = json.dumps({"source_type": "rag", "model_name": "Verified RAG Knowledge Store"})
+            yield f"data: {meta_str}\n\n"
+            fallback_text = kb.build_fallback_answer(last_user_query)
+            for word in fallback_text.split(" "):
+                token = word + " "
+                full_reply += token
+                data_str = json.dumps({"content": token})
+                yield f"data: {data_str}\n\n"
+                await asyncio.sleep(0.015)
         
         if full_reply:
-            db_helper.insert_chat_message(req.session_id, "assistant", full_reply)
+            try:
+                db_helper.insert_chat_message(req.session_id, "assistant", full_reply)
+            except Exception:
+                pass
             
         yield "data: [DONE]\n\n"
 

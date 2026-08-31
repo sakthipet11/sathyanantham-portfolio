@@ -10,6 +10,7 @@ export function useAITwin() {
     messages,
     addMessage,
     updateLastAssistantMessage,
+    updateLastAssistantMeta,
     selectedModel,
     chatMode,
     setChatMode,
@@ -81,6 +82,7 @@ export function useAITwin() {
       const decoder = new TextDecoder();
       let done = false;
       let buffer = '';
+      let receivedAnyContent = false;
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -99,7 +101,11 @@ export function useAITwin() {
               if (dataContent === '[DONE]') break;
               try {
                 const parsed = JSON.parse(dataContent);
+                if (parsed.source_type) {
+                  updateLastAssistantMeta(parsed.source_type, parsed.model_name);
+                }
                 if (parsed.content) {
+                  receivedAnyContent = true;
                   updateLastAssistantMessage(parsed.content);
                 }
               } catch (e) {
@@ -109,13 +115,26 @@ export function useAITwin() {
           }
         }
       }
+
+      if (!receivedAnyContent) {
+        throw new Error('Empty response received from LLM stream endpoint');
+      }
     } catch (err) {
-      console.warn('FastAPI backend stream offline, using intelligent RAG fallback:', err);
+      console.warn('FastAPI backend stream offline or empty, using intelligent RAG fallback:', err);
+      updateLastAssistantMeta('rag', 'Verified RAG Knowledge Store');
       
       const query = text.toLowerCase();
       let reply = '';
 
-      if (query.includes('location') || query.includes('where') || query.includes('city') || query.includes('address') || query.includes('based')) {
+      if (query.includes('explain') || query.includes('yourself') || query.includes('who are you') || query.includes('summary') || query.includes('about you') || query.includes('bio') || query.includes('tell me')) {
+        reply = `**Sathyanantham V — Lead Software Engineer & AI Architect**\n\n` +
+          `I am a Lead Software Engineer, Frontend Architect, and Generative AI Practitioner with **13+ years of enterprise experience** based in **Coimbatore, Tamil Nadu, India**.\n\n` +
+          `• **Leadership & Engineering**: Currently leading an 8-engineer team at **Nextuple Inc.**, architecting enterprise Order Management Systems (SKU Ranking, Promise Engine, Picking, Packing, Staging, Hub) and Micro Frontends using Module Federation across 15+ modules.\n` +
+          `• **Claude Skills & AI Innovation**: Spearheaded the **Claude Skills Initiative**, developing reusable AI skills that automated UI Schema generation, test suites, and documentation—compressing development time from ~20 days to 5 days. Integrated IBM AI chatbots into Call Center and Order Management applications.\n` +
+          `• **Proven Enterprise Delivery**: Architected 30+ global digital platforms for Bayer and the US Bank authentication portal at Cognizant, plus Kohl's Omnichannel Mobile & Tablet (m.kohls.com), Adidas, and Kraft platforms at Skava/Infosys.\n` +
+          `• **Education & Honors**: Master of Computer Applications (MCA, 8.28 CGPA / 82.8%) from Dr. Mahalingam College of Engineering & Technology; Top Performer of 2023 at Nextuple, Best Performer 2019 & 2020 at Cognizant.\n\n` +
+          `Feel free to ask about any specific project, architectural challenge, or download my [Resume PDF](/resume.pdf) directly!`;
+      } else if (query.includes('location') || query.includes('where') || query.includes('city') || query.includes('address') || query.includes('based')) {
         reply = `Sathyanantham V is based in **Coimbatore, Tamil Nadu, India**.\n\n` +
           `• **Location**: Coimbatore, Tamil Nadu, India (Open to Remote / Relocation for strategic lead roles).\n` +
           `• **Contact Email**: v.sathyanantham@gmail.com\n` +

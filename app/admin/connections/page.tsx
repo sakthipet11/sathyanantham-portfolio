@@ -620,8 +620,8 @@ export default function AdminConnectionsPage() {
 
       {/* Add / Edit Connection Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95">
+        <div data-lenis-prevent className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overscroll-contain">
+          <div data-lenis-prevent className="bg-card border border-border rounded-xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 overscroll-contain">
             <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <h2 className="text-sm font-bold font-mono text-foreground flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-primary" />

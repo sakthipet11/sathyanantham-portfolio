@@ -1121,8 +1121,8 @@ export default function AdminJobsPage() {
           MODAL 1: Search by Job Description (Mobile & Desktop Responsive)
       ========================================================================= */}
       {jdSearchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-5 my-auto text-foreground animate-fade-in">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-5 my-auto text-foreground animate-fade-in overscroll-contain">
             <div className="flex items-start justify-between border-b border-border pb-4 gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
@@ -1271,8 +1271,8 @@ export default function AdminJobsPage() {
           MODAL 2: Job Discovery Settings (Mobile & Desktop Responsive)
       ========================================================================= */}
       {settingsModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-5 my-auto text-foreground animate-fade-in">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-5 my-auto text-foreground animate-fade-in overscroll-contain">
             <div className="flex items-start justify-between border-b border-border pb-4 gap-3">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
@@ -1737,8 +1737,8 @@ export default function AdminJobsPage() {
           MODAL 3: ATS Radar & Score Breakdown (Mobile & Desktop Responsive)
       ========================================================================= */}
       {selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto">
-          <div className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-5 my-auto text-foreground animate-fade-in">
+        <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-background/80 backdrop-blur-md overflow-y-auto overscroll-contain">
+          <div data-lenis-prevent className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-card border border-border/80 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-5 my-auto text-foreground animate-fade-in overscroll-contain">
             <div className="flex items-start justify-between border-b border-border pb-4 gap-3">
               <div>
                 <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-[10px] uppercase font-mono tracking-wider font-bold">

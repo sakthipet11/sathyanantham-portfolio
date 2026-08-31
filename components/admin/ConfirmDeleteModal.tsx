@@ -48,8 +48,8 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in font-sans">
-      <div className="w-full max-w-md bg-card/95 border border-destructive/40 rounded-2xl p-6 shadow-2xl backdrop-blur-2xl space-y-5">
+    <div data-lenis-prevent className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-fade-in font-sans overscroll-contain">
+      <div data-lenis-prevent className="w-full max-w-md bg-card/95 border border-destructive/40 rounded-2xl p-6 shadow-2xl backdrop-blur-2xl space-y-5 overscroll-contain">
         <div className="flex items-start justify-between border-b border-border/80 pb-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive">

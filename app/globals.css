@@ -92,6 +92,17 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Modal Open Scroll-Lock Contract across all pages */
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+[data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
 /* Standard Section Spacing Token Contract:
  * - Primary Portfolio Sections: py-16 md:py-24 (64px mobile, 96px desktop)
  * - Compact Banner Sections: py-14 md:py-20 (56px mobile, 80px desktop)

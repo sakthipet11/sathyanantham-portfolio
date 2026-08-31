@@ -14,28 +14,20 @@ load_dotenv()
 def get_llm_api_key() -> str:
     return (
         os.getenv("LLM_API_KEY") or
-        os.getenv("OPENROUTER_API_KEY") or
-        os.getenv("NEXT_PUBLIC_OPENROUTER_API_KEY") or
-        os.getenv("OPENAI_API_KEY") or
         ""
     ).strip()
 
 def get_llm_base_url() -> str:
     base = (
-        os.getenv("LLM_BASE_URL") or
-        os.getenv("LLM_API_BASE") or
-        os.getenv("OPENROUTER_BASE_URL") or
-        "https://integrate.api.nvidia.com/v1"
+        os.getenv("LLM_BASE_URL") or ""
     ).strip().rstrip("/")
     return base
 
 def get_llm_default_model() -> str:
     return (
         os.getenv("LLM_MODEL") or
-        os.getenv("OPENROUTER_API_MODEL") or
         os.getenv("NEXT_PUBLIC_LLM_MODEL") or
-        os.getenv("NEXT_PUBLIC_OPENROUTER_API_MODEL") or
-        "nvidia/nemotron-3-super-120b-a12b"
+        ""
     ).strip()
 
 
@@ -51,7 +43,18 @@ class GenericLLMProvider:
     def __init__(self, model: Optional[str] = None, base_url: Optional[str] = None, api_key: Optional[str] = None):
         self.api_key = api_key or get_llm_api_key()
         self.base_url = (base_url or get_llm_base_url()).rstrip("/")
-        self.model = model or get_llm_default_model()
+        
+        default_model = get_llm_default_model()
+        chosen = (model or default_model).strip()
+        
+        # When using NVIDIA integrate API, sanitize model name and clean legacy suffixes
+        if "nvidia.com" in self.base_url:
+            clean_model = chosen.replace(":free", "").strip()
+            if not clean_model or "ultra-550b" in clean_model:
+                clean_model = default_model
+            self.model = clean_model
+        else:
+            self.model = chosen
 
     def get_chat_completions_url(self) -> str:
         if self.base_url.endswith("/chat/completions"):
@@ -93,36 +96,57 @@ class GenericLLMProvider:
         if max_tokens:
             payload["max_tokens"] = max_tokens
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        timeout_config = httpx.Timeout(timeout, connect=8.0)
+        models_to_try = [self.model]
+        if "nvidia.com" in self.base_url:
+            for candidate in ["nvidia/nemotron-3-nano-30b-a3b", "nvidia/nemotron-3-super-120b-a12b"]:
+                if candidate not in models_to_try:
+                    models_to_try.append(candidate)
+
+        for candidate_model in models_to_try:
+            payload["model"] = candidate_model
+            chunks_yielded = 0
             if not stream:
                 try:
-                    res = await client.post(url, headers=headers, json=payload)
-                    res.raise_for_status()
-                    data = res.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    yield content
+                    async with httpx.AsyncClient(timeout=timeout_config) as client:
+                        res = await client.post(url, headers=headers, json=payload)
+                        res.raise_for_status()
+                        data = res.json()
+                        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        if content:
+                            self.model = candidate_model
+                            yield content
+                            return
                 except Exception as err:
-                    print(f"[LLM_PROVIDER] Non-streaming error from {url} ({self.model}): {err}")
-                    raise
+                    print(f"[LLM_PROVIDER] Non-streaming error with {candidate_model}: {err}")
+                    continue
             else:
                 try:
-                    async with client.stream("POST", url, headers=headers, json=payload) as response:
-                        response.raise_for_status()
-                        async for line in response.aiter_lines():
-                            if line.startswith("data: "):
-                                data_str = line[6:].strip()
-                                if data_str == "[DONE]":
-                                    break
-                                try:
-                                    chunk_json = json.loads(data_str)
-                                    content_chunk = chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                                    if content_chunk:
-                                        yield content_chunk
-                                except Exception:
-                                    pass
+                    async with httpx.AsyncClient(timeout=timeout_config) as client:
+                        async with client.stream("POST", url, headers=headers, json=payload) as response:
+                            response.raise_for_status()
+                            async for line in response.aiter_lines():
+                                if line.startswith("data: "):
+                                    data_str = line[6:].strip()
+                                    if data_str == "[DONE]":
+                                        break
+                                    try:
+                                        chunk_json = json.loads(data_str)
+                                        content_chunk = chunk_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                        if content_chunk:
+                                            if chunks_yielded == 0:
+                                                self.model = candidate_model
+                                            chunks_yielded += 1
+                                            yield content_chunk
+                                    except Exception:
+                                        pass
+                            if chunks_yielded > 0:
+                                return
                 except Exception as err:
-                    print(f"[LLM_PROVIDER] Streaming error from {url} ({self.model}): {err}")
-                    raise
+                    print(f"[LLM_PROVIDER] Streaming error with {candidate_model}: {err}")
+                    if chunks_yielded > 0:
+                        return
+                    continue
 
     async def generate_json(
         self,
